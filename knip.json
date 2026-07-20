@@ -1,0 +1,37 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "tags": ["-lintignore"],
+  "prettier": {
+    "config": [".prettierrc"]
+  },
+  "eslint": {
+    "config": ["eslint.config.mjs"]
+  },
+  "typescript": {
+    "config": ["tsconfig.json"]
+  },
+  "postcss": {
+    "config": ["postcss.config.{mjs,js}"]
+  },
+  "ignore": [
+    "components/ui/*",
+    "prisma/schema.prisma",
+    "lib/db.ts",
+    "repositories/*.ts",
+    "services/*.ts",
+    "env.ts"
+  ],
+  "ignoreDependencies": [
+    "@neondatabase/serverless",
+    "@prisma/adapter-neon",
+    "@prisma/adapter-pg",
+    "@prisma/client",
+    "pg",
+    "ws",
+    "react-hook-form",
+    "@types/pg",
+    "@types/ws",
+    "ts-node",
+    "tsx"
+  ]
+}

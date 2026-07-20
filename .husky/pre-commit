@@ -1,0 +1,2 @@
+#!/bin/dash
+pnpm exec lint-staged 

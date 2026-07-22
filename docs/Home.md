@@ -97,6 +97,7 @@ This is the central documentation index for the project.
 
 ### Architecture
 
+- Authentication - Better Auth integration and RBAC authorization.
 - Architecture - Layered architecture definition.
 - Project Context - Vision, goals, and priorities.
 - Tech Stack - Technology justification.
@@ -107,6 +108,11 @@ This is the central documentation index for the project.
 - Components - Component architecture and rules.
 - Database - Database architecture documentation.
 - Git Workflow - Git workflow and conventions.
+- NoctisNova Doctor Suite - CLI tools for ORM, auth, dead code, and structure analysis.
+  - [ORM Doctor](Development/ORM%20Doctor.md) - ORM and database bottleneck scanner.
+  - [Auth Doctor](Development/Auth%20Doctor.md) - Authentication and security vulnerability scanner.
+  - [Dead Doctor](Development/Dead%20Doctor.md) - Dead code and unused export finder.
+  - [Neat Doctor](Development/Neat%20Doctor.md) - Code structure and dependency analyser.
 
 ### AI
 

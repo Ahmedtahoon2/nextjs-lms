@@ -14,22 +14,31 @@ Project documentation status and overview.
 
 ---
 
+# Authentication
+
+- Provider: Better Auth
+- Adapter: Prisma (PostgreSQL/Neon)
+- Authorization: RBAC
+- Sessions: Database-backed with cookie cache
+
+---
+
 # Documentation Completeness
 
-| Folder        | Files       | Status                  |
-| ------------- | ----------- | ----------------------- |
-| rules/        | 8 files     | Complete                |
-| meta/         | 3 files     | Complete                |
-| skills/       | 4 files     | Complete                |
-| flows/        | 5 files     | Complete                |
-| audits/       | 6 files     | Complete                |
-| deliverables/ | 3 files     | Complete                |
-| concepts/     | 6 files     | Complete                |
-| decisions/    | 4 files     | Complete                |
-| reference/    | Placeholder | Pending population      |
-| ADR/          | Empty       | Pending first decision  |
-| API/          | 1 file      | Database documented     |
-| Development/  | 1 file      | Git workflow documented |
+| Folder        | Files       | Status                                            |
+| ------------- | ----------- | ------------------------------------------------- |
+| rules/        | 8 files     | Complete                                          |
+| meta/         | 3 files     | Complete                                          |
+| skills/       | 4 files     | Complete                                          |
+| flows/        | 5 files     | Complete                                          |
+| audits/       | 6 files     | Complete                                          |
+| deliverables/ | 3 files     | Complete                                          |
+| concepts/     | 6 files     | Complete                                          |
+| decisions/    | 4 files     | Complete                                          |
+| reference/    | Placeholder | Pending population                                |
+| ADR/          | Empty       | Pending first decision                            |
+| API/          | 1 file      | Database documented                               |
+| Development/  | 6 files     | Git workflow + NoctisNova Doctor Suite documented |
 
 ---
 

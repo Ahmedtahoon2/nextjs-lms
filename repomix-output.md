@@ -96,7 +96,12 @@ docs/
     Quickstart.md
     Unified Pre-Flight Mega Checklist.md
   Development/
+    Auth Doctor.md
+    Dead Doctor.md
     Git.md
+    Neat Doctor.md
+    NoctisNova Doctor Suite.md
+    ORM Doctor.md
   flows/
     Audit Pipeline Flow.md
     Build Greenfield (Prompt 1).md
@@ -127,6 +132,8 @@ docs/
     Make Interfaces Feel Better.md
     Taste Skill Project.md
     Vercel Web Design Guidelines.md
+  tasks/
+    task-1.md
   AI Instructions.md
   Architecture.md
   Coding Standards.md
@@ -175,6 +182,1042 @@ tsconfig.json
 ```
 
 # Files
+
+## File: docs/Development/Auth Doctor.md
+
+````markdown
+1: # Auth Doctor
+2:
+3: Static analysis CLI for authentication and security vulnerabilities in Next.js TypeScript codebases.
+4:
+5: ---
+6:
+7: # Overview
+8:
+9: Auth Doctor scans your Next.js application for common authentication and security issues including unprotected routes, hardcoded secrets, JWT misuse, and missing CSRF protection. Middleware-aware: routes already gated by an auth middleware matcher are not false-flagged.
+10:
+11: Built by [NoctisNova](https://noctisnova.com).
+12:
+13: ---
+14:
+15: # Installation
+16:
+17: No install required. Run directly via `npx`:
+18:
+19: `bash
+ 20: npx auth-doctor
+ 21: `
+22:
+23: Global install (optional):
+24:
+25: `bash
+ 26: npm install -g auth-doctor
+ 27: auth-doctor
+ 28: `
+29:
+30: ---
+31:
+32: # Usage
+33:
+34: `bash
+ 35: npx auth-doctor
+ 36: `
+37:
+38: Scan a specific directory:
+39:
+40: `bash
+ 41: npx auth-doctor ./my-app
+ 42: `
+43:
+44: ---
+45:
+46: # CLI Options
+47:
+48: | Option | Description |
+49: | --- | --- |
+50: | `[path]` | Target directory to scan (default: current directory) |
+51: | `--json` | Output raw JSON to stdout (CI mode) |
+52: | `--no-ai` | Skip the AI agent hand-off menu |
+53: | `--version, -v` | Print version and exit |
+54: | `--help, -h` | Show help message |
+55:
+56: ---
+57:
+58: # What It Detects
+59:
+60: - **Unprotected routes and Server Actions** - API routes and Server Actions with no auth check.
+61: - **IDOR / missing ownership** - Data fetched without verifying the caller owns it.
+62: - **Hardcoded secrets** - API keys, JWT secrets, and tokens committed in source code.
+63: - **NEXT_PUBLIC\_ leaks** - Sensitive values accidentally exposed to the browser.
+64: - **JWT without verification** - Tokens decoded but signature never verified.
+65: - **localStorage sessions** - Auth tokens stored in localStorage instead of httpOnly cookies.
+66: - **Missing rate limiting** - Login, reset, and OTP endpoints with no abuse protection.
+67: - **Open redirects** - Redirect destinations controlled by user-supplied input.
+68: - **Sensitive field exposure** - Password / token fields returned in API responses.
+69: - **Missing CSRF protection** - State-mutating endpoints without CSRF tokens.
+70:
+71: ---
+72:
+73: # Examples
+74:
+75: Basic scan:
+76:
+77: `bash
+ 78: npx auth-doctor
+ 79: `
+80:
+81: Scan a specific app directory:
+82:
+83: `bash
+ 84: npx auth-doctor ./src
+ 85: `
+86:
+87: JSON output for CI:
+88:
+89: `bash
+ 90: npx auth-doctor --json
+ 91: `
+92:
+93: Skip AI agent menu:
+94:
+95: `bash
+ 96: npx auth-doctor --no-ai
+ 97: `
+98:
+99: ---
+100:
+101: # Output
+102:
+103: Auth Doctor produces:
+104:
+105: 1. A scored health report (0-100) displayed in the terminal.
+106: 2. A `.auth-doctor-report.json` file saved in the project root for AI-assisted fixes.
+107:
+108: The report categorizes findings by severity and type, listing each issue with file location and suggested fix.
+109:
+110: ---
+111:
+112: # Common Workflows
+113:
+114: **After implementing authentication:**
+115:
+116: `bash
+117: npx auth-doctor
+118: `
+119:
+120: Verify that all routes and Server Actions have proper auth checks.
+121:
+122: **Before production deploy:**
+123:
+124: `bash
+125: npx auth-doctor
+126: `
+127:
+128: Ensure no secrets are hardcoded and all sensitive endpoints are protected.
+129:
+130: **CI pipeline integration:**
+131:
+132: `bash
+133: npx auth-doctor --json --no-ai
+134: `
+135:
+136: Gate deployments on authentication health scores.
+137:
+138: **After adding new API routes:**
+139:
+140: `bash
+141: npx auth-doctor
+142: `
+143:
+144: Confirm new routes have ownership checks and rate limiting.
+145:
+146: ---
+147:
+148: # Best Practices
+149:
+150: - Run Auth Doctor after every authentication-related change.
+151: - Never hardcode secrets. Use environment variables validated by `@t3-oss/env-nextjs`.
+152: - Store auth tokens in httpOnly cookies, not localStorage.
+153: - Implement CSRF protection on all state-mutating endpoints.
+154: - Add rate limiting to login, password reset, and OTP endpoints.
+155: - Run with `--json` in CI to track security health score trends.
+156:
+157: ---
+158:
+159: # Troubleshooting
+160:
+161: **False positives on protected routes:**
+162:
+163: - Auth Doctor is middleware-aware. Ensure your `middleware.ts` has a proper `matcher` config if routes are protected at the middleware level.
+164:
+165: **Tool does not detect any issues:**
+166:
+167: - Ensure you are running from the project root.
+168: - Verify that Node.js version is 18 or later.
+169: - Check that your routes follow Next.js App Router conventions.
+170:
+171: **Report file not generated:**
+172:
+173: - Confirm write permissions in the project root directory.
+174: - Check available disk space.
+175:
+176: ---
+177:
+178: # Requirements
+179:
+180: - Node.js 18+
+181:
+182: ---
+183:
+184: # References
+185:
+186: - **NPM:** [https://www.npmjs.com/package/auth-doctor](https://www.npmjs.com/package/auth-doctor)
+187: - **GitHub:** [https://github.com/noctisnovastudio/auth-doctor](https://github.com/noctisnovastudio/auth-doctor)
+188: - **Issues:** [https://github.com/noctisnovastudio/auth-doctor/issues](https://github.com/noctisnovastudio/auth-doctor/issues)
+189: - **Homepage:** [https://noctisnova.com](https://noctisnova.com)
+````
+
+## File: docs/Development/Dead Doctor.md
+
+````markdown
+1: # Dead Doctor
+2:
+3: Static analysis CLI that finds dead code, unused exports, ghost pages, zombie dependencies, and leftover commented blocks in TypeScript and Next.js codebases.
+4:
+5: ---
+6:
+7: # Overview
+8:
+9: Dead Doctor uses import-graph BFS to identify unreachable modules, unused exports, duplicate files, and zombie dependencies. It produces a scored health report (0-100) and can generate cleanup scripts for safe removal.
+10:
+11: Built by [NoctisNova](https://noctisnova.com).
+12:
+13: ---
+14:
+15: # Installation
+16:
+17: No install required. Run directly via `npx`:
+18:
+19: `bash
+ 20: npx dead-doctor
+ 21: `
+22:
+23: Global install (optional):
+24:
+25: `bash
+ 26: npm install -g dead-doctor
+ 27: dead-doctor
+ 28: `
+29:
+30: ---
+31:
+32: # Usage
+33:
+34: `bash
+ 35: npx dead-doctor
+ 36: `
+37:
+38: Scan a specific directory:
+39:
+40: `bash
+ 41: npx dead-doctor ./my-app
+ 42: `
+43:
+44: ---
+45:
+46: # CLI Options
+47:
+48: | Option | Description |
+49: | --- | --- |
+50: | `[path]` | Target directory to scan (default: current directory) |
+51: | `--json` | Output raw JSON to stdout (CI mode) |
+52: | `--no-ai` | Skip the AI agent hand-off menu |
+53: | `--version, -v` | Print version and exit |
+54: | `--help, -h` | Show help message |
+55:
+56: ---
+57:
+58: # What It Detects
+59:
+60: - **Dead files** - Whole modules unreachable from any entry point (import-graph BFS).
+61: - **Unused exports** - Exported symbols proven unused by resolving every import edge.
+62: - **Duplicate files** - Byte-identical modules (after stripping comments/whitespace).
+63: - **Dead pages** - Next.js App Router pages with no inbound links.
+64: - **Unused imports** - Imports brought in but never used in the file.
+65: - **Empty files** - Source files with no meaningful content.
+66: - **Zombie deps** - Packages in `package.json` never imported in code.
+67: - **Commented blocks** - Large commented-out code blocks (8 or more lines).
+68: - **Unreachable code** - Code after unconditional `return` / `throw`.
+69:
+70: ---
+71:
+72: # Cleanup Scripts
+73:
+74: The agent menu can generate cleanup scripts in multiple formats:
+75:
+76: - `dead-doctor-cleanup.sh` - Bash script with reviewable `git rm` and `npm uninstall` commands.
+77: - `dead-doctor-cleanup.ps1` - PowerShell script.
+78: - `dead-doctor-cleanup.md` - Markdown summary.
+79:
+80: Nothing is deleted automatically. All cleanup commands must be reviewed and executed manually.
+81:
+82: ---
+83:
+84: # Examples
+85:
+86: Basic scan:
+87:
+88: `bash
+ 89: npx dead-doctor
+ 90: `
+91:
+92: Scan a specific app directory:
+93:
+94: `bash
+ 95: npx dead-doctor ./src
+ 96: `
+97:
+98: JSON output for CI:
+99:
+100: `bash
+101: npx dead-doctor --json
+102: `
+103:
+104: Skip AI agent menu:
+105:
+106: `bash
+107: npx dead-doctor --no-ai
+108: `
+109:
+110: ---
+111:
+112: # Output
+113:
+114: Dead Doctor produces:
+115:
+116: 1. A scored health report (0-100) displayed in the terminal.
+117: 2. A `.dead-doctor-report.json` file saved in the project root for AI-assisted fixes.
+118: 3. Optional cleanup scripts (via the AI agent menu) for safe removal of dead code.
+119:
+120: The report categorizes findings by type, listing each issue with file location and suggested action.
+121:
+122: ---
+123:
+124: # Common Workflows
+125:
+126: **Before a production deploy:**
+127:
+128: `bash
+129: npx dead-doctor
+130: `
+131:
+132: Remove dead code and unused dependencies to reduce bundle size and improve maintainability.
+133:
+134: **After a major refactor:**
+135:
+136: `bash
+137: npx dead-doctor
+138: `
+139:
+140: Identify files and exports that are no longer referenced after restructuring.
+141:
+142: **CI pipeline integration:**
+143:
+144: `bash
+145: npx dead-doctor --json --no-ai
+146: `
+147:
+148: Track dead code trends over time and gate deployments on health scores.
+149:
+150: **Periodic cleanup:**
+151:
+152: `bash
+153: npx dead-doctor
+154: `
+155:
+156: Run monthly or quarterly to keep the codebase lean.
+157:
+158: ---
+159:
+160: # Best Practices
+161:
+162: - Run Dead Doctor before production deploys to minimize bundle size.
+163: - Review cleanup scripts before executing. Never run them blindly.
+164: - Address zombie dependencies first as they have the highest impact on bundle size.
+165: - Remove dead pages to avoid confusion and broken navigation.
+166: - Run with `--json` in CI to track dead code trends over time.
+167: - Combine with `npx knip` (already configured in this project) for additional coverage.
+168:
+169: ---
+170:
+171: # Troubleshooting
+172:
+173: **False positives on dead files:**
+174:
+175: - Dead Doctor uses import-graph BFS. Dynamic imports and `require()` calls may not be fully traced. Review findings manually for dynamically loaded modules.
+176:
+177: **Tool does not detect any issues:**
+178:
+179: - Ensure you are running from the project root.
+180: - Verify that Node.js version is 18 or later.
+181:
+182: **Cleanup script does not cover all findings:**
+183:
+184: - The cleanup script is generated from the AI agent menu. Run the full scan first, then use the menu to generate the script.
+185:
+186: **Report file not generated:**
+187:
+188: - Confirm write permissions in the project root directory.
+189: - Check available disk space.
+190:
+191: ---
+192:
+193: # Requirements
+194:
+195: - Node.js 18+
+196:
+197: ---
+198:
+199: # References
+200:
+201: - **NPM:** [https://www.npmjs.com/package/dead-doctor](https://www.npmjs.com/package/dead-doctor)
+202: - **GitHub:** [https://github.com/noctisnovastudio/dead-doctor](https://github.com/noctisnovastudio/dead-doctor)
+203: - **Issues:** [https://github.com/noctisnovastudio/dead-doctor/issues](https://github.com/noctisnovastudio/dead-doctor/issues)
+204: - **Homepage:** [https://noctisnova.com](https://noctisnova.com)
+````
+
+## File: docs/Development/Neat Doctor.md
+
+````markdown
+1: # Neat Doctor
+2:
+3: Code structure analyser for TypeScript and Next.js codebases. Detects circular dependencies, orphan files, naming drift, god files, and deep imports. Generates safe `git mv` migration scripts.
+4:
+5: ---
+6:
+7: # Overview
+8:
+9: Neat Doctor combines structure analysis (folder organization, naming conventions, file placement) with import-dependency-graph analysis (circular dependencies, orphan files, god files). It produces a scored health report (0-100) and generates reviewable `git mv` migration scripts to restructure your codebase safely.
+10:
+11: Built by [NoctisNova](https://noctisnova.com).
+12:
+13: ---
+14:
+15: # Installation
+16:
+17: No install required. Run directly via `npx`:
+18:
+19: `bash
+ 20: npx neat-doctor
+ 21: `
+22:
+23: Global install (optional):
+24:
+25: `bash
+ 26: npm install -g neat-doctor
+ 27: neat-doctor
+ 28: `
+29:
+30: ---
+31:
+32: # Usage
+33:
+34: `bash
+ 35: npx neat-doctor
+ 36: `
+37:
+38: Scan a specific directory:
+39:
+40: `bash
+ 41: npx neat-doctor ./my-app
+ 42: `
+43:
+44: ---
+45:
+46: # CLI Options
+47:
+48: | Option | Description |
+49: | --- | --- |
+50: | `[path]` | Target directory to scan (default: current directory) |
+51: | `--tree` | Show annotated ASCII tree of current structure |
+52: | `--recommend` | Show recommended clean structure |
+53: | `--json` | Output raw JSON to stdout (CI mode) |
+54: | `--no-ai` | Skip the AI agent hand-off menu |
+55: | `--depth <n>` | Tree render depth (default: 4) |
+56: | `--version, -v` | Print version and exit |
+57: | `--help, -h` | Show help message |
+58:
+59: ---
+60:
+61: # What It Detects
+62:
+63: ## Structure Analysis
+64:
+65: - **Root chaos** - Source files dumped in the project root.
+66: - **Duplicate concepts** - `utils/` AND `helpers/` AND `lib/` at the same level.
+67: - **Deep nesting** - Folders more than 5 levels deep.
+68: - **Fat folders** - 18+ files with no subdirectory grouping.
+69: - **Misplaced files** - Components in `utils/`, config files in `src/`.
+70: - **Naming mix** - Kebab-case folders next to PascalCase folders.
+71: - **Missing barrels** - Folders with 3+ exports but no `index.ts`.
+72: - **Scattered config** - `*.config.ts` nested inside `src/`.
+73: - **Empty directories** - Folders with nothing in them.
+74:
+75: ## Import-Dependency-Graph Analysis
+76:
+77: - **Circular deps** - True import cycles via Tarjan SCC detection.
+78: - **Orphan files** - Files nothing imports (proven dead via the graph).
+79: - **God files** - 400+ lines or 30+ imports (low cohesion).
+80: - **Deep imports** - `../../../` chains that should be path aliases.
+81:
+82: ---
+83:
+84: # Examples
+85:
+86: Basic scan:
+87:
+88: `bash
+ 89: npx neat-doctor
+ 90: `
+91:
+92: Show ASCII tree of current structure:
+93:
+94: `bash
+ 95: npx neat-doctor --tree
+ 96: `
+97:
+98: Show recommended clean structure:
+99:
+100: `bash
+101: npx neat-doctor --recommend
+102: `
+103:
+104: Show tree with custom depth:
+105:
+106: `bash
+107: npx neat-doctor --tree --depth 6
+108: `
+109:
+110: JSON output for CI:
+111:
+112: `bash
+113: npx neat-doctor --json
+114: `
+115:
+116: Scan a specific directory:
+117:
+118: `bash
+119: npx neat-doctor ./src
+120: `
+121:
+122: Skip AI agent menu:
+123:
+124: `bash
+125: npx neat-doctor --no-ai
+126: `
+127:
+128: ---
+129:
+130: # Output
+131:
+132: Neat Doctor produces:
+133:
+134: 1. A scored health report (0-100) displayed in the terminal.
+135: 2. A `.neat-doctor-report.json` file saved in the project root for AI-assisted fixes.
+136: 3. Reviewable `git mv` migration scripts (via the AI agent menu).
+137:
+138: The report categorizes findings by type (structure vs. dependency graph), listing each issue with file location and suggested fix.
+139:
+140: ---
+141:
+142: # Common Workflows
+143:
+144: **After a major refactor:**
+145:
+146: `bash
+147: npx neat-doctor
+148: `
+149:
+150: Verify that the refactoring did not introduce circular dependencies or structural issues.
+151:
+152: **Before onboarding a new developer:**
+153:
+154: `bash
+155: npx neat-doctor --tree
+156: `
+157:
+158: Share the annotated structure tree to help new team members understand the codebase layout.
+159:
+160: **CI pipeline integration:**
+161:
+162: `bash
+163: npx neat-doctor --json --no-ai
+164: `
+165:
+166: Track structural health scores over time.
+167:
+168: **Planning a restructuring:**
+169:
+170: `bash
+171: npx neat-doctor --recommend
+172: `
+173:
+174: View the recommended clean structure before making changes.
+175:
+176: ---
+177:
+178: # Best Practices
+179:
+180: - Run Neat Doctor after major refactors to catch circular dependencies early.
+181: - Use `--tree` to visualize and share the current project structure.
+182: - Use `--recommend` to plan restructuring before executing changes.
+183: - Address circular dependencies immediately as they prevent proper tree-shaking and testing.
+184: - Address god files by extracting logic into smaller, focused modules.
+185: - Use path aliases instead of deep relative imports (`../../../`).
+186: - Run with `--json` in CI to track structural health trends.
+187:
+188: ---
+189:
+190: # Troubleshooting
+191:
+192: **False positives on circular dependencies:**
+193:
+194: - Neat Doctor uses Tarjan SCC detection for true import cycles. Type-only imports may sometimes be flagged. Review findings manually for type-only cycles.
+195:
+196: **Tool does not detect any issues:**
+197:
+198: - Ensure you are running from the project root.
+199: - Verify that Node.js version is 18 or later.
+200: - Check that your project follows standard TypeScript conventions.
+201:
+202: **Migration scripts look incorrect:**
+203:
+204: - Always review `git mv` scripts before executing. The scripts are suggestions based on the analysis, not automatic fixes.
+205:
+206: **Report file not generated:**
+207:
+208: - Confirm write permissions in the project root directory.
+209: - Check available disk space.
+210:
+211: ---
+212:
+213: # Requirements
+214:
+215: - Node.js 18+
+216:
+217: ---
+218:
+219: # References
+220:
+221: - **NPM:** [https://www.npmjs.com/package/neat-doctor](https://www.npmjs.com/package/neat-doctor)
+222: - **GitHub:** [https://github.com/noctisnovastudio/neat-doctor](https://github.com/noctisnovastudio/neat-doctor)
+223: - **Issues:** [https://github.com/noctisnovastudio/neat-doctor/issues](https://github.com/noctisnovastudio/neat-doctor/issues)
+224: - **Homepage:** [https://noctisnova.com](https://noctisnova.com)
+````
+
+## File: docs/Development/NoctisNova Doctor Suite.md
+
+````markdown
+1: # NoctisNova Doctor Suite
+2:
+3: Open-source CLI tools for static analysis of TypeScript and Next.js codebases. Zero-install, zero-config, zero-telemetry.
+4:
+5: ---
+6:
+7: # Overview
+8:
+9: The NoctisNova Doctor Suite is a collection of four specialized static analysis CLIs built by [NoctisNova](https://noctisnova.com). Each tool targets a different category of code quality issues. All tools run via `npx` with no configuration required.
+10:
+11: | Tool | Focus | Report File |
+12: | --- | --- | --- |
+13: | [ORM Doctor](ORM%20Doctor.md) | Database and ORM bottlenecks | `.orm-doctor-report.json` |
+14: | [Auth Doctor](Auth%20Doctor.md) | Authentication and security vulnerabilities | `.auth-doctor-report.json` |
+15: | [Dead Doctor](Dead%20Doctor.md) | Dead code and unused exports | `.dead-doctor-report.json` |
+16: | [Neat Doctor](Neat%20Doctor.md) | Code structure and dependency graph | `.neat-doctor-report.json` |
+17:
+18: All tools share common traits:
+19:
+20: - Node.js 18+ required.
+21: - MIT licensed.
+22: - No telemetry. Nothing leaves your machine.
+23: - Produces a scored health report (0-100).
+24: - Saves a JSON report file for AI-assisted fixes.
+25:
+26: ---
+27:
+28: # Quick Start
+29:
+30: Run any tool directly from the project root:
+31:
+32: `bash
+ 33: npx orm-doctor
+ 34: npx auth-doctor
+ 35: npx dead-doctor
+ 36: npx neat-doctor
+ 37: `
+38:
+39: Target a specific directory:
+40:
+41: `bash
+ 42: npx orm-doctor ./my-app
+ 43: npx auth-doctor ./my-app
+ 44: npx dead-doctor ./my-app
+ 45: npx neat-doctor ./my-app
+ 46: `
+47:
+48: Output JSON for CI pipelines:
+49:
+50: `bash
+ 51: npx orm-doctor --json
+ 52: npx auth-doctor --json
+ 53: npx dead-doctor --json
+ 54: npx neat-doctor --json
+ 55: `
+56:
+57: Skip the AI agent hand-off menu:
+58:
+59: `bash
+ 60: npx orm-doctor --no-ai
+ 61: npx auth-doctor --no-ai
+ 62: npx dead-doctor --no-ai
+ 63: `
+64:
+65: ---
+66:
+67: # Tool Comparison
+68:
+69: | Feature | ORM Doctor | Auth Doctor | Dead Doctor | Neat Doctor |
+70: | --- | --- | --- | --- | --- |
+71: | Version | 1.0.2 | 1.0.3 | 1.0.5 | 1.0.3 |
+72: | N+1 Queries | Yes | - | - | - |
+73: | Missing Indexes | Yes | - | - | - |
+74: | Raw SQL Detection | Yes | - | - | - |
+75: | Unprotected Routes | - | Yes | - | - |
+76: | Hardcoded Secrets | - | Yes | - | - |
+77: | CSRF Detection | - | Yes | - | - |
+78: | Dead Files | - | - | Yes | - |
+79: | Unused Exports | - | - | Yes | - |
+80: | Zombie Dependencies | - | - | Yes | - |
+81: | Circular Dependencies | - | - | - | Yes |
+82: | Structure Analysis | - | - | - | Yes |
+83: | Migration Scripts | - | - | Yes (cleanup) | Yes (git mv) |
+84: | ASCII Tree View | - | - | - | Yes |
+85: | JSON Output | Yes | Yes | Yes | Yes |
+86: | AI Agent Menu | Yes | Yes | Yes | Yes |
+87:
+88: ---
+89:
+90: # When to Use Each Tool
+91:
+92: | Scenario | Recommended Tool |
+93: | --- | --- |
+94: | Before adding a new database feature | [ORM Doctor](ORM%20Doctor.md) |
+95: | After implementing authentication | [Auth Doctor](Auth%20Doctor.md) |
+96: | Before a production deploy | [Dead Doctor](Dead%20Doctor.md) |
+97: | After a major refactor | [Neat Doctor](Neat%20Doctor.md) |
+98: | Full codebase health check | All four tools |
+99:
+100: ---
+101:
+102: # Recommended Workflow
+103:
+104: 1. Run `npx dead-doctor` to find and remove dead code first.
+105: 2. Run `npx neat-doctor` to fix structural issues and circular dependencies.
+106: 3. Run `npx orm-doctor` to audit database layer health.
+107: 4. Run `npx auth-doctor` to verify security posture.
+108:
+109: ---
+110:
+111: # Requirements
+112:
+113: - Node.js 18 or later.
+114: - Run from the project root directory.
+115: - No additional dependencies or configuration needed.
+116:
+117: ---
+118:
+119: # Related Documentation
+120:
+121: - [Impeccable Toolchain](../skills/Impeccable%20Toolchain.md) - Visual and engineering defect detection.
+122: - [Tech Stack](../Tech%20Stack.md) - Project technology stack.
+123: - [Architecture and Stack](../rules/Architecture%20and%20Stack.md) - Layered architecture rules.
+124:
+125: ---
+126:
+127: # References
+128:
+129: - **Homepage:** [https://noctisnova.com/tools](https://noctisnova.com/tools)
+130: - **ORM Doctor NPM:** [https://www.npmjs.com/package/orm-doctor](https://www.npmjs.com/package/orm-doctor)
+131: - **ORM Doctor GitHub:** [https://github.com/noctisnovastudio/orm-doctor](https://github.com/noctisnovastudio/orm-doctor)
+132: - **Auth Doctor NPM:** [https://www.npmjs.com/package/auth-doctor](https://www.npmjs.com/package/auth-doctor)
+133: - **Auth Doctor GitHub:** [https://github.com/noctisnovastudio/auth-doctor](https://github.com/noctisnovastudio/auth-doctor)
+134: - **Dead Doctor NPM:** [https://www.npmjs.com/package/dead-doctor](https://www.npmjs.com/package/dead-doctor)
+135: - **Dead Doctor GitHub:** [https://github.com/noctisnovastudio/dead-doctor](https://github.com/noctisnovastudio/dead-doctor)
+136: - **Neat Doctor NPM:** [https://www.npmjs.com/package/neat-doctor](https://www.npmjs.com/package/neat-doctor)
+137: - **Neat Doctor GitHub:** [https://github.com/noctisnovastudio/neat-doctor](https://github.com/noctisnovastudio/neat-doctor)
+````
+
+## File: docs/Development/ORM Doctor.md
+
+````markdown
+1: # ORM Doctor
+2:
+3: Static analysis CLI for ORM and database bottlenecks in TypeScript and Prisma/Drizzle codebases.
+4:
+5: ---
+6:
+7: # Overview
+8:
+9: ORM Doctor scans your codebase for common database performance issues including N+1 queries, missing indexes, unsafe raw SQL, and unbounded queries. It produces a scored health report (0-100) and saves a JSON file for AI-assisted fixes.
+10:
+11: Built by [NoctisNova](https://noctisnova.com).
+12:
+13: ---
+14:
+15: # Installation
+16:
+17: No install required. Run directly via `npx`:
+18:
+19: `bash
+ 20: npx orm-doctor
+ 21: `
+22:
+23: Global install (optional):
+24:
+25: `bash
+ 26: npm install -g orm-doctor
+ 27: orm-doctor
+ 28: `
+29:
+30: ---
+31:
+32: # Usage
+33:
+34: `bash
+ 35: npx orm-doctor
+ 36: `
+37:
+38: Scan a specific directory:
+39:
+40: `bash
+ 41: npx orm-doctor ./my-app
+ 42: `
+43:
+44: ---
+45:
+46: # CLI Options
+47:
+48: | Option | Description |
+49: | --- | --- |
+50: | `[path]` | Target directory to scan (default: current directory) |
+51: | `--json` | Output raw JSON to stdout (CI mode) |
+52: | `--no-ai` | Skip the AI agent hand-off menu |
+53: | `--version, -v` | Print version and exit |
+54: | `--help, -h` | Show help message |
+55:
+56: ---
+57:
+58: # What It Detects
+59:
+60: - **N+1 queries** - Database calls inside loops.
+61: - **Missing indexes** - Foreign keys without `@@index` in Prisma schema.
+62: - **Unsafe raw SQL** - `$queryRawUnsafe` / dynamic raw queries.
+63: - **Mass mutations** - `updateMany` / `deleteMany` without `where`.
+64: - **Unbounded queries** - `findMany()` without `take` or cursor.
+65: - **Prisma singleton** - Multiple `new PrismaClient()` instances.
+66: - **Missing transactions** - Multiple writes without `$transaction`.
+67: - **Risky relations** - Missing `onDelete` referential actions.
+68: - **Seed issues** - Slow seeds, hardcoded IDs, missing truncate.
+69:
+70: ---
+71:
+72: # Examples
+73:
+74: Basic scan:
+75:
+76: `bash
+ 77: npx orm-doctor
+ 78: `
+79:
+80: Scan a specific app directory:
+81:
+82: `bash
+ 83: npx orm-doctor ./src
+ 84: `
+85:
+86: JSON output for CI:
+87:
+88: `bash
+ 89: npx orm-doctor --json
+ 90: `
+91:
+92: Skip AI agent menu:
+93:
+94: `bash
+ 95: npx orm-doctor --no-ai
+ 96: `
+97:
+98: ---
+99:
+100: # Output
+101:
+102: ORM Doctor produces:
+103:
+104: 1. A scored health report (0-100) displayed in the terminal.
+105: 2. A `.orm-doctor-report.json` file saved in the project root for AI-assisted fixes.
+106:
+107: The report categorizes findings by severity and type, listing each issue with file location and suggested fix.
+108:
+109: ---
+110:
+111: # Common Workflows
+112:
+113: **Before adding a new database feature:**
+114:
+115: `bash
+116: npx orm-doctor
+117: `
+118:
+119: Review findings, address critical issues, then proceed with new feature development.
+120:
+121: **CI pipeline integration:**
+122:
+123: `bash
+124: npx orm-doctor --json --no-ai
+125: `
+126:
+127: Parse the JSON output in your CI pipeline to gate deployments on ORM health scores.
+128:
+129: **After Prisma schema changes:**
+130:
+131: `bash
+132: npx orm-doctor
+133: `
+134:
+135: Verify that new relations have proper indexes and referential actions defined.
+136:
+137: ---
+138:
+139: # Best Practices
+140:
+141: - Run ORM Doctor before adding new database features.
+142: - Address N+1 query issues immediately as they cause the most performance degradation.
+143: - Always define `@@index` on foreign key fields in your Prisma schema.
+144: - Use `$transaction` for multiple related writes.
+145: - Use `take` or cursor-based pagination on `findMany()` calls.
+146: - Run with `--json` in CI to track health score trends over time.
+147:
+148: ---
+149:
+150: # Troubleshooting
+151:
+152: **Tool does not detect any issues:**
+153:
+154: - Ensure you are running from the project root.
+155: - Verify that your Prisma schema is in the default `prisma/` directory.
+156: - Check that Node.js version is 18 or later.
+157:
+158: **Report file not generated:**
+159:
+160: - Confirm write permissions in the project root directory.
+161: - Check available disk space.
+162:
+163: **False positives on Prisma singleton:**
+164:
+165: - ORM Doctor flags multiple `new PrismaClient()` instances. Ensure your `lib/db.ts` exports a single singleton instance.
+166:
+167: ---
+168:
+169: # Requirements
+170:
+171: - Node.js 18+
+172:
+173: ---
+174:
+175: # References
+176:
+177: - **NPM:** [https://www.npmjs.com/package/orm-doctor](https://www.npmjs.com/package/orm-doctor)
+178: - **GitHub:** [https://github.com/noctisnovastudio/orm-doctor](https://github.com/noctisnovastudio/orm-doctor)
+179: - **Issues:** [https://github.com/noctisnovastudio/orm-doctor/issues](https://github.com/noctisnovastudio/orm-doctor/issues)
+180: - **Homepage:** [https://noctisnova.com](https://noctisnova.com)
+````
+
+## File: docs/tasks/task-1.md
+
+```markdown
+1: # Recommended Project Development Tasks
+2:
+3: This document outlines the top 7 recommended technical tasks to expand the current Next.js 16 + React 19 foundation into a production-ready application adhering to the layered architecture (`UI -> Actions/Routes -> Services -> Repositories -> Database`) and design guidelines.
+4:
+5: ---
+6:
+7: ## Task 1: Complete Authentication System
+8: * **Goal**: Implement secure user sign-up, sign-in, session management, and route protection.
+9: * **Architecture Impact**: Database, Repositories, Services, UI
+10: * **Details**:
+11: - Update `prisma/schema.prisma` with `Account`, `Session`, `VerificationToken`, and `PasswordReset` models.
+12: - Configure Next.js Middleware (`middleware.ts`) to enforce authenticated route boundaries (e.g., `/dashboard`, `/settings`).
+13: - Create `repositories/auth.ts` and `services/auth.ts` to encapsulate auth operations cleanly outside UI logic.
+14:
+15: ---
+16:
+17: ## Task 2: Server Actions & Zod Validation Layer
+18: * **Goal**: Establish the contract layer between the presentation UI and underlying services.
+19: * **Architecture Impact**: Actions, Services
+20: * **Details**:
+21: - Create reusable Zod validation schemas in `@/lib/validations/user.ts` for all mutation payloads.
+22: - Implement Server Actions in `@/actions/user.ts` with explicit type safety, runtime Zod parsing, and structured error responses (`{ success: boolean, data?: T, error?: string }`).
+23: - Ensure Server Actions delegate business logic strictly to `@/services/user.ts`.
+24:
+25: ---
+26:
+27: ## Task 3: Expand shadcn/ui Component Set
+28: * **Goal**: Equip the design system with interactive and feedback primitives required for complex flows.
+29: * **Architecture Impact**: UI
+30: * **Details**:
+31: - Add core missing shadcn/ui components: `dialog`, `dropdown-menu`, `toast`/`sonner`, `skeleton`, `form`, and `avatar`.
+32: - Ensure all interactive primitives follow `docs/Design Rules.md` (40x40px hit areas, `scale(0.96)` active press feedback, three-layer depth shadows).
+33:
+34: ---
+35:
+36: ## Task 4: User Profile & Dashboard Pages (`app/(dashboard)`)
+37: * **Goal**: Build out complete feature views with server-rendered data and interactive forms.
+38: * **Architecture Impact**: UI, Actions, Services
+39: * **Details**:
+40: - Implement route group `app/(dashboard)/page.tsx` for overview metrics and recent activity.
+41: - Build `app/(dashboard)/profile/page.tsx` with React Hook Form + Zod for updating user profile details.
+42: - Leverage React 19 Server Components for primary data fetching and Suspense boundaries for async loading states.
+43:
+44: ---
+45:
+46: ## Task 5: Responsive Shell & Theme Controller (Dark Mode Protocol)
+47: * **Goal**: Provide standard navigation, layout structure, and accessible color scheme management.
+48: * **Architecture Impact**: UI
+49: * **Details**:
+50: - Build persistent `Navbar`, responsive `Sidebar`, and `Footer` layout in `app/(dashboard)/layout.tsx`.
+51: - Integrate `next-themes` or native CSS token switching adhering to `docs/rules/Dark Mode Protocol.md`.
+52: - Ensure optical alignment, single-accent color rules, and proper layout density across mobile and desktop breakpoints.
+53:
+54: ---
+55:
+56: ## Task 6: Comprehensive Boundary Handling
+57: * **Goal**: Ensure graceful handling of unexpected errors, asynchronous fetching, and invalid routes.
+58: * **Architecture Impact**: UI, Routes
+59: * **Details**:
+60: - Create root and route-level `app/error.tsx` with reset triggers and logging integrations.
+61: - Add custom `loading.tsx` skeletons for zero layout shift during server-side data fetching.
+62: - Build standard Empty State components for datasets with zero records.
+63:
+64: ---
+65:
+66: ## Task 7: Repository & Service Integration Test Suite
+67: * **Goal**: Enforce test coverage across data access, domain business logic, and UI rendering.
+68: * **Architecture Impact**: Tests
+69: * **Details**:
+70: - Write unit tests for `repositories/user.ts` using mocked Prisma queries.
+71: - Write integration tests for `services/user.ts` validating business constraint checks and error throws.
+72: - Add UI component tests with `@testing-library/react` and `jest` in `components/__tests__/`.
+```
 
 ## File: .husky/pre-commit
 
@@ -329,22 +1372,23 @@ tsconfig.json
 11: });
 12: export const metadata: Metadata = {
 13:   title: "Next.js Project",
-14:   description: "Maintainable, production-grade software with clean architecture",
-15: };
-16: export default function RootLayout({
-17:   children,
-18: }: Readonly<{
-19:   children: React.ReactNode;
-20: }>) {
-21:   return (
-22:     <html
-23:       lang="en"
-24:       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-25:     >
-26:       <body className="min-h-full flex flex-col">{children}</body>
-27:     </html>
-28:   );
-29: }
+14:   description:
+15:     "Maintainable, production-grade software with clean architecture",
+16: };
+17: export default function RootLayout({
+18:   children,
+19: }: Readonly<{
+20:   children: React.ReactNode;
+21: }>) {
+22:   return (
+23:     <html
+24:       lang="en"
+25:       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+26:     >
+27:       <body className="min-h-full flex flex-col">{children}</body>
+28:     </html>
+29:   );
+30: }
 ```
 
 ## File: app/page.tsx
@@ -376,99 +1420,110 @@ tsconfig.json
  24:           place.
  25:         </p>
  26:         <div className="mt-10 flex flex-col gap-3 sm:flex-row">
- 27:           <Button size="lg" className="active:scale-[0.96] transition-transform">
- 28:             Get Started
- 29:             <ArrowRight className="size-4" />
- 30:           </Button>
- 31:           <Button variant="outline" size="lg" className="active:scale-[0.96] transition-transform">
- 32:             Documentation
+ 27:           <Button
+ 28:             size="lg"
+ 29:             className="active:scale-[0.96] transition-transform"
+ 30:           >
+ 31:             Get Started
+ 32:             <ArrowRight className="size-4" />
  33:           </Button>
- 34:         </div>
- 35:       </section>
- 36:       <section className="border-t border-border px-6 py-16 md:px-12 lg:px-24">
- 37:         <div className="grid gap-8 md:grid-cols-3">
- 38:           <div className="flex flex-col gap-3">
- 39:             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
- 40:               <Layers className="size-5 text-primary" />
- 41:             </div>
- 42:             <h2
- 43:               className="text-lg font-medium text-foreground"
- 44:               style={{ textWrap: "balance" }}
- 45:             >
- 46:               Layered Architecture
- 47:             </h2>
- 48:             <p
- 49:               className="max-w-[65ch] text-sm leading-relaxed text-muted-foreground"
- 50:               style={{ textWrap: "pretty" }}
- 51:             >
- 52:               UI, Actions, Services, Repositories, Database. Business logic
- 53:               never touches the presentation layer.
- 54:             </p>
- 55:           </div>
- 56:           <div className="flex flex-col gap-3">
- 57:             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
- 58:               <Code2 className="size-5 text-primary" />
- 59:             </div>
- 60:             <h2
- 61:               className="text-lg font-medium text-foreground"
- 62:               style={{ textWrap: "balance" }}
- 63:             >
- 64:               Strict TypeScript
- 65:             </h2>
- 66:             <p
- 67:               className="max-w-[65ch] text-sm leading-relaxed text-muted-foreground"
- 68:               style={{ textWrap: "pretty" }}
- 69:             >
- 70:               No any types. Zod for runtime validation. Inferred types
- 71:               preferred. Types stay close to the feature.
- 72:             </p>
- 73:           </div>
- 74:           <div className="flex flex-col gap-3">
- 75:             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
- 76:               <Zap className="size-5 text-primary" />
- 77:             </div>
- 78:             <h2
- 79:               className="text-lg font-medium text-foreground"
- 80:               style={{ textWrap: "balance" }}
- 81:             >
- 82:               Design Quality
- 83:             </h2>
- 84:             <p
- 85:               className="max-w-[65ch] text-sm leading-relaxed text-muted-foreground"
- 86:               style={{ textWrap: "pretty" }}
- 87:             >
- 88:               Anti-slop rules, three dials for aesthetic direction, and
- 89:               pre-flight checks before every ship.
- 90:             </p>
- 91:           </div>
- 92:         </div>
- 93:       </section>
- 94:       <section className="border-t border-border px-6 py-16 md:px-12 lg:px-24">
- 95:         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
- 96:           <div className="max-w-[65ch]">
- 97:             <h2
- 98:               className="text-2xl font-semibold tracking-tight text-foreground"
- 99:               style={{ textWrap: "balance" }}
-100:             >
-101:               Ready to build?
-102:             </h2>
-103:             <p
-104:               className="mt-2 text-muted-foreground"
-105:               style={{ textWrap: "pretty" }}
-106:             >
-107:               The foundation is set. Architecture, design rules, and tooling are
-108:               in place. Start building features.
-109:             </p>
-110:           </div>
-111:           <Button variant="outline" size="lg" className="active:scale-[0.96] transition-transform shrink-0">
-112:             View Documentation
-113:             <ArrowRight className="size-4" />
-114:           </Button>
-115:         </div>
-116:       </section>
-117:     </div>
-118:   );
-119: }
+ 34:           <Button
+ 35:             variant="outline"
+ 36:             size="lg"
+ 37:             className="active:scale-[0.96] transition-transform"
+ 38:           >
+ 39:             Documentation
+ 40:           </Button>
+ 41:         </div>
+ 42:       </section>
+ 43:       <section className="border-t border-border px-6 py-16 md:px-12 lg:px-24">
+ 44:         <div className="grid gap-8 md:grid-cols-3">
+ 45:           <div className="flex flex-col gap-3">
+ 46:             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+ 47:               <Layers className="size-5 text-primary" />
+ 48:             </div>
+ 49:             <h2
+ 50:               className="text-lg font-medium text-foreground"
+ 51:               style={{ textWrap: "balance" }}
+ 52:             >
+ 53:               Layered Architecture
+ 54:             </h2>
+ 55:             <p
+ 56:               className="max-w-[65ch] text-sm leading-relaxed text-muted-foreground"
+ 57:               style={{ textWrap: "pretty" }}
+ 58:             >
+ 59:               UI, Actions, Services, Repositories, Database. Business logic
+ 60:               never touches the presentation layer.
+ 61:             </p>
+ 62:           </div>
+ 63:           <div className="flex flex-col gap-3">
+ 64:             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+ 65:               <Code2 className="size-5 text-primary" />
+ 66:             </div>
+ 67:             <h2
+ 68:               className="text-lg font-medium text-foreground"
+ 69:               style={{ textWrap: "balance" }}
+ 70:             >
+ 71:               Strict TypeScript
+ 72:             </h2>
+ 73:             <p
+ 74:               className="max-w-[65ch] text-sm leading-relaxed text-muted-foreground"
+ 75:               style={{ textWrap: "pretty" }}
+ 76:             >
+ 77:               No any types. Zod for runtime validation. Inferred types
+ 78:               preferred. Types stay close to the feature.
+ 79:             </p>
+ 80:           </div>
+ 81:           <div className="flex flex-col gap-3">
+ 82:             <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+ 83:               <Zap className="size-5 text-primary" />
+ 84:             </div>
+ 85:             <h2
+ 86:               className="text-lg font-medium text-foreground"
+ 87:               style={{ textWrap: "balance" }}
+ 88:             >
+ 89:               Design Quality
+ 90:             </h2>
+ 91:             <p
+ 92:               className="max-w-[65ch] text-sm leading-relaxed text-muted-foreground"
+ 93:               style={{ textWrap: "pretty" }}
+ 94:             >
+ 95:               Anti-slop rules, three dials for aesthetic direction, and
+ 96:               pre-flight checks before every ship.
+ 97:             </p>
+ 98:           </div>
+ 99:         </div>
+100:       </section>
+101:       <section className="border-t border-border px-6 py-16 md:px-12 lg:px-24">
+102:         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+103:           <div className="max-w-[65ch]">
+104:             <h2
+105:               className="text-2xl font-semibold tracking-tight text-foreground"
+106:               style={{ textWrap: "balance" }}
+107:             >
+108:               Ready to build?
+109:             </h2>
+110:             <p
+111:               className="mt-2 text-muted-foreground"
+112:               style={{ textWrap: "pretty" }}
+113:             >
+114:               The foundation is set. Architecture, design rules, and tooling are
+115:               in place. Start building features.
+116:             </p>
+117:           </div>
+118:           <Button
+119:             variant="outline"
+120:             size="lg"
+121:             className="active:scale-[0.96] transition-transform shrink-0"
+122:           >
+123:             View Documentation
+124:             <ArrowRight className="size-4" />
+125:           </Button>
+126:         </div>
+127:       </section>
+128:     </div>
+129:   );
+130: }
 ```
 
 ## File: components/ui/**tests**/card.test.tsx
@@ -488,7 +1543,7 @@ tsconfig.json
 12:     render(
 13:       <Card>
 14:         <CardContent>Test content</CardContent>
-15:       </Card>
+15:       </Card>,
 16:     );
 17:     expect(screen.getByText("Test content")).toBeInTheDocument();
 18:   });
@@ -498,7 +1553,7 @@ tsconfig.json
 22:         <CardHeader>
 23:           <CardTitle>Card Title</CardTitle>
 24:         </CardHeader>
-25:       </Card>
+25:       </Card>,
 26:     );
 27:     expect(screen.getByText("Card Title")).toBeInTheDocument();
 28:   });
@@ -509,7 +1564,7 @@ tsconfig.json
 33:           <CardTitle>Title</CardTitle>
 34:           <CardDescription>Description text</CardDescription>
 35:         </CardHeader>
-36:       </Card>
+36:       </Card>,
 37:     );
 38:     expect(screen.getByText("Description text")).toBeInTheDocument();
 39:   });
@@ -518,7 +1573,7 @@ tsconfig.json
 42:       <Card>
 43:         <CardContent>Content</CardContent>
 44:         <CardFooter>Footer content</CardFooter>
-45:       </Card>
+45:       </Card>,
 46:     );
 47:     expect(screen.getByText("Footer content")).toBeInTheDocument();
 48:   });
@@ -526,7 +1581,7 @@ tsconfig.json
 50:     const { container } = render(
 51:       <Card className="custom-class">
 52:         <CardContent>Content</CardContent>
-53:       </Card>
+53:       </Card>,
 54:     );
 55:     expect(container.firstChild).toHaveClass("custom-class");
 56:   });
@@ -536,10 +1591,10 @@ tsconfig.json
 ## File: components/ui/badge.tsx
 
 ```typescript
- 1: import { mergeProps } from "@base-ui/react/merge-props"
- 2: import { useRender } from "@base-ui/react/use-render"
- 3: import { cva, type VariantProps } from "class-variance-authority"
- 4: import { cn } from "@/lib/utils"
+ 1: import { mergeProps } from "@base-ui/react/merge-props";
+ 2: import { useRender } from "@base-ui/react/use-render";
+ 3: import { cva, type VariantProps } from "class-variance-authority";
+ 4: import { cn } from "@/lib/utils";
  5: const badgeVariants = cva(
  6:   "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
  7:   {
@@ -560,8 +1615,8 @@ tsconfig.json
 22:     defaultVariants: {
 23:       variant: "default",
 24:     },
-25:   }
-26: )
+25:   },
+26: );
 27: function Badge({
 28:   className,
 29:   variant = "default",
@@ -574,24 +1629,24 @@ tsconfig.json
 36:       {
 37:         className: cn(badgeVariants({ variant }), className),
 38:       },
-39:       props
+39:       props,
 40:     ),
 41:     render,
 42:     state: {
 43:       slot: "badge",
 44:       variant,
 45:     },
-46:   })
+46:   });
 47: }
-48: export { Badge, badgeVariants }
+48: export { Badge, badgeVariants };
 ```
 
 ## File: components/ui/button.tsx
 
 ```typescript
- 1: import { Button as ButtonPrimitive } from "@base-ui/react/button"
- 2: import { cva, type VariantProps } from "class-variance-authority"
- 3: import { cn } from "@/lib/utils"
+ 1: import { Button as ButtonPrimitive } from "@base-ui/react/button";
+ 2: import { cva, type VariantProps } from "class-variance-authority";
+ 3: import { cn } from "@/lib/utils";
  4: const buttonVariants = cva(
  5:   "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
  6:   {
@@ -626,8 +1681,8 @@ tsconfig.json
 35:       variant: "default",
 36:       size: "default",
 37:     },
-38:   }
-39: )
+38:   },
+39: );
 40: function Button({
 41:   className,
 42:   variant = "default",
@@ -640,16 +1695,16 @@ tsconfig.json
 49:       className={cn(buttonVariants({ variant, size, className }))}
 50:       {...props}
 51:     />
-52:   )
+52:   );
 53: }
-54: export { Button, buttonVariants }
+54: export { Button, buttonVariants };
 ```
 
 ## File: components/ui/card.tsx
 
 ```typescript
- 1: import * as React from "react"
- 2: import { cn } from "@/lib/utils"
+ 1: import * as React from "react";
+ 2: import { cn } from "@/lib/utils";
  3: function Card({
  4:   className,
  5:   size = "default",
@@ -661,11 +1716,11 @@ tsconfig.json
 11:       data-size={size}
 12:       className={cn(
 13:         "group/card flex flex-col gap-(--card-spacing) overflow-hidden rounded-xl bg-card py-(--card-spacing) text-sm text-card-foreground ring-1 ring-foreground/10 [--card-spacing:--spacing(4)] has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:[--card-spacing:--spacing(3)] data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
-14:         className
+14:         className,
 15:       )}
 16:       {...props}
 17:     />
-18:   )
+18:   );
 19: }
 20: function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
 21:   return (
@@ -673,11 +1728,11 @@ tsconfig.json
 23:       data-slot="card-header"
 24:       className={cn(
 25:         "group/card-header @container/card-header grid auto-rows-min items-start gap-1 rounded-t-xl px-(--card-spacing) has-data-[slot=card-action]:grid-cols-[1fr_auto] has-data-[slot=card-description]:grid-rows-[auto_auto] [.border-b]:pb-(--card-spacing)",
-26:         className
+26:         className,
 27:       )}
 28:       {...props}
 29:     />
-30:   )
+30:   );
 31: }
 32: function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
 33:   return (
@@ -685,11 +1740,11 @@ tsconfig.json
 35:       data-slot="card-title"
 36:       className={cn(
 37:         "font-heading text-base leading-snug font-medium group-data-[size=sm]/card:text-sm",
-38:         className
+38:         className,
 39:       )}
 40:       {...props}
 41:     />
-42:   )
+42:   );
 43: }
 44: function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
 45:   return (
@@ -698,7 +1753,7 @@ tsconfig.json
 48:       className={cn("text-sm text-muted-foreground", className)}
 49:       {...props}
 50:     />
-51:   )
+51:   );
 52: }
 53: function CardAction({ className, ...props }: React.ComponentProps<"div">) {
 54:   return (
@@ -706,11 +1761,11 @@ tsconfig.json
 56:       data-slot="card-action"
 57:       className={cn(
 58:         "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
-59:         className
+59:         className,
 60:       )}
 61:       {...props}
 62:     />
-63:   )
+63:   );
 64: }
 65: function CardContent({ className, ...props }: React.ComponentProps<"div">) {
 66:   return (
@@ -719,7 +1774,7 @@ tsconfig.json
 69:       className={cn("px-(--card-spacing)", className)}
 70:       {...props}
 71:     />
-72:   )
+72:   );
 73: }
 74: function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
 75:   return (
@@ -727,11 +1782,11 @@ tsconfig.json
 77:       data-slot="card-footer"
 78:       className={cn(
 79:         "flex items-center rounded-b-xl border-t bg-muted/50 p-(--card-spacing)",
-80:         className
+80:         className,
 81:       )}
 82:       {...props}
 83:     />
-84:   )
+84:   );
 85: }
 86: export {
 87:   Card,
@@ -741,15 +1796,15 @@ tsconfig.json
 91:   CardAction,
 92:   CardDescription,
 93:   CardContent,
-94: }
+94: };
 ```
 
 ## File: components/ui/input.tsx
 
 ```typescript
- 1: import * as React from "react"
- 2: import { Input as InputPrimitive } from "@base-ui/react/input"
- 3: import { cn } from "@/lib/utils"
+ 1: import * as React from "react";
+ 2: import { Input as InputPrimitive } from "@base-ui/react/input";
+ 3: import { cn } from "@/lib/utils";
  4: function Input({ className, type, ...props }: React.ComponentProps<"input">) {
  5:   return (
  6:     <InputPrimitive
@@ -757,42 +1812,42 @@ tsconfig.json
  8:       data-slot="input"
  9:       className={cn(
 10:         "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
-11:         className
+11:         className,
 12:       )}
 13:       {...props}
 14:     />
-15:   )
+15:   );
 16: }
-17: export { Input }
+17: export { Input };
 ```
 
 ## File: components/ui/label.tsx
 
 ```typescript
- 1: "use client"
- 2: import * as React from "react"
- 3: import { cn } from "@/lib/utils"
+ 1: "use client";
+ 2: import * as React from "react";
+ 3: import { cn } from "@/lib/utils";
  4: function Label({ className, ...props }: React.ComponentProps<"label">) {
  5:   return (
  6:     <label
  7:       data-slot="label"
  8:       className={cn(
  9:         "flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-10:         className
+10:         className,
 11:       )}
 12:       {...props}
 13:     />
-14:   )
+14:   );
 15: }
-16: export { Label }
+16: export { Label };
 ```
 
 ## File: components/ui/separator.tsx
 
 ```typescript
- 1: "use client"
- 2: import { Separator as SeparatorPrimitive } from "@base-ui/react/separator"
- 3: import { cn } from "@/lib/utils"
+ 1: "use client";
+ 2: import { Separator as SeparatorPrimitive } from "@base-ui/react/separator";
+ 3: import { cn } from "@/lib/utils";
  4: function Separator({
  5:   className,
  6:   orientation = "horizontal",
@@ -804,13 +1859,13 @@ tsconfig.json
 12:       orientation={orientation}
 13:       className={cn(
 14:         "shrink-0 bg-border data-horizontal:h-px data-horizontal:w-full data-vertical:w-px data-vertical:self-stretch",
-15:         className
+15:         className,
 16:       )}
 17:       {...props}
 18:     />
-19:   )
+19:   );
 20: }
-21: export { Separator }
+21: export { Separator };
 ```
 
 ## File: docs/ADR/001-use-layered-architecture.md
@@ -1003,7 +2058,7 @@ tsconfig.json
 45: ## User
 46:
 47: | Field | Type | Description |
-48: |--------|------|-------------|
+48: | --------- | -------- | ------------------------- |
 49: | id | String | Primary Key (CUID) |
 50: | email | String | Unique email address |
 51: | name | String? | Optional display name |
@@ -1825,47 +2880,45 @@ tsconfig.json
 22: # Implementation
 23:
 24: `tsx
-25: <div className="transition-all duration-300 ease-out">
-26:   Content
-27: </div>
-28: `
+25: <div className="transition-all duration-300 ease-out">Content</div>
+26: `
+27:
+28: ---
 29:
-30: ---
+30: # Animation Values
 31:
-32: # Animation Values
-33:
-34: | Property | Value |
-35: |---|---|
-36: | Enter duration | ~800ms |
-37: | Exit duration | Subtler than enter |
-38: | Stagger delay | ~100ms |
-39: | Icon scale | 0.25 -> 1 |
-40: | Icon opacity | 0 -> 1 |
-41: | Icon blur | 4px -> 0 |
-42: | Spring duration | 0.3 |
-43: | Spring bounce | 0 |
+32: | Property | Value |
+33: | --------------- | ------------------ |
+34: | Enter duration | ~800ms |
+35: | Exit duration | Subtler than enter |
+36: | Stagger delay | ~100ms |
+37: | Icon scale | 0.25 -> 1 |
+38: | Icon opacity | 0 -> 1 |
+39: | Icon blur | 4px -> 0 |
+40: | Spring duration | 0.3 |
+41: | Spring bounce | 0 |
+42:
+43: ---
 44:
-45: ---
+45: # Reduced Motion
 46:
-47: # Reduced Motion
+47: Always honor `prefers-reduced-motion`:
 48:
-49: Always honor `prefers-reduced-motion`:
-50:
-51: `tsx
-52: @media (prefers-reduced-motion: reduce) {
-53:   * {
-54:     animation-duration: 0.01ms !important;
-55:     transition-duration: 0.01ms !important;
-56:   }
-57: }
-58: `
+49: `tsx
+50: @media (prefers-reduced-motion: reduce) {
+51:   * {
+52:     animation-duration: 0.01ms !important;
+53:     transition-duration: 0.01ms !important;
+54:   }
+55: }
+56: `
+57:
+58: ---
 59:
-60: ---
+60: # Sources
 61:
-62: # Sources
-63:
-64: - Make Interfaces Feel Better (Jakub Krehel) - Interruptible animations.
-65: - Vercel web-design-guidelines - Animation rules.
+62: - Make Interfaces Feel Better (Jakub Krehel) - Interruptible animations.
+63: - Vercel web-design-guidelines - Animation rules.
 ````
 
 ## File: docs/concepts/Optical Alignment.md
@@ -2006,7 +3059,7 @@ tsconfig.json
 7: # Overlap Map
 8:
 9: | Category | Taste Skill | Impeccable | Vercel |
-10: |---|---|---|---|
+10: | --------------- | ----------------------- | ----------------- | ----------------- |
 11: | Anti-slop tells | Section 14 | 45-rule detector | Audit findings |
 12: | Typography | Balance/pretty wrapping | Type scale rules | Line length rules |
 13: | Color | One accent, one palette | Color violations | Contrast rules |
@@ -2218,7 +3271,7 @@ tsconfig.json
 7: # Three Dials
 8:
 9: | Dial | Default | Scale |
-10: |---|---|---|
+10: | ---------------- | ------- | ----- |
 11: | Design Variance | 8 | 1-10 |
 12: | Motion Intensity | 6 | 1-10 |
 13: | Visual Density | 4 | 1-10 |
@@ -3190,7 +4243,7 @@ tsconfig.json
 17: # Documentation Completeness
 18:
 19: | Folder | Files | Status |
-20: |---|---|---|
+20: | ------------- | ----------- | ----------------------- |
 21: | rules/ | 8 files | Complete |
 22: | meta/ | 3 files | Complete |
 23: | skills/ | 4 files | Complete |
@@ -3202,14 +4255,14 @@ tsconfig.json
 29: | reference/ | Placeholder | Pending population |
 30: | ADR/ | Empty | Pending first decision |
 31: | API/ | 1 file | Database documented |
-32: | Development/ | 1 file | Git workflow documented |
+32: | Development/ | 6 files | Git workflow + NoctisNova Doctor Suite documented |
 33:
 34: ---
 35:
 36: # Tech Stack Health
 37:
 38: | Technology | Version | Status |
-39: |---|---|---|
+39: | ------------ | --------- | ---------------- |
 40: | Next.js | 16.2.10 | Active |
 41: | React | 19.2.4 | Active |
 42: | TypeScript | 5.9.3 | Active |
@@ -4467,7 +5520,7 @@ tsconfig.json
 32: # Key Commands
 33:
 34: | Command | Purpose |
-35: |---|---|
+35: | ---------------------- | ------------------------------------------------ |
 36: | `/impeccable init` | Initialize project with PRODUCT.md and DESIGN.md |
 37: | `/impeccable detect` | Run 45-rule detector |
 38: | `/impeccable bolder` | Respect existing design systems |
@@ -4634,7 +5687,7 @@ tsconfig.json
 13: # The Three Dials
 14:
 15: | Dial | Default | Scale | Description |
-16: |---|---|---|---|
+16: | ---------------- | ------- | ----- | ------------------------------------------------ |
 17: | Design Variance | 8 | 1-10 | How much the layout breaks from generic patterns |
 18: | Motion Intensity | 6 | 1-10 | How much animation and transition is present |
 19: | Visual Density | 4 | 1-10 | How much information per viewport |
@@ -5609,7 +6662,7 @@ tsconfig.json
 19: Every page or component should feel like it has been tuned across three axes:
 20:
 21: | Dial | Default | Description |
-22: |---|---|---|
+22: | ---------------- | ------- | ----------------------------------------------------- |
 23: | Design Variance | 8 | How much the layout breaks from generic grid patterns |
 24: | Motion Intensity | 6 | How much animation and transition is present |
 25: | Visual Density | 4 | How much information is packed into a given viewport |
@@ -5880,31 +6933,36 @@ tsconfig.json
 107: - Components - Component architecture and rules.
 108: - Database - Database architecture documentation.
 109: - Git Workflow - Git workflow and conventions.
-110:
-111: ### AI
-112:
-113: - AI Instructions - AI assistant guidelines.
-114: - Design Rules - Anti-slop and design taste rules.
+110: - NoctisNova Doctor Suite - CLI tools for ORM, auth, dead code, and structure analysis.
+111: - [ORM Doctor](Development/ORM%20Doctor.md) - ORM and database bottleneck scanner.
+112: - [Auth Doctor](Development/Auth%20Doctor.md) - Authentication and security vulnerability scanner.
+113: - [Dead Doctor](Development/Dead%20Doctor.md) - Dead code and unused export finder.
+114: - [Neat Doctor](Development/Neat%20Doctor.md) - Code structure and dependency analyser.
 115:
-116: ---
+116: ### AI
 117:
-118: # Current Status
-119:
-120: - Stage: Foundation
-121: - Framework: Next.js 16
-122: - UI: shadcn/ui + Tailwind CSS v4
-123: - Database: PostgreSQL (Neon) via Prisma
-124: - Status: Pre-production
-125:
-126: ---
-127:
-128: # Documentation Rules
-129:
-130: Every significant change should update the relevant documentation.
-131:
-132: Architecture decisions should be documented before implementation whenever possible.
-133:
-134: Documentation should always reflect the current state of the project.
+118: - AI Instructions - AI assistant guidelines.
+119: - Design Rules - Anti-slop and design taste rules.
+120:
+121: ---
+122:
+123: # Current Status
+124:
+125: - Stage: Foundation
+126: - Framework: Next.js 16
+127: - UI: shadcn/ui + Tailwind CSS v4
+128: - Database: PostgreSQL (Neon) via Prisma
+129: - Status: Pre-production
+130:
+131: ---
+132:
+133: # Documentation Rules
+134:
+135: Every significant change should update the relevant documentation.
+136:
+137: Architecture decisions should be documented before implementation whenever possible.
+138:
+139: Documentation should always reflect the current state of the project.
 ```
 
 ## File: docs/Project Context.md
@@ -6284,7 +7342,7 @@ tsconfig.json
  5: neonConfig.webSocketConstructor = ws;
  6: const prismaClientSingleton = () => {
  7:   const adapter = new PrismaNeon({
- 8:     connectionString: process.env.DATABASE_URL
+ 8:     connectionString: process.env.DATABASE_URL,
  9:   });
 10:   return new PrismaClient({ adapter });
 11: };
@@ -6298,10 +7356,10 @@ tsconfig.json
 ## File: lib/utils.ts
 
 ```typescript
-1: import { clsx, type ClassValue } from "clsx"
-2: import { twMerge } from "tailwind-merge"
+1: import { clsx, type ClassValue } from "clsx";
+2: import { twMerge } from "tailwind-merge";
 3: export function cn(...inputs: ClassValue[]) {
-4:   return twMerge(clsx(inputs))
+4:   return twMerge(clsx(inputs));
 5: }
 ```
 
@@ -6399,7 +7457,7 @@ tsconfig.json
 12:   },
 13:   async update(
 14:     id: number,
-15:     data: { email?: string; name?: string }
+15:     data: { email?: string; name?: string },
 16:   ): Promise<User> {
 17:     return prisma.user.update({ where: { id }, data });
 18:   },
@@ -6534,9 +7592,6 @@ tsconfig.json
 53:
 54: # obsidian
 55: .obsidian/
-56:
-57: # prisma generated
-58: /lib/generated/prisma
 ```
 
 ## File: AGENTS.md
@@ -6799,13 +7854,13 @@ tsconfig.json
  3: export const env = createEnv({
  4:   server: {
  5:     DATABASE_URL: z.url(),
- 6:     DIRECT_URL: z.url().optional()
+ 6:     DIRECT_URL: z.url().optional(),
  7:   },
  8:   client: {},
  9:   runtimeEnv: {
 10:     DATABASE_URL: process.env.DATABASE_URL,
-11:     DIRECT_URL: process.env.DIRECT_URL
-12:   }
+11:     DIRECT_URL: process.env.DIRECT_URL,
+12:   },
 13: });
 ```
 
@@ -6897,9 +7952,8 @@ tsconfig.json
 
 ```typescript
 1: import type { NextConfig } from "next";
-2: const nextConfig: NextConfig = {
-3: };
-4: export default nextConfig;
+2: const nextConfig: NextConfig = {};
+3: export default nextConfig;
 ```
 
 ## File: package.json
@@ -6918,65 +7972,66 @@ tsconfig.json
 11:     "prepare": "husky",
 12:     "lint-staged": "lint-staged",
 13:     "format": "prettier --write .",
-14:     "test": "jest"
-15:   },
-16:   "lint-staged": {
-17:     "*.{js,jsx,ts,tsx}": [
-18:       "eslint --fix",
-19:       "prettier --write"
-20:     ],
-21:     "*.{json,md,html,css}": [
-22:       "prettier --write"
-23:     ]
-24:   },
-25:   "dependencies": {
-26:     "@base-ui/react": "^1.6.0",
-27:     "@neondatabase/serverless": "^1.1.0",
-28:     "@prisma/adapter-neon": "^7.8.0",
-29:     "@prisma/adapter-pg": "^7.8.0",
-30:     "@prisma/client": "^7.8.0",
-31:     "@t3-oss/env-nextjs": "^0.13.11",
-32:     "class-variance-authority": "^0.7.1",
-33:     "clsx": "^2.1.1",
-34:     "dotenv": "^17.4.2",
-35:     "lucide-react": "^1.25.0",
-36:     "next": "16.2.10",
-37:     "pg": "^8.22.0",
-38:     "react": "19.2.4",
-39:     "react-dom": "19.2.4",
-40:     "react-hook-form": "^7.81.0",
-41:     "shadcn": "^4.13.0",
-42:     "tailwind-merge": "^3.6.0",
-43:     "tw-animate-css": "^1.4.0",
-44:     "ws": "^8.21.1",
-45:     "zod": "^4.4.3"
-46:   },
-47:   "devDependencies": {
-48:     "@tailwindcss/postcss": "^4",
-49:     "@testing-library/dom": "^10.4.1",
-50:     "@testing-library/jest-dom": "^6.9.1",
-51:     "@testing-library/react": "^16.3.2",
-52:     "@types/jest": "^30.0.0",
-53:     "@types/node": "^20.19.43",
-54:     "@types/pg": "^8.20.0",
-55:     "@types/react": "^19",
-56:     "@types/react-dom": "^19",
-57:     "@types/ws": "^8.18.1",
-58:     "eslint": "^9.39.5",
-59:     "eslint-config-next": "16.2.10",
-60:     "husky": "^9.1.7",
-61:     "jest": "^30.4.2",
-62:     "jest-environment-jsdom": "^30.4.1",
-63:     "knip": "^6.27.0",
-64:     "lint-staged": "^17.0.8",
-65:     "prettier": "^3.9.5",
-66:     "prisma": "^7.8.0",
-67:     "tailwindcss": "^4",
-68:     "ts-node": "^10.9.2",
-69:     "tsx": "^4.23.1",
-70:     "typescript": "^5.9.3"
-71:   }
-72: }
+14:     "test": "jest",
+15:     "typecheck": "tsc --noEmit"
+16:   },
+17:   "lint-staged": {
+18:     "*.{js,jsx,ts,tsx}": [
+19:       "eslint --fix",
+20:       "prettier --write"
+21:     ],
+22:     "*.{json,md,html,css}": [
+23:       "prettier --write"
+24:     ]
+25:   },
+26:   "dependencies": {
+27:     "@base-ui/react": "^1.6.0",
+28:     "@neondatabase/serverless": "^1.1.0",
+29:     "@prisma/adapter-neon": "^7.8.0",
+30:     "@prisma/adapter-pg": "^7.8.0",
+31:     "@prisma/client": "^7.8.0",
+32:     "@t3-oss/env-nextjs": "^0.13.11",
+33:     "class-variance-authority": "^0.7.1",
+34:     "clsx": "^2.1.1",
+35:     "dotenv": "^17.4.2",
+36:     "lucide-react": "^1.25.0",
+37:     "next": "16.2.10",
+38:     "pg": "^8.22.0",
+39:     "react": "19.2.4",
+40:     "react-dom": "19.2.4",
+41:     "react-hook-form": "^7.81.0",
+42:     "shadcn": "^4.13.0",
+43:     "tailwind-merge": "^3.6.0",
+44:     "tw-animate-css": "^1.4.0",
+45:     "ws": "^8.21.1",
+46:     "zod": "^4.4.3"
+47:   },
+48:   "devDependencies": {
+49:     "@tailwindcss/postcss": "^4",
+50:     "@testing-library/dom": "^10.4.1",
+51:     "@testing-library/jest-dom": "^6.9.1",
+52:     "@testing-library/react": "^16.3.2",
+53:     "@types/jest": "^30.0.0",
+54:     "@types/node": "^20.19.43",
+55:     "@types/pg": "^8.20.0",
+56:     "@types/react": "^19",
+57:     "@types/react-dom": "^19",
+58:     "@types/ws": "^8.18.1",
+59:     "eslint": "^9.39.5",
+60:     "eslint-config-next": "16.2.10",
+61:     "husky": "^9.1.7",
+62:     "jest": "^30.4.2",
+63:     "jest-environment-jsdom": "^30.4.1",
+64:     "knip": "^6.27.0",
+65:     "lint-staged": "^17.0.8",
+66:     "prettier": "^3.9.5",
+67:     "prisma": "^7.8.0",
+68:     "tailwindcss": "^4",
+69:     "ts-node": "^10.9.2",
+70:     "tsx": "^4.23.1",
+71:     "typescript": "^5.9.3"
+72:   }
+73: }
 ```
 
 ## File: pnpm-workspace.yaml
@@ -7011,8 +8066,8 @@ tsconfig.json
 2: import { defineConfig, env } from "prisma/config";
 3: export default defineConfig({
 4:   datasource: {
-5:     url: env("DIRECT_URL") || env("DATABASE_URL")
-6:   }
+5:     url: env("DIRECT_URL") || env("DATABASE_URL"),
+6:   },
 7: });
 ```
 
@@ -7020,160 +8075,161 @@ tsconfig.json
 
 ````markdown
 1: # Project Name
-2: nextjs
-3:
-4: > A modern, scalable, AI-friendly web application built with Next.js 16, React 19, TypeScript, Prisma, Neon, Tailwind CSS v4, and shadcn/ui.
-5:
-6: ---
-7:
-8: ## Overview
-9:
-10: This project is being built with a strong focus on:
-11:
-12: - Scalability
-13: - Performance
-14: - Maintainability
-15: - Developer Experience
-16: - AI-assisted development
-17: - Clean Architecture
-18:
-19: The goal is to establish a production-ready foundation before implementing application features.
-20:
-21: ---
-22:
-23: ## Tech Stack
-24:
-25: | Category | Technology |
-26: |----------|------------|
-27: | Framework | Next.js 16 |
-28: | Language | TypeScript |
-29: | UI | React 19 |
-30: | Styling | Tailwind CSS v4 |
-31: | Components | shadcn/ui |
-32: | Database | PostgreSQL |
-33: | ORM | Prisma |
-34: | Database Provider | Neon |
-35: | Validation | Zod |
-36: | Forms | React Hook Form |
-37: | Testing | Jest |
-38: | Linting | ESLint |
-39: | Formatting | Prettier |
-40: | Git Hooks | Husky + lint-staged |
-41:
-42: ---
-43:
-44: ## Project Goals
-45:
-46: - Build a clean and maintainable architecture.
-47: - Keep business logic independent from UI.
-48: - Prefer Server Components whenever possible.
-49: - Minimize unnecessary dependencies.
-50: - Write self-documenting code.
-51: - Produce an AI-friendly codebase.
-52:
-53: ---
-54:
-55: ## Project Structure
-56:
-57: ` 58: app/
- 59: components/
- 60: docs/
- 61: lib/
- 62: prisma/
- 63: public/
- 64:`
-65:
-66: As the project grows, additional directories will include:
-67:
-68: ` 69: features/
- 70: services/
- 71: repositories/
- 72: actions/
- 73: hooks/
- 74: validators/
- 75: schemas/
- 76: types/
- 77: constants/
- 78:`
-79:
-80: ---
-81:
-82: ## Development
-83:
-84: Install dependencies
-85:
-86: `bash
- 87: pnpm install
- 88: `
-89:
-90: Run development server
-91:
-92: `bash
- 93: pnpm dev
- 94: `
-95:
-96: Run lint
-97:
-98: `bash
- 99: pnpm lint
-100: `
-101:
-102: Run tests
-103:
-104: `bash
-105: pnpm test
-106: `
-107:
-108: Run formatter
-109:
-110: `bash
-111: pnpm format
-112: `
-113:
-114: ---
-115:
-116: ## Documentation
-117:
-118: Project documentation is located in the `docs/` directory.
-119:
-120: - Architecture
-121: - Coding Standards
-122: - Components
-123: - Tech Stack
-124: - API
-125: - Project Context
-126:
-127: ---
-128:
-129: ## Principles
-130:
-131: - Performance First
-132: - Simplicity over Complexity
-133: - Server First
-134: - Type Safety
-135: - Accessibility
-136: - Reusability
-137: - Consistency
-138:
-139: ---
-140:
-141: ## Status
-142:
-143: Current phase:
-144:
-145: - ✅ Project bootstrap
-146: - ✅ Architecture setup
-147: - ✅ Documentation
-148: - ✅ Database configuration
-149: - ⏳ Authentication
-150: - ⏳ Features
-151: - ⏳ Production deployment
-152:
-153: ---
-154:
-155: ## License
-156:
-157: Private project.
+2:
+3: nextjs
+4:
+5: > A modern, scalable, AI-friendly web application built with Next.js 16, React 19, TypeScript, Prisma, Neon, Tailwind CSS v4, and shadcn/ui.
+6:
+7: ---
+8:
+9: ## Overview
+10:
+11: This project is being built with a strong focus on:
+12:
+13: - Scalability
+14: - Performance
+15: - Maintainability
+16: - Developer Experience
+17: - AI-assisted development
+18: - Clean Architecture
+19:
+20: The goal is to establish a production-ready foundation before implementing application features.
+21:
+22: ---
+23:
+24: ## Tech Stack
+25:
+26: | Category | Technology |
+27: | ----------------- | ------------------- |
+28: | Framework | Next.js 16 |
+29: | Language | TypeScript |
+30: | UI | React 19 |
+31: | Styling | Tailwind CSS v4 |
+32: | Components | shadcn/ui |
+33: | Database | PostgreSQL |
+34: | ORM | Prisma |
+35: | Database Provider | Neon |
+36: | Validation | Zod |
+37: | Forms | React Hook Form |
+38: | Testing | Jest |
+39: | Linting | ESLint |
+40: | Formatting | Prettier |
+41: | Git Hooks | Husky + lint-staged |
+42:
+43: ---
+44:
+45: ## Project Goals
+46:
+47: - Build a clean and maintainable architecture.
+48: - Keep business logic independent from UI.
+49: - Prefer Server Components whenever possible.
+50: - Minimize unnecessary dependencies.
+51: - Write self-documenting code.
+52: - Produce an AI-friendly codebase.
+53:
+54: ---
+55:
+56: ## Project Structure
+57:
+58: ` 59: app/
+ 60: components/
+ 61: docs/
+ 62: lib/
+ 63: prisma/
+ 64: public/
+ 65:`
+66:
+67: As the project grows, additional directories will include:
+68:
+69: ` 70: features/
+ 71: services/
+ 72: repositories/
+ 73: actions/
+ 74: hooks/
+ 75: validators/
+ 76: schemas/
+ 77: types/
+ 78: constants/
+ 79:`
+80:
+81: ---
+82:
+83: ## Development
+84:
+85: Install dependencies
+86:
+87: `bash
+ 88: pnpm install
+ 89: `
+90:
+91: Run development server
+92:
+93: `bash
+ 94: pnpm dev
+ 95: `
+96:
+97: Run lint
+98:
+99: `bash
+100: pnpm lint
+101: `
+102:
+103: Run tests
+104:
+105: `bash
+106: pnpm test
+107: `
+108:
+109: Run formatter
+110:
+111: `bash
+112: pnpm format
+113: `
+114:
+115: ---
+116:
+117: ## Documentation
+118:
+119: Project documentation is located in the `docs/` directory.
+120:
+121: - Architecture
+122: - Coding Standards
+123: - Components
+124: - Tech Stack
+125: - API
+126: - Project Context
+127:
+128: ---
+129:
+130: ## Principles
+131:
+132: - Performance First
+133: - Simplicity over Complexity
+134: - Server First
+135: - Type Safety
+136: - Accessibility
+137: - Reusability
+138: - Consistency
+139:
+140: ---
+141:
+142: ## Status
+143:
+144: Current phase:
+145:
+146: - ✅ Project bootstrap
+147: - ✅ Architecture setup
+148: - ✅ Documentation
+149: - ✅ Database configuration
+150: - ⏳ Authentication
+151: - ⏳ Features
+152: - ⏳ Production deployment
+153:
+154: ---
+155:
+156: ## License
+157:
+158: Private project.
 ````
 
 ## File: tsconfig.json

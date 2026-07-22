@@ -53,17 +53,28 @@ Pre-commit hooks run automatically:
 
 ```
 nextjs/
-├── app/                  # Next.js App Router pages
-├── components/           # React components
-│   └── ui/               # shadcn/ui components
-├── docs/                 # Documentation hub
-├── lib/                  # Utilities and shared code
-│   ├── db.ts             # Prisma client singleton
-│   └── utils.ts          # cn() and other utilities
-├── prisma/               # Database schema and migrations
-├── public/               # Static assets
-├── env.ts                # Environment variable validation
-└── package.json          # Dependencies and scripts
+├── src/
+│   ├── app/                  # Next.js App Router pages
+│   ├── actions/              # Server Actions
+│   ├── components/           # React components
+│   │   └── ui/               # shadcn/ui components
+│   ├── lib/                  # Utilities and shared code
+│   │   ├── auth.ts           # Better Auth server config
+│   │   ├── auth-client.ts    # Better Auth React client
+│   │   ├── db.ts             # Prisma client singleton
+│   │   ├── env.ts            # Environment variable validation
+│   │   ├── errors/           # Typed domain errors
+│   │   └── validations/      # Zod validation schemas
+│   ├── repositories/         # Data access layer
+│   ├── services/             # Business logic layer
+│   └── utils.ts              # cn() and other utilities
+├── docs/                     # Documentation hub
+├── prisma/                   # Database schema and migrations
+├── public/                   # Static assets
+├── middleware.ts              # Route protection
+├── env.ts                    # Environment variable validation
+├── next.config.ts
+└── package.json
 ```
 
 ---

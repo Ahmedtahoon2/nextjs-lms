@@ -14,12 +14,12 @@
     "config": ["postcss.config.{mjs,js}"]
   },
   "ignore": [
-    "components/ui/*",
+    "src/components/ui/*",
     "prisma/schema.prisma",
-    "lib/db.ts",
-    "repositories/*.ts",
-    "services/*.ts",
-    "env.ts"
+    "src/lib/db.ts",
+    "src/repositories/*.ts",
+    "src/services/*.ts",
+    "src/lib/env.ts"
   ],
   "ignoreDependencies": [
     "@neondatabase/serverless",

@@ -1,158 +1,120 @@
-# Project Name
+# Next.js Modern Starter
 
-nextjs
+> A production-ready Next.js starter with TypeScript, Prisma, Tailwind CSS v4, and shadcn/ui.
 
-> A modern, scalable, AI-friendly web application built with Next.js 16, React 19, TypeScript, Prisma, Neon, Tailwind CSS v4, and shadcn/ui.
+## Quick Start
 
----
+```bash
+# Install dependencies
+pnpm install
 
-## Overview
+# Set up environment variables
+cp .env.example .env
 
-This project is being built with a strong focus on:
+# Generate Prisma client
+pnpm prisma:generate
 
-- Scalability
-- Performance
-- Maintainability
-- Developer Experience
-- AI-assisted development
-- Clean Architecture
+# Start development server
+pnpm dev
+```
 
-The goal is to establish a production-ready foundation before implementing application features.
-
----
+Visit `http://localhost:3000`
 
 ## Tech Stack
 
-| Category          | Technology          |
-| ----------------- | ------------------- |
-| Framework         | Next.js 16          |
-| Language          | TypeScript          |
-| UI                | React 19            |
-| Styling           | Tailwind CSS v4     |
-| Components        | shadcn/ui           |
-| Database          | PostgreSQL          |
-| ORM               | Prisma              |
-| Database Provider | Neon                |
-| Validation        | Zod                 |
-| Forms             | React Hook Form     |
-| Testing           | Jest                |
-| Linting           | ESLint              |
-| Formatting        | Prettier            |
-| Git Hooks         | Husky + lint-staged |
-
----
-
-## Project Goals
-
-- Build a clean and maintainable architecture.
-- Keep business logic independent from UI.
-- Prefer Server Components whenever possible.
-- Minimize unnecessary dependencies.
-- Write self-documenting code.
-- Produce an AI-friendly codebase.
-
----
+| Category   | Technology        |
+| ---------- | ----------------- |
+| Framework  | Next.js 16        |
+| Language   | TypeScript        |
+| UI         | React 19          |
+| Styling    | Tailwind CSS v4   |
+| Components | shadcn/ui         |
+| Database   | PostgreSQL (Neon) |
+| ORM        | Prisma            |
+| Validation | Zod               |
+| Forms      | React Hook Form   |
+| Testing    | Jest              |
+| Linting    | ESLint + Prettier |
 
 ## Project Structure
 
 ```
-app/
-components/
-docs/
-lib/
+src/
+├── app/              # Next.js App Router pages
+├── components/       # Reusable UI components
+│   ├── ui/          # shadcn/ui components
+│   ├── layout/      # Layout components
+│   └── shared/      # Shared components
+├── lib/             # Utilities and configurations
+├── actions/         # Server Actions
+├── services/        # Business logic
+├── repositories/    # Data access layer
+└── providers/       # React Context providers
+
 prisma/
-public/
+└── schema.prisma    # Database schema
+
+docs/                # Project documentation
 ```
 
-As the project grows, additional directories will include:
+## Architecture
+
+This project follows a **layered architecture** to separate concerns:
 
 ```
-features/
-services/
-repositories/
-actions/
-hooks/
-validators/
-schemas/
-types/
-constants/
+UI Layer (React Components)
+         ↓
+Actions/Routes (Server Actions, API Routes)
+         ↓
+Services (Business Logic)
+         ↓
+Repositories (Data Access)
+         ↓
+Database (Prisma + PostgreSQL)
 ```
 
----
+**Key Principles:**
 
-## Development
+- Business logic lives in **Services**, never in UI components
+- Database access happens only through **Repositories**
+- Prefer **Server Components** by default
+- Use **Client Components** only when needed (state, events, browser APIs)
 
-Install dependencies
+## Available Scripts
 
 ```bash
-pnpm install
+pnpm dev          # Start development server
+pnpm build        # Build for production
+pnpm start        # Start production server
+pnpm lint         # Run ESLint
+pnpm format       # Format code with Prettier
+pnpm typecheck    # Run TypeScript type checking
+pnpm test         # Run Jest tests
 ```
-
-Run development server
-
-```bash
-pnpm dev
-```
-
-Run lint
-
-```bash
-pnpm lint
-```
-
-Run tests
-
-```bash
-pnpm test
-```
-
-Run formatter
-
-```bash
-pnpm format
-```
-
----
 
 ## Documentation
 
-Project documentation is located in the `docs/` directory.
+- **[Architecture](docs/ARCHITECTURE.md)** - Detailed architecture guide
+- **[Development Guide](docs/DEVELOPMENT.md)** - Development workflows and best practices
+- **[API Documentation](docs/API/)** - API references
+- **[ADRs](docs/ADR/)** - Architecture Decision Records
 
-- Architecture
-- Coding Standards
-- Components
-- Tech Stack
-- API
-- Project Context
+## Project Goals
 
----
+- Clean, maintainable architecture
+- Type-safe code throughout
+- Excellent developer experience
+- AI-friendly codebase
+- Performance-optimized
+- Accessible by default
 
-## Principles
+## Contributing
 
-- Performance First
-- Simplicity over Complexity
-- Server First
-- Type Safety
-- Accessibility
-- Reusability
-- Consistency
-
----
-
-## Status
-
-Current phase:
-
-- ✅ Project bootstrap
-- ✅ Architecture setup
-- ✅ Documentation
-- ✅ Database configuration
-- ⏳ Authentication
-- ⏳ Features
-- ⏳ Production deployment
-
----
+1. Follow the project's coding standards
+2. Write tests for new features
+3. Update documentation as needed
+4. Run `pnpm lint` and `pnpm typecheck` before committing
 
 ## License
 
-Private project.
+MIT

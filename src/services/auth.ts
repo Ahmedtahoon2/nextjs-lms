@@ -1,7 +1,12 @@
 import { auth } from "@/lib/auth";
 import * as userRepository from "@/repositories/user";
 import * as sessionRepository from "@/repositories/session";
-import { AuthenticationError, NotFoundError } from "@/lib/errors";
+import * as authorizationService from "@/services/authorization";
+import {
+  AuthenticationError,
+  AuthorizationError,
+  NotFoundError,
+} from "@/lib/errors";
 import { headers } from "next/headers";
 
 export async function getCurrentSession() {
@@ -14,6 +19,26 @@ export async function getCurrentSession() {
   }
 
   return session;
+}
+
+export async function signIn(email: string, password: string) {
+  return auth.api.signInEmail({
+    body: { email, password },
+    headers: await headers(),
+  });
+}
+
+export async function signUp(email: string, password: string, name: string) {
+  return auth.api.signUpEmail({
+    body: { email, password, name },
+    headers: await headers(),
+  });
+}
+
+export async function signOut() {
+  return auth.api.signOut({
+    headers: await headers(),
+  });
 }
 
 export async function getUserById(id: string) {
@@ -44,7 +69,33 @@ export async function getUserSessions(userId: string) {
   return sessionRepository.findSessionsByUserId(userId);
 }
 
-export async function revokeSession(sessionId: string) {
+export async function revokeSession(
+  sessionId: string,
+  currentUserId: string,
+) {
+  // Find the session to verify it exists and get its owner
+  const session = await sessionRepository.findSessionById(sessionId);
+
+  if (!session) {
+    throw new NotFoundError("Session not found");
+  }
+
+  // Check if user owns this session
+  const ownsSession = session.userId === currentUserId;
+
+  // Check if user has admin permission to revoke any session
+  const hasAdminPermission = await authorizationService.hasPermission(
+    currentUserId,
+    "sessions:revoke:any",
+  );
+
+  // User must either own the session or have explicit admin permission
+  if (!ownsSession && !hasAdminPermission) {
+    throw new AuthorizationError(
+      "You do not have permission to revoke this session",
+    );
+  }
+
   return sessionRepository.deleteSession(sessionId);
 }
 

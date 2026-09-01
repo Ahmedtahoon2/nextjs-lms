@@ -1,6 +1,5 @@
 "use server";
 
-import { auth } from "@/lib/auth";
 import * as authService from "@/services/auth";
 import * as authorizationService from "@/services/authorization";
 import {
@@ -9,8 +8,11 @@ import {
   type SignInInput,
   type SignUpInput,
 } from "@/lib/validations/auth";
-import { AuthenticationError } from "@/lib/errors";
-import { headers } from "next/headers";
+import {
+  AuthenticationError,
+  AuthorizationError,
+  NotFoundError,
+} from "@/lib/errors";
 
 type ActionResponse<T = void> = {
   success: boolean;
@@ -31,13 +33,10 @@ export async function signInAction(
   }
 
   try {
-    const result = await auth.api.signInEmail({
-      body: {
-        email: parsed.data.email,
-        password: parsed.data.password,
-      },
-      headers: await headers(),
-    });
+    const result = await authService.signIn(
+      parsed.data.email,
+      parsed.data.password,
+    );
 
     return { success: true, data: result as unknown as void };
   } catch (error) {
@@ -61,14 +60,11 @@ export async function signUpAction(
   }
 
   try {
-    const result = await auth.api.signUpEmail({
-      body: {
-        email: parsed.data.email,
-        password: parsed.data.password,
-        name: parsed.data.name,
-      },
-      headers: await headers(),
-    });
+    const result = await authService.signUp(
+      parsed.data.email,
+      parsed.data.password,
+      parsed.data.name,
+    );
 
     return { success: true, data: result as unknown as void };
   } catch (error) {
@@ -81,10 +77,7 @@ export async function signUpAction(
 
 export async function signOutAction(): Promise<ActionResponse> {
   try {
-    await auth.api.signOut({
-      headers: await headers(),
-    });
-
+    await authService.signOut();
     return { success: true };
   } catch (error) {
     if (error instanceof Error) {
@@ -137,12 +130,28 @@ export async function getUserPermissionsAction() {
 export async function revokeSessionAction(
   sessionId: string,
 ): Promise<ActionResponse> {
+  // Validate input
+  if (!sessionId || typeof sessionId !== "string") {
+    return { success: false, error: "Invalid session ID" };
+  }
+
   try {
-    await authService.revokeSession(sessionId);
+    // Get current authenticated user
+    const session = await authService.getCurrentSession();
+
+    // Verify ownership and authorization in service layer
+    await authService.revokeSession(sessionId, session.user.id);
+
     return { success: true };
   } catch (error) {
     if (error instanceof AuthenticationError) {
       return { success: false, error: "Not authenticated" };
+    }
+    if (error instanceof AuthorizationError) {
+      return { success: false, error: error.message };
+    }
+    if (error instanceof NotFoundError) {
+      return { success: false, error: "Session not found" };
     }
     return { success: false, error: "Failed to revoke session" };
   }

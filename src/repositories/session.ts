@@ -7,6 +7,13 @@ export async function findSessionByToken(token: string) {
   });
 }
 
+export async function findSessionById(id: string) {
+  return prisma.session.findUnique({
+    where: { id },
+    include: { user: true },
+  });
+}
+
 export async function findSessionsByUserId(userId: string) {
   return prisma.session.findMany({
     where: { userId },

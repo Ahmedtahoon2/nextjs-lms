@@ -1,182 +1,65 @@
 # Coding Standards
 
-This document defines the coding conventions used throughout the project.
+## General
 
----
+TypeScript strict mode. Readable > clever. Simple > abstract. Never duplicate business logic.
 
-# General Rules
+## File Naming
 
-- Use TypeScript Strict Mode.
-- Keep code readable.
-- Prefer simplicity.
-- Avoid unnecessary abstractions.
-- Never duplicate business logic.
+| Type       | Convention            |
+| ---------- | --------------------- |
+| Components | `PascalCase.tsx`      |
+| Hooks      | `useCamelCase.ts`     |
+| Utilities  | `camelCase.ts`        |
+| Constants  | `UPPER_SNAKE_CASE.ts` |
+| Types      | `types.ts`            |
 
----
+## Imports
 
-# File Naming
+Always use path aliases (`@/...`). Never relative paths crossing multiple directories.
 
-Components
+## Components
 
-```
-PascalCase.tsx
-```
+**Prefer:** Server Components, small size, composition, single responsibility.
+**Avoid:** huge components, nested conditionals, business logic in UI.
 
-Hooks
+## Styling
 
-```
-useSomething.ts
-```
+Tailwind only. No inline styles. No CSS duplication.
 
-Utilities
+## State Management (priority order)
 
-```
-camelCase.ts
-```
+1. Server state
+2. URL state (search/route params)
+3. Local state (`useState`)
+4. Context (only for truly global: theme, auth)
 
-Constants
+No premature global state.
 
-```
-UPPER_SNAKE_CASE.ts
-```
+## Business Logic
 
-Types
+Business logic lives only in Services. Never in components, hooks, or repositories.
 
-```
-types.ts
-```
+## Database
 
----
+All DB access through repositories. Never call Prisma from UI.
 
-# Imports
+## Error Handling
 
-Always use aliases.
+Validate inputs. Return meaningful errors. Handle unexpected failures.
 
-Correct
+## Performance
 
-```ts
-import { Button } from "@/components/ui/button";
-```
+Server Components, lazy loading, memoize only when measured to help. No premature optimization.
 
-Avoid
+## Security
 
-```ts
-import Button from "../../../../Button";
-```
+Validate server input. Sanitize user content. Secrets in env vars. Least privilege.
 
----
+## Testing
 
-# Components
+Every important business rule has tests. Critical UI flows have component or integration tests.
 
-Prefer:
+## Documentation
 
-- Server Components
-- Small components
-- Composition
-- Single responsibility
-
-Avoid:
-
-- Huge components
-- Nested conditionals
-- Business logic inside UI
-
----
-
-# Styling
-
-Use only Tailwind CSS.
-
-Avoid:
-
-- Inline styles
-- CSS duplication
-
----
-
-# State Management
-
-Priority order:
-
-1. Server State
-2. URL State
-3. Local State
-
-Avoid unnecessary global state.
-
----
-
-# Business Logic
-
-Business logic belongs only in Services.
-
-Never place business rules inside:
-
-- Components
-- Hooks
-- Repositories
-
----
-
-# Database
-
-All database access must go through repositories.
-
-Never call Prisma directly from UI.
-
----
-
-# Error Handling
-
-Always:
-
-- Return meaningful errors
-- Validate inputs
-- Handle unexpected failures
-
----
-
-# Performance
-
-Prefer:
-
-- Server Components
-- Lazy loading
-- Memoization only when needed
-
-Avoid premature optimization.
-
----
-
-# Security
-
-Always:
-
-- Validate server input
-- Sanitize user content
-- Store secrets in environment variables
-- Follow least privilege principles
-
----
-
-# Testing
-
-Every important business rule should have tests.
-
-Critical UI flows should have component or integration tests.
-
----
-
-# Documentation
-
-Architecture changes require documentation updates.
-
-Documentation should always reflect reality.
-
----
-
-# Documentation Rules
-
-- Every significant change should update the relevant documentation.
-
----
+Architecture changes require doc updates. Docs must reflect current reality.

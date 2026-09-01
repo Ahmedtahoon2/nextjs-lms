@@ -41,9 +41,11 @@ uipro init --ai cursor
 
 # Loading Skills
 
-Skills are loaded in this order:
+Skills are loaded in this order (tool-agnostic):
 
-1. `AGENTS.md` (project-level instructions).
+1. **Project-level instructions** — read `AGENTS.md` at the repository root.
+   - If your tool does not auto-detect `AGENTS.md`, point it to the file explicitly or to a tool-specific mirror (e.g. `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`). These mirrors should be kept identical to `AGENTS.md`.
+   - For MCP-based agents, use the filesystem MCP tool to read `AGENTS.md`.
 2. `docs/rules/` (architecture and design rules).
 3. `docs/skills/` (design skill references).
 4. `docs/flows/` (workflows).

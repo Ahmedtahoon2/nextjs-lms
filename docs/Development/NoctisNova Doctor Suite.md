@@ -1,137 +1,64 @@
 # NoctisNova Doctor Suite
 
-Open-source CLI tools for static analysis of TypeScript and Next.js codebases. Zero-install, zero-config, zero-telemetry.
+Open-source static analysis CLIs for TypeScript and Next.js. Zero-install, zero-config, zero-telemetry.
 
----
+## Tools
 
-# Overview
+| Tool                            | Focus                      | Report                     |
+| ------------------------------- | -------------------------- | -------------------------- |
+| [ORM Doctor](ORM%20Doctor.md)   | DB / ORM bottlenecks       | `.orm-doctor-report.json`  |
+| [Auth Doctor](Auth%20Doctor.md) | Auth & security vulns      | `.auth-doctor-report.json` |
+| [Dead Doctor](Dead%20Doctor.md) | Dead code & unused exports | `.dead-doctor-report.json` |
+| [Neat Doctor](Neat%20Doctor.md) | Code structure & dep graph | `.neat-doctor-report.json` |
 
-The NoctisNova Doctor Suite is a collection of four specialized static analysis CLIs built by [NoctisNova](https://noctisnova.com). Each tool targets a different category of code quality issues. All tools run via `npx` with no configuration required.
+All: Node 18+, MIT, no telemetry, scored health report (0-100), JSON output, `--no-ai` to skip hand-off menu.
 
-| Tool                            | Focus                                       | Report File                |
-| ------------------------------- | ------------------------------------------- | -------------------------- |
-| [ORM Doctor](ORM%20Doctor.md)   | Database and ORM bottlenecks                | `.orm-doctor-report.json`  |
-| [Auth Doctor](Auth%20Doctor.md) | Authentication and security vulnerabilities | `.auth-doctor-report.json` |
-| [Dead Doctor](Dead%20Doctor.md) | Dead code and unused exports                | `.dead-doctor-report.json` |
-| [Neat Doctor](Neat%20Doctor.md) | Code structure and dependency graph         | `.neat-doctor-report.json` |
-
-All tools share common traits:
-
-- Node.js 18+ required.
-- MIT licensed.
-- No telemetry. Nothing leaves your machine.
-- Produces a scored health report (0-100).
-- Saves a JSON report file for AI-assisted fixes.
-
----
-
-# Quick Start
-
-Run any tool directly from the project root:
+## Quick Start
 
 ```bash
 npx orm-doctor
 npx auth-doctor
 npx dead-doctor
 npx neat-doctor
-```
 
-Target a specific directory:
-
-```bash
-npx orm-doctor ./my-app
-npx auth-doctor ./my-app
-npx dead-doctor ./my-app
-npx neat-doctor ./my-app
-```
-
-Output JSON for CI pipelines:
-
-```bash
+# target dir / CI / no AI menu
+npx orm-doctor ./src
 npx orm-doctor --json
-npx auth-doctor --json
-npx dead-doctor --json
-npx neat-doctor --json
-```
-
-Skip the AI agent hand-off menu:
-
-```bash
 npx orm-doctor --no-ai
-npx auth-doctor --no-ai
-npx dead-doctor --no-ai
 ```
 
----
+## Capability Matrix
 
-# Tool Comparison
+|                                               | ORM | Auth | Dead | Neat |
+| --------------------------------------------- | --- | ---- | ---- | ---- |
+| N+1 / indexes / raw SQL                       | ✓   |      |      |      |
+| Unprotected routes / hardcoded secrets / CSRF |     | ✓    |      |      |
+| Dead files / unused exports / zombie deps     |     |      | ✓    |      |
+| Circular deps / structure / god files         |     |      |      | ✓    |
+| JSON output                                   | ✓   | ✓    | ✓    | ✓    |
+| AI menu                                       | ✓   | ✓    | ✓    | ✓    |
 
-| Feature               | ORM Doctor | Auth Doctor | Dead Doctor   | Neat Doctor  |
-| --------------------- | ---------- | ----------- | ------------- | ------------ |
-| Version               | 1.0.2      | 1.0.3       | 1.0.5         | 1.0.3        |
-| N+1 Queries           | Yes        | -           | -             | -            |
-| Missing Indexes       | Yes        | -           | -             | -            |
-| Raw SQL Detection     | Yes        | -           | -             | -            |
-| Unprotected Routes    | -          | Yes         | -             | -            |
-| Hardcoded Secrets     | -          | Yes         | -             | -            |
-| CSRF Detection        | -          | Yes         | -             | -            |
-| Dead Files            | -          | -           | Yes           | -            |
-| Unused Exports        | -          | -           | Yes           | -            |
-| Zombie Dependencies   | -          | -           | Yes           | -            |
-| Circular Dependencies | -          | -           | -             | Yes          |
-| Structure Analysis    | -          | -           | -             | Yes          |
-| Migration Scripts     | -          | -           | Yes (cleanup) | Yes (git mv) |
-| ASCII Tree View       | -          | -           | -             | Yes          |
-| JSON Output           | Yes        | Yes         | Yes           | Yes          |
-| AI Agent Menu         | Yes        | Yes         | Yes           | Yes          |
+## When to Use
 
----
+| Scenario                                      | Tool        |
+| --------------------------------------------- | ----------- |
+| New DB feature                                | ORM Doctor  |
+| After auth changes / before deploy (security) | Auth Doctor |
+| Before deploy / monthly cleanup               | Dead Doctor |
+| After major refactor                          | Neat Doctor |
+| Full health check                             | All four    |
 
-# When to Use Each Tool
+## Recommended Order
 
-| Scenario                             | Recommended Tool                |
-| ------------------------------------ | ------------------------------- |
-| Before adding a new database feature | [ORM Doctor](ORM%20Doctor.md)   |
-| After implementing authentication    | [Auth Doctor](Auth%20Doctor.md) |
-| Before a production deploy           | [Dead Doctor](Dead%20Doctor.md) |
-| After a major refactor               | [Neat Doctor](Neat%20Doctor.md) |
-| Full codebase health check           | All four tools                  |
+1. `npx dead-doctor` — remove dead code first.
+2. `npx neat-doctor` — fix structure & circular deps.
+3. `npx orm-doctor` — audit DB layer.
+4. `npx auth-doctor` — verify security.
 
----
+## Requirements
 
-# Recommended Workflow
+Node 18+, run from project root.
 
-1. Run `npx dead-doctor` to find and remove dead code first.
-2. Run `npx neat-doctor` to fix structural issues and circular dependencies.
-3. Run `npx orm-doctor` to audit database layer health.
-4. Run `npx auth-doctor` to verify security posture.
+## References
 
----
-
-# Requirements
-
-- Node.js 18 or later.
-- Run from the project root directory.
-- No additional dependencies or configuration needed.
-
----
-
-# Related Documentation
-
-- [Impeccable Toolchain](../skills/Impeccable%20Toolchain.md) - Visual and engineering defect detection.
-- [Tech Stack](../Tech%20Stack.md) - Project technology stack.
-- [Architecture and Stack](../rules/Architecture%20and%20Stack.md) - Layered architecture rules.
-
----
-
-# References
-
-- **Homepage:** [https://noctisnova.com/tools](https://noctisnova.com/tools)
-- **ORM Doctor NPM:** [https://www.npmjs.com/package/orm-doctor](https://www.npmjs.com/package/orm-doctor)
-- **ORM Doctor GitHub:** [https://github.com/noctisnovastudio/orm-doctor](https://github.com/noctisnovastudio/orm-doctor)
-- **Auth Doctor NPM:** [https://www.npmjs.com/package/auth-doctor](https://www.npmjs.com/package/auth-doctor)
-- **Auth Doctor GitHub:** [https://github.com/noctisnovastudio/auth-doctor](https://github.com/noctisnovastudio/auth-doctor)
-- **Dead Doctor NPM:** [https://www.npmjs.com/package/dead-doctor](https://www.npmjs.com/package/dead-doctor)
-- **Dead Doctor GitHub:** [https://github.com/noctisnovastudio/dead-doctor](https://github.com/noctisnovastudio/dead-doctor)
-- **Neat Doctor NPM:** [https://www.npmjs.com/package/neat-doctor](https://www.npmjs.com/package/neat-doctor)
-- **Neat Doctor GitHub:** [https://github.com/noctisnovastudio/neat-doctor](https://github.com/noctisnovastudio/neat-doctor)
+[noctisnova.com/tools](https://noctisnova.com/tools)

@@ -54,3 +54,5 @@ repomix.config.json
 # obsidian
 .obsidian/
 
+# grapgify
+/public/graphs/

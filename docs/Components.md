@@ -1,182 +1,44 @@
 # Components
 
-This document defines the component architecture used throughout the project.
-
----
-
-# Folder Structure
+## Folder Layout
 
 ```
 components/
-
-    ui/
-    layout/
-    shared/
-```
-
-Future
-
-```
+  ui/        # shadcn/ui primitives (Button, Input, Card, Dialog, ...)
+  layout/    # Page structure (Header, Sidebar, Footer, Shell)
+  shared/    # Composed reusable components (SearchBar, UserMenu, EmptyState)
 features/
-
-    authentication/
-    dashboard/
-    profile/
+  <feature>/ # Feature components co-located with feature
 ```
 
----
-
-# UI Components
-
-Reusable design system components.
-
-Examples
-
-- Button
-- Input
-- Card
-- Dialog
-- Badge
-- Avatar
-- Table
-
-Rules
-
-- Generic
-- Reusable
-- No business logic
-
----
-
-# Layout Components
-
-Responsible for page structure.
-
-Examples
-
-- Header
-- Sidebar
-- Footer
-- Navigation
-- Shell
-
----
-
-# Shared Components
-
-Reusable components that combine UI primitives.
-
-Examples
-
-- Search Bar
-- User Menu
-- Empty State
-- Loading Screen
-
----
-
-# Feature Components
-
-Feature-specific components live close to their feature.
-
-Example
+## Composition
 
 ```
-features/
-
-    authentication/
-
-        LoginForm.tsx
-        RegisterForm.tsx
+Page → Layout → Feature → Shared → UI
 ```
 
----
+## Principles
 
-# Component Principles
+- Single responsibility, reusable, props-driven, no hidden side effects.
+- UI primitives: generic, no business logic.
+- Feature components live next to their feature.
 
-Every component should:
+## Accessibility (required on all interactive components)
 
-- Have one responsibility
-- Be reusable when appropriate
-- Receive data via props
-- Avoid hidden side effects
+Keyboard navigation · visible focus states · screen-reader labels · semantic HTML.
 
----
+## Styling
 
-# Preferred Composition
+Tailwind utilities + design tokens from `globals.css`. No custom CSS unless necessary. No inline styles.
 
-```
-Page
+## Creation Checklist
 
-↓
-
-Layout
-
-↓
-
-Feature
-
-↓
-
-Shared
-
-↓
-
-UI
-```
-
----
-
-# Accessibility
-
-All interactive components should support:
-
-- Keyboard navigation
-- Focus states
-- Screen readers
-- Semantic HTML
-
----
-
-# Styling
-
-Use:
-
-- Tailwind CSS
-- CSS Variables
-- Design Tokens
-
-Avoid custom CSS unless necessary.
-
----
-
-# Component Checklist
-
-Before creating a component ask:
-
-- Can an existing component be reused?
-- Is this component generic?
-- Does it belong inside a feature?
-- Is it accessible?
-- Is it responsive?
-- Is it properly typed?
-- Does it follow the anti-slop design rules?
-- Does it use design tokens from globals.css?
-- Does it have intentional spacing (not uniform defaults)?
-- Does it use shadows over borders for depth?
-- Do interactive elements have press states and 40x40px hit areas?
-
----
-
-# Design Quality
-
-Every component must follow the rules in `docs/Design Rules.md`.
-
-Key checks:
-
-- No generic AI layout patterns (cards-in-cards, uniform grids).
-- One accent color. No random gradients.
-- Typography uses balance/pretty wrapping.
-- Animations respect `prefers-reduced-motion`.
-- Shadows composed from multiple layers.
-- Layout breaks the grid at least once.
+- [ ] Reuses an existing component if possible
+- [ ] Generic and reusable
+- [ ] Lives in the right folder (ui / shared / layout / feature)
+- [ ] Accessible, responsive, properly typed
+- [ ] Follows anti-slop design rules (see `docs/Design Rules.md`)
+- [ ] Uses design tokens, not raw colors
+- [ ] Intentional spacing, not uniform defaults
+- [ ] Shadows over borders for depth
+- [ ] Press states and ≥ 40×40 hit areas on interactive elements

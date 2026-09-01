@@ -1,136 +1,65 @@
-# Authentication Architecture
+# Authentication
 
-Better Auth integration and RBAC authorization for the LMS.
+Better Auth integration with RBAC.
 
----
+## Why Better Auth
 
-# Why Better Auth
+Open-source, self-hosted, no vendor lock-in. Built-in Prisma adapter. DB-backed sessions with cookie cache. Email/password + OAuth + plugin ecosystem. Strong TS support.
 
-- Open-source, self-hosted, no vendor lock-in.
-- Built-in Prisma adapter for PostgreSQL/Neon.
-- Database-backed sessions with cookie cache.
-- Email/password, OAuth, and plugin ecosystem.
-- Active maintenance and strong TypeScript support.
-
----
-
-# Architecture
+## Flow
 
 ```
-Actions
-    ↓
-Services
-    ↓
-Repositories
-    ↓
-Better Auth
-    ↓
-Prisma
-    ↓
-PostgreSQL (Neon)
+Actions → Services → Repositories → Better Auth → Prisma → PostgreSQL (Neon)
 ```
 
-- **Actions** validate input, invoke services, return structured results.
-- **Services** contain business logic and authorization decisions.
-- **Repositories** own persistence and database queries.
-- **Better Auth** handles authentication infrastructure only.
+- **Actions:** validate input, invoke services, return structured results.
+- **Services:** business logic + authorization decisions.
+- **Repositories:** persistence only.
+- **Better Auth:** auth infrastructure only — app talks to it through services/repos.
 
----
+## Domain Separation
 
-# Domain Separation
+- **Auth layer (Better Auth):** sessions, accounts, verification, password reset, email verification.
+- **Domain layer (app):** user, roles, permissions, user-role, role-permission.
 
-Authentication Layer (Better Auth)
+App never talks to Better Auth directly except via configured clients.
 
-- Sessions
-- Accounts
-- Verification
-- Password Reset
-- Email Verification
+## RBAC
 
-Domain Layer (Application)
+One user → many roles (many-to-many). Permissions inherited from roles. Architecture supports future direct user permissions.
 
-- User
-- Roles
-- Permissions
-- UserRole
-- RolePermission
+Default roles: Student, Instructor, Admin.
 
-The application communicates through Services and Repositories, never directly with Better Auth.
-
----
-
-# RBAC Model
-
-- One User may have multiple Roles (many-to-many).
-- Roles: Student, Instructor, Admin.
-- Permissions are inherited from Roles.
-- Architecture supports future direct user permissions.
-
-Tables:
-
-- `user` - Better Auth user model
-- `role` - Role definitions
-- `permission` - Permission definitions
-- `user_role` - User-to-role assignments
-- `role_permission` - Role-to-permission assignments
-
----
-
-# File Structure
+## File Map
 
 ```
-src/
-    lib/
-        auth.ts              # Better Auth server config
-        auth-client.ts       # Better Auth React client
-        db.ts                # Prisma client singleton
-        env.ts               # Environment variable validation
-        errors/              # Typed domain errors
-        validations/         # Zod validation schemas
-
-    repositories/
-        user.ts              # User persistence
-        role.ts              # Role persistence
-        permission.ts        # Permission persistence
-        user-role.ts         # User-role assignments
-        role-permission.ts   # Role-permission assignments
-        session.ts           # Session persistence
-
-    services/
-        auth.ts              # Authentication workflows
-        authorization.ts     # RBAC authorization
-        session.ts           # Session management
-        user.ts              # User business logic
-
-    actions/
-        auth.ts              # Authentication server actions
-
-middleware.ts            # Route protection (root)
+src/lib/
+  auth.ts            # Better Auth server config
+  auth-client.ts     # Better Auth React client
+  db.ts              # Prisma client singleton
+  env.ts             # Zod-validated env vars
+  errors/            # Typed domain errors
+  validations/       # Zod schemas
+src/repositories/
+  user.ts, role.ts, permission.ts, user-role.ts, role-permission.ts, session.ts
+src/services/
+  auth.ts, authorization.ts, session.ts, user.ts
+src/actions/
+  auth.ts
+middleware.ts        # Route protection (root)
 ```
 
----
+## Environment
 
-# Environment Variables
+| Variable             | Purpose                          |
+| -------------------- | -------------------------------- |
+| `DATABASE_URL`       | Neon pooled connection           |
+| `DIRECT_URL`         | Neon direct (for Prisma CLI)     |
+| `BETTER_AUTH_SECRET` | Encryption secret (min 32 chars) |
+| `BETTER_AUTH_URL`    | Base URL                         |
 
-| Variable             | Description                              |
-| -------------------- | ---------------------------------------- |
-| `DATABASE_URL`       | Neon pooled connection string            |
-| `DIRECT_URL`         | Neon direct connection for Prisma CLI    |
-| `BETTER_AUTH_SECRET` | Encryption secret (min 32 chars)         |
-| `BETTER_AUTH_URL`    | Base URL (e.g., `http://localhost:3000`) |
-
----
-
-# Migration
+## Migration
 
 ```bash
 pnpm prisma migrate dev --name add-better-auth-and-rbac
 ```
-
----
-
-# Related Documentation
-
-- [Architecture and Stack](rules/Architecture%20and%20Stack.md)
-- [Tech Stack](Tech%20Stack.md)
-- [CONVENTIONS](meta/CONVENTIONS.md)

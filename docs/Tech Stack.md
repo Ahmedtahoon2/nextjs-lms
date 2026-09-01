@@ -1,244 +1,26 @@
 # Technology Stack
 
-This document explains the technologies used in the project and why they were selected.
-
----
-
-# Framework
-
-## Next.js 16
-
-Purpose
-
-- React Framework
-- Server Components
-- App Router
-- Route Handlers
-- Metadata API
-
-Why
-
-- Excellent performance
-- Modern React features
-- Built-in optimizations
-- Strong ecosystem
-
----
-
-# Language
-
-## TypeScript
-
-Purpose
-
-Type safety.
-
-Why
-
-- Better maintainability
-- Better refactoring
-- Better developer experience
-- Fewer runtime errors
-
----
-
-# UI
-
-## React 19
-
-Purpose
-
-Build user interfaces.
-
-Why
-
-- Server Components
-- Concurrent rendering
-- Mature ecosystem
-
----
-
-# Styling
-
-## Tailwind CSS v4
-
-Purpose
-
-Application styling.
-
-Why
-
-- Utility-first
-- Small bundle
-- Fast development
-- Excellent maintainability
-
----
-
-# Components
-
-## shadcn/ui
-
-Purpose
-
-Reusable UI components.
-
-Why
-
-- Accessible
-- Fully customizable
-- No vendor lock-in
-
----
-
-# Database
-
-## PostgreSQL
-
-Purpose
-
-Primary relational database.
-
-Why
-
-- Reliability
-- Scalability
-- Mature ecosystem
-
----
-
-# ORM
-
-## Prisma
-
-Purpose
-
-Database access.
-
-Why
-
-- Excellent TypeScript support
-- Migrations
-- Type-safe queries
-
----
-
-# Database Provider
-
-## Neon
-
-Purpose
-
-Serverless PostgreSQL.
-
-Why
-
-- Fast provisioning
-- Scalable
-- Native Prisma support
-
----
-
-# Validation
-
-## Zod
-
-Purpose
-
-Runtime validation.
-
-Why
-
-- Type inference
-- Reliable validation
-- Excellent TypeScript integration
-
----
-
-# Forms
-
-## React Hook Form
-
-Purpose
-
-Form management.
-
-Why
-
-- Excellent performance
-- Minimal re-renders
-- Strong TypeScript support
-
----
-
-# Testing
-
-## Jest
-
-Purpose
-
-Unit testing.
-
----
-
-# Linting
-
-## ESLint
-
-Purpose
-
-Static analysis.
-
----
-
-# Formatting
-
-## Prettier
-
-Purpose
-
-Code formatting.
-
----
-
-# Git Hooks
-
-## Husky
-
-Purpose
-
-Automated Git hooks.
-
----
-
-# Code Quality
-
-## lint-staged
-
-Purpose
-
-Run checks only on staged files.
-
----
-
-# Guiding Principles
-
-Every dependency must satisfy at least one of the following:
-
-- Improves maintainability
-- Improves developer experience
-- Improves performance
-- Solves a real problem
-
-No dependency should be added without a clear justification.
-
----
+| Category      | Choice              | Why                                                       |
+| ------------- | ------------------- | --------------------------------------------------------- |
+| Framework     | Next.js 16          | Server Components, App Router, performance, ecosystem     |
+| Language      | TypeScript          | Type safety, refactorability, fewer runtime errors        |
+| UI            | React 19            | Server Components, concurrent rendering, mature ecosystem |
+| Styling       | Tailwind v4         | Utility-first, small bundle, fast iteration               |
+| Components    | shadcn/ui           | Accessible, fully customizable, no vendor lock-in         |
+| Database      | PostgreSQL (Neon)   | Reliable, scalable, serverless-friendly                   |
+| ORM           | Prisma              | Type-safe queries, migrations, first-class TS support     |
+| Validation    | Zod                 | Type inference, reliable runtime validation               |
+| Forms         | React Hook Form     | Minimal re-renders, strong TS support                     |
+| Testing       | Jest + RTL          | Standard Next.js testing stack                            |
+| Lint / Format | ESLint + Prettier   | Static analysis + consistent formatting                   |
+| Git hooks     | Husky + lint-staged | Quality gates on commit                                   |
+
+## Principles
+
+Every dependency must justify its existence: improve maintainability, DX, performance, or solve a real problem.
 
 ## Testing Rules
 
-- Tests must cover critical business logic and edge cases
-- Unit tests for pure functions and utilities
-- Integration tests for API endpoints and database interactions
-- Test coverage should be monitored but not enforced at the cost of maintainability
-
----
+- Unit tests for pure functions/utilities.
+- Integration tests for API endpoints and DB interactions.
+- Monitor coverage, but don't enforce at the cost of maintainability.

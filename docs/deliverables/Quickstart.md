@@ -13,9 +13,11 @@ Get up and running with the design skill system.
 
 ---
 
-# For AI Agents
+# For AI Agents (tool-agnostic)
 
-1. Read `AGENTS.md`.
+1. Read the project-level instructions file at the repository root:
+   - `AGENTS.md` (preferred, supported by most tools including Cursor, Claude Code, Aider, Codex CLI, and OpenCode).
+   - If your tool requires a different filename (e.g. `CLAUDE.md` for Claude Code, `.cursorrules` for Cursor, `.github/copilot-instructions.md` for Copilot), read whichever file your tool actually loads — they are kept in sync with `AGENTS.md`.
 2. Read `docs/rules/Architecture and Stack.md`.
 3. Read `docs/rules/AI Tells (Forbidden Patterns).md`.
 4. Read `docs/skills/Taste Skill Project.md`.

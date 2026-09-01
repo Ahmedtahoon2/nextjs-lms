@@ -1,128 +1,27 @@
 # Git Workflow
 
-This document defines the Git workflow used throughout the project.
+## Branches
 
----
+- **Main:** `main`, `develop`. Protected — no direct commits, only via PR.
+- **Feature:** `feature/<name>` (e.g. `feature/authentication`).
+- **Fix:** `fix/<name>` (e.g. `fix/login-error`).
+- **Hotfix:** `hotfix/<name>`.
+- **Docs:** `docs/<name>`.
 
-# Branch Strategy
+## Commits
 
-Main branches
+Conventional Commits: `type(scope): description`.
 
-- main
-- develop
+Types: `feat`, `fix`, `docs`, `refactor`, `style`, `test`, `chore`, `ci`, `build`, `perf`.
 
-Feature branches
+## Pull Requests
 
-```
-feature/authentication
+Every PR must: pass lint, pass tests, build successfully, include doc updates if needed.
 
-feature/dashboard
+## Hooks (Husky + lint-staged)
 
-feature/profile
-```
+Pre-commit: ESLint, Prettier, TypeScript on staged files.
 
-Bug fixes
+## Best Practices
 
-```
-fix/login-error
-```
-
-Hotfixes
-
-```
-hotfix/security-patch
-```
-
-Documentation
-
-```
-docs/readme-update
-```
-
----
-
-# Commit Convention
-
-Format
-
-```
-type(scope): description
-```
-
-Examples
-
-```
-feat(auth): add login page
-
-fix(api): handle invalid token
-
-docs(readme): improve setup guide
-
-refactor(user): simplify service
-
-test(auth): add login tests
-
-chore(deps): update dependencies
-```
-
----
-
-# Commit Types
-
-- feat
-- fix
-- docs
-- refactor
-- style
-- test
-- chore
-- ci
-- build
-- perf
-
----
-
-# Pull Requests
-
-Every Pull Request should:
-
-- Pass lint
-- Pass tests
-- Build successfully
-- Include documentation updates if needed
-
----
-
-# Git Hooks
-
-The project uses:
-
-- Husky
-- lint-staged
-
-Checks include:
-
-- ESLint
-- TypeScript
-- Formatting
-- Tests (future)
-
----
-
-# Protected Branches
-
-The `main` branch should never receive direct commits.
-
-Changes should be merged through Pull Requests.
-
----
-
-# Best Practices
-
-- Keep commits focused.
-- Avoid large commits.
-- Write meaningful commit messages.
-- Rebase when appropriate.
-- Delete merged branches.
-
----
+Keep commits focused and small · write meaningful messages · rebase when appropriate · delete merged branches.

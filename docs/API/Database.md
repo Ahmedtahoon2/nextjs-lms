@@ -1,179 +1,54 @@
 # Database
 
-This document describes the database architecture used by the project.
+PostgreSQL on Neon. Prisma ORM. Repositories are the only layer that talks to Prisma.
 
----
+## Principles
 
-# Database Engine
+Simple, normalized, scalable, easy to maintain. **No business logic in the database.**
 
-PostgreSQL
-
-Hosted on:
-
-- Neon
-
----
-
-# ORM
-
-Prisma ORM
-
-Responsibilities:
-
-- Type-safe database access
-- Schema management
-- Migrations
-- Query generation
-
----
-
-# Design Principles
-
-The database should remain:
-
-- Simple
-- Normalized
-- Scalable
-- Easy to maintain
-
-Business logic must never exist inside the database.
-
----
-
-# Current Schema
-
-## User
-
-| Field     | Type     | Description               |
-| --------- | -------- | ------------------------- |
-| id        | String   | Primary Key (CUID)        |
-| email     | String   | Unique email address      |
-| name      | String?  | Optional display name     |
-| image     | String?  | Optional profile image    |
-| createdAt | DateTime | Record creation timestamp |
-| updatedAt | DateTime | Last update timestamp     |
-
----
-
-# Data Access Flow
+## Access Flow
 
 ```
-UI
-
-↓
-
-Actions
-
-↓
-
-Services
-
-↓
-
-Repositories
-
-↓
-
-Prisma
-
-↓
-
-PostgreSQL
+UI → Actions → Services → Repositories → Prisma → PostgreSQL
 ```
 
-Repositories are the only layer allowed to communicate directly with Prisma.
+## Schema
 
----
+### User
 
-# Migration Strategy
+| Field     | Type     | Notes     |
+| --------- | -------- | --------- |
+| id        | String   | PK (CUID) |
+| email     | String   | Unique    |
+| name      | String?  | Optional  |
+| image     | String?  | Optional  |
+| createdAt | DateTime | —         |
+| updatedAt | DateTime | —         |
 
-Always create migrations using Prisma.
-
-Never modify production databases manually.
-
-Commands:
+## Commands
 
 ```bash
-pnpm prisma migrate dev
+pnpm prisma migrate dev     # create + apply migration
+pnpm prisma generate        # generate Prisma Client
+pnpm prisma studio          # open Prisma Studio
 ```
 
-Generate Prisma Client
+Never modify production DBs manually. Always version-control migrations.
 
-```bash
-pnpm prisma generate
-```
+## Naming
 
-Open Prisma Studio
+- Models: singular PascalCase.
+- Fields: camelCase.
+- Relations: explicit names where needed.
 
-```bash
-pnpm prisma studio
-```
+## Future Models (added when needed)
 
----
+Session, Account, VerificationToken, Role, Permission, Notification, AuditLog.
 
-# Naming Conventions
+## Performance
 
-Tables
+Add indexes only when justified. Avoid unnecessary joins. Paginate large results. Select only required fields.
 
-- Singular PascalCase models
+## Security
 
-Fields
-
-- camelCase
-
-Relations
-
-- Explicit relation names where necessary
-
----
-
-# Future Tables
-
-Expected future models include:
-
-- Session
-- Account
-- VerificationToken
-- Role
-- Permission
-- Notification
-- AuditLog
-
-These models will be introduced only when required.
-
----
-
-# Performance
-
-Guidelines:
-
-- Add indexes only when justified.
-- Avoid unnecessary joins.
-- Use pagination for large datasets.
-- Select only required fields.
-
----
-
-# Security
-
-Never expose:
-
-- Password hashes
-- Secrets
-- Internal identifiers without reason
-
-Always validate user input before database operations.
-
----
-
-# Backup Strategy
-
-Production backups are managed by the hosting provider.
-
-Database migrations must always be version-controlled.
-
----
-
-# Documentation Rules
-
-Every significant change should update the relevant documentation.
+Never expose password hashes, secrets, or internal identifiers without need. Validate input before any DB op.

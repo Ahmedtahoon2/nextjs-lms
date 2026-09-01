@@ -108,12 +108,42 @@ pnpm test         # Run Jest tests
 - Performance-optimized
 - Accessible by default
 
+## Git Workflow
+
+This project uses a trunk-based workflow:
+
+- **`master`** - Production/stable branch (protected)
+- **`dev`** - Development/integration branch (protected)
+- **`dev/<feature>`** - Feature branches
+
+### Quick Start
+
+```bash
+# Start new feature
+git checkout dev && git pull && git checkout -b dev/my-feature
+
+# Make changes and commit
+git add .
+git commit -m "feat(scope): description"
+
+# Verify before PR
+pnpm lint && pnpm typecheck && pnpm test && pnpm build
+
+# Push and create PR to dev
+git push origin dev/my-feature
+```
+
+See **[Git Workflow Guide](docs/Development/Git.md)** for complete branching, release, and versioning guidelines.
+
 ## Contributing
 
-1. Follow the project's coding standards
-2. Write tests for new features
-3. Update documentation as needed
-4. Run `pnpm lint` and `pnpm typecheck` before committing
+1. Create feature branches from `dev` (never from `master`)
+2. Follow Conventional Commits: `type(scope): description`
+3. Ensure all checks pass: lint, typecheck, tests, build
+4. Create PR targeting `dev` branch
+5. Delete feature branch after merge
+
+See [Development Guide](docs/DEVELOPMENT.md) for coding standards.
 
 ## License
 

@@ -55,9 +55,81 @@ Mock repositories in service tests. Use `@testing-library/react` for components.
 jest.mock("@/repositories/user-repository");
 ```
 
-## Git
+## Git Workflow
 
-Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`). Husky runs lint+format+typecheck pre-commit. Skip with `--no-verify` only when necessary.
+This project uses a **trunk-based development workflow** with `master` (production) and `dev` (integration) branches.
+
+### Branching Strategy
+
+```text
+master (production)
+  ↑
+  │ merge after full verification
+  │
+ dev (integration)
+  ↑
+  │ merge via PR
+  │
+dev/<feature> (your work)
+```
+
+### Quick Workflow
+
+```bash
+# 1. Start feature from dev
+git checkout dev && git pull && git checkout -b dev/my-feature
+
+# 2. Work and commit
+git commit -m "feat(scope): description"
+
+# 3. Verify before PR
+pnpm lint && pnpm typecheck && pnpm test && pnpm build
+
+# 4. Create PR to dev branch
+git push origin dev/my-feature
+```
+
+### Commit Convention
+
+Use **Conventional Commits**: `type(scope): description`
+
+Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `build`, `perf`
+
+Examples:
+
+```bash
+feat(auth): add email verification
+fix(navbar): resolve mobile menu issue
+docs(readme): update installation steps
+```
+
+### Pre-commit Hooks
+
+Husky runs automatically on `git commit`:
+
+- ESLint fix on staged files
+- Prettier format
+- TypeScript check
+
+Skip only when necessary: `git commit --no-verify`
+
+### Release Process
+
+When `dev` is ready:
+
+1. Verify: `pnpm lint && pnpm typecheck && pnpm test && pnpm build`
+2. Update version in `package.json` (Semantic Versioning)
+3. Create PR: `dev` → `master`
+4. After merge, tag release: `git tag -a v0.2.0 -m "Release v0.2.0"`
+5. Deploy to production
+
+**Semantic Versioning:**
+
+- **PATCH** (0.1.1) - Bug fixes
+- **MINOR** (0.2.0) - New features (backward-compatible)
+- **MAJOR** (1.0.0) - Breaking changes
+
+See **[Git Workflow Guide](Development/Git.md)** for complete details on branching, releases, and best practices.
 
 ## Common Tasks
 

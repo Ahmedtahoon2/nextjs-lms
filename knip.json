@@ -13,25 +13,17 @@
   "postcss": {
     "config": ["postcss.config.{mjs,js}"]
   },
+  "entry": ["src/actions/**/*.ts", "src/lib/**/*.ts"],
   "ignore": [
     "src/components/ui/*",
     "prisma/schema.prisma",
-    "src/lib/db.ts",
     "src/repositories/*.ts",
-    "src/services/*.ts",
-    "src/lib/env.ts"
+    "src/services/*.ts"
   ],
   "ignoreDependencies": [
-    "@neondatabase/serverless",
-    "@prisma/adapter-neon",
     "@prisma/adapter-pg",
-    "@prisma/client",
-    "better-auth",
     "react-hook-form",
-    "@t3-oss/env-nextjs",
-    "pg",
-    "@types/pg",
-    "ws",
-    "@types/ws"
+    "ts-node",
+    "tsx"
   ]
 }

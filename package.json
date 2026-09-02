@@ -12,6 +12,7 @@
     "prepare": "husky",
     "lint-staged": "lint-staged",
     "prisma:generate": "prisma generate",
+    "postinstall": "prisma generate",
     "format": "prettier --write .",
     "test": "jest",
     "typecheck": "tsc --noEmit"

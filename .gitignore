@@ -58,8 +58,4 @@ repomix.config.json
 prisma/migrations/
 
 # grapgify
-/public/graphs/
-
-# kilo
-.kilo/
-.kiloignore
+/public/graphs/

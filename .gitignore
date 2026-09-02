@@ -54,5 +54,12 @@ repomix.config.json
 # obsidian
 .obsidian/
 
+# prisma
+prisma/migrations/
+
 # grapgify
 /public/graphs/
+
+# kilo
+.kilo/
+.kiloignore

@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [master, dev]
 
+env:
+  DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+  DIRECT_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+  BETTER_AUTH_SECRET: "placeholderplaceholderplaceholderplaceholder"
+  BETTER_AUTH_URL: "http://localhost:3000"
+
 jobs:
   quality:
     name: Quality Checks

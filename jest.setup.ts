@@ -1,12 +1,14 @@
 import "@testing-library/jest-dom";
 
+import { TextDecoder, TextEncoder } from "node:util";
+
 // Mock TextDecoder for Node environment
 if (typeof global.TextDecoder === "undefined") {
-  global.TextDecoder = require("util").TextDecoder;
+  global.TextDecoder = TextDecoder as typeof global.TextDecoder;
 }
 
 if (typeof global.TextEncoder === "undefined") {
-  global.TextEncoder = require("util").TextEncoder;
+  global.TextEncoder = TextEncoder as typeof global.TextEncoder;
 }
 
 // Mock Neon serverless

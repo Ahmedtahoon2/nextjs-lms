@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "tags": ["-lintignore"],
   "prettier": {
-    "config": [".prettierrc"]
+    "config": ["prettier.config.js"]
   },
   "eslint": {
     "config": ["eslint.config.mjs"]
@@ -26,12 +26,12 @@
     "@prisma/adapter-neon",
     "@prisma/adapter-pg",
     "@prisma/client",
-    "pg",
-    "ws",
+    "better-auth",
     "react-hook-form",
+    "@t3-oss/env-nextjs",
+    "pg",
     "@types/pg",
-    "@types/ws",
-    "ts-node",
-    "tsx"
+    "ws",
+    "@types/ws"
   ]
 }

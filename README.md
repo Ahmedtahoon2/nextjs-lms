@@ -12,7 +12,7 @@ pnpm install
 cp .env.example .env
 
 # Generate Prisma client
-pnpm prisma:generate
+pnpm db:generate
 
 # Start development server
 pnpm dev

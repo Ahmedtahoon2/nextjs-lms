@@ -5,7 +5,7 @@
 ```bash
 pnpm install
 cp .env.example .env       # set DATABASE_URL
-pnpm prisma:generate
+pnpm db:generate
 pnpm run dev
 ```
 

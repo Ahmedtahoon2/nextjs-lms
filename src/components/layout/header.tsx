@@ -18,11 +18,11 @@ function Header() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
+    <header className="border-border bg-background/80 sticky top-0 z-50 w-full border-b backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
-          className="flex items-center gap-2 text-base font-semibold text-foreground"
+          className="text-foreground flex items-center gap-2 text-base font-semibold"
         >
           <GraduationCap className="size-5" />
           <span>EduPlatform</span>
@@ -36,7 +36,7 @@ function Header() {
             <a
               key={link.label}
               href={link.href}
-              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground rounded-md px-3 py-1.5 text-sm transition-colors"
             >
               {link.label}
             </a>
@@ -82,13 +82,13 @@ function Header() {
       </div>
 
       {mobileOpen && (
-        <div className="border-t border-border bg-background px-4 pb-4 pt-2 md:hidden">
+        <div className="border-border bg-background border-t px-4 pt-2 pb-4 md:hidden">
           <nav className="flex flex-col gap-1" aria-label="Mobile navigation">
             {navLinks.map((link) => (
               <a
                 key={link.label}
                 href={link.href}
-                className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground rounded-md px-3 py-2 text-sm transition-colors"
                 onClick={() => setMobileOpen(false)}
               >
                 {link.label}

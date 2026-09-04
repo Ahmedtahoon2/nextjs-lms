@@ -1,10 +1,10 @@
 allowBuilds:
-  '@parcel/watcher': false
-  '@prisma/engines': false
+  "@parcel/watcher": false
+  "@prisma/engines": false
   esbuild: false
   prisma: false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+onlyBuiltDependencies:
+  - "@prisma/engines"
+  - "@sentry/cli"
+  - esbuild
+  - prisma

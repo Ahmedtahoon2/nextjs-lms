@@ -18,50 +18,50 @@ UI → Actions → Services → Repositories → Prisma → PostgreSQL
 
 #### User
 
-| Field         | Type     | Notes            |
-| ------------- | -------- | ---------------- |
-| id            | String   | PK (CUID)        |
-| email         | String   | Unique           |
-| name          | String?  | Optional         |
-| emailVerified | Boolean  | Default false    |
-| image         | String?  | Optional         |
-| createdAt     | DateTime | Auto             |
-| updatedAt     | DateTime | Auto             |
+| Field         | Type     | Notes         |
+| ------------- | -------- | ------------- |
+| id            | String   | PK (CUID)     |
+| email         | String   | Unique        |
+| name          | String?  | Optional      |
+| emailVerified | Boolean  | Default false |
+| image         | String?  | Optional      |
+| createdAt     | DateTime | Auto          |
+| updatedAt     | DateTime | Auto          |
 
 Relations: `sessions[]`, `accounts[]`, `userRoles[]`
 
 #### Session
 
-| Field     | Type     | Notes          |
-| --------- | -------- | -------------- |
-| id        | String   | PK             |
-| token     | String   | Unique         |
-| userId    | String   | FK → User      |
-| expiresAt | DateTime | —              |
-| ipAddress | String?  | Optional       |
-| userAgent | String?  | Optional       |
-| createdAt | DateTime | Auto           |
-| updatedAt | DateTime | Auto           |
+| Field     | Type     | Notes     |
+| --------- | -------- | --------- |
+| id        | String   | PK        |
+| token     | String   | Unique    |
+| userId    | String   | FK → User |
+| expiresAt | DateTime | —         |
+| ipAddress | String?  | Optional  |
+| userAgent | String?  | Optional  |
+| createdAt | DateTime | Auto      |
+| updatedAt | DateTime | Auto      |
 
 Relations: `user`
 
 #### Account
 
-| Field                  | Type      | Notes       |
-| ---------------------- | --------- | ----------- |
-| id                     | String    | PK          |
-| accountId              | String    | —           |
-| providerId             | String    | —           |
-| userId                 | String    | FK → User   |
-| accessToken            | String?   | Optional    |
-| refreshToken           | String?   | Optional    |
-| idToken                | String?   | Optional    |
-| accessTokenExpiresAt   | DateTime? | Optional    |
-| refreshTokenExpiresAt  | DateTime? | Optional    |
-| scope                  | String?   | Optional    |
-| password               | String?   | Hashed      |
-| createdAt              | DateTime  | Auto        |
-| updatedAt              | DateTime  | Auto        |
+| Field                 | Type      | Notes     |
+| --------------------- | --------- | --------- |
+| id                    | String    | PK        |
+| accountId             | String    | —         |
+| providerId            | String    | —         |
+| userId                | String    | FK → User |
+| accessToken           | String?   | Optional  |
+| refreshToken          | String?   | Optional  |
+| idToken               | String?   | Optional  |
+| accessTokenExpiresAt  | DateTime? | Optional  |
+| refreshTokenExpiresAt | DateTime? | Optional  |
+| scope                 | String?   | Optional  |
+| password              | String?   | Hashed    |
+| createdAt             | DateTime  | Auto      |
+| updatedAt             | DateTime  | Auto      |
 
 Relations: `user`
 
@@ -92,15 +92,15 @@ Relations: `userRoles[]`, `rolePermissions[]`
 
 #### Permission
 
-| Field       | Type     | Notes                     |
-| ----------- | -------- | ------------------------- |
-| id          | String   | PK (CUID)                 |
-| name        | String   | Unique                    |
-| resource    | String   | Resource type             |
-| action      | String   | Action type               |
-| description | String?  | Optional                  |
-| createdAt   | DateTime | Auto                      |
-| updatedAt   | DateTime | Auto                      |
+| Field       | Type     | Notes         |
+| ----------- | -------- | ------------- |
+| id          | String   | PK (CUID)     |
+| name        | String   | Unique        |
+| resource    | String   | Resource type |
+| action      | String   | Action type   |
+| description | String?  | Optional      |
+| createdAt   | DateTime | Auto          |
+| updatedAt   | DateTime | Auto          |
 
 Relations: `rolePermissions[]`
 
@@ -108,12 +108,12 @@ Unique constraint: `[resource, action]`
 
 #### UserRole
 
-| Field     | Type     | Notes       |
-| --------- | -------- | ----------- |
-| id        | String   | PK (CUID)   |
-| userId    | String   | FK → User   |
-| roleId    | String   | FK → Role   |
-| createdAt | DateTime | Auto        |
+| Field     | Type     | Notes     |
+| --------- | -------- | --------- |
+| id        | String   | PK (CUID) |
+| userId    | String   | FK → User |
+| roleId    | String   | FK → Role |
+| createdAt | DateTime | Auto      |
 
 Relations: `user`, `role`
 
@@ -121,12 +121,12 @@ Unique constraint: `[userId, roleId]`
 
 #### RolePermission
 
-| Field        | Type     | Notes            |
-| ------------ | -------- | ---------------- |
-| id           | String   | PK (CUID)        |
-| roleId       | String   | FK → Role        |
-| permissionId | String   | FK → Permission  |
-| createdAt    | DateTime | Auto             |
+| Field        | Type     | Notes           |
+| ------------ | -------- | --------------- |
+| id           | String   | PK (CUID)       |
+| roleId       | String   | FK → Role       |
+| permissionId | String   | FK → Permission |
+| createdAt    | DateTime | Auto            |
 
 Relations: `role`, `permission`
 
@@ -156,6 +156,7 @@ User → UserRole → Role → RolePermission → Permission
 ```
 
 Example permissions:
+
 - `users:read` - Read user data
 - `users:write` - Create/update users
 - `users:delete` - Delete users
@@ -166,6 +167,7 @@ Example permissions:
 Add indexes only when justified. Avoid unnecessary joins. Paginate large results. Select only required fields.
 
 Existing indexes:
+
 - `Session.userId`
 - `Account.userId`
 - `Verification.identifier`

@@ -141,7 +141,27 @@ pnpm typecheck                      # check types
 
 New env var: add to `.env.example`, `.env`, and `src/lib/env.ts` (Zod).
 
-## Debugging
+## Debugging & Error Monitoring (Sentry)
+
+This project uses **Sentry** for client, server, and edge error monitoring and performance tracking.
+
+### Configuration
+
+- `sentry.client.config.ts`: Client-side telemetry, replay integrations, and session tracing.
+- `sentry.server.config.ts`: Server-side Node.js runtime exception capture and performance spans.
+- `sentry.edge.config.ts`: Edge runtime exception handling.
+- `src/instrumentation.ts`: Hooks server error instrumentation (`onRequestError = Sentry.captureRequestError`).
+- `src/app/global-error.tsx`: Root React Error Boundary capturing unhandled layout crashes.
+
+### Environment Variables
+
+| Variable                 | Description                                             | Required   |
+| ------------------------ | ------------------------------------------------------- | ---------- |
+| `NEXT_PUBLIC_SENTRY_DSN` | Client DSN URL                                          | Production |
+| `SENTRY_DSN`             | Server DSN URL (falls back to `NEXT_PUBLIC_SENTRY_DSN`) | Production |
+| `SENTRY_ORG`             | Sentry organization slug (for source map uploads)       | CI / Build |
+| `SENTRY_PROJECT`         | Sentry project slug (for source map uploads)            | CI / Build |
+| `SENTRY_AUTH_TOKEN`      | Sentry auth token (for source map uploads)              | CI / Build |
 
 - Server Component errors log to **terminal**, not browser.
 - Enable Prisma logging: `new PrismaClient({ log: ["query", "error", "warn"] })`.

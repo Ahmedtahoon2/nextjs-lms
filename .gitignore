@@ -58,4 +58,7 @@ repomix.config.json
 prisma/migrations/
 
 # grapgify
-/public/graphs/
+/public/graphs/
+
+# Sentry Config File
+.env.sentry-build-plugin

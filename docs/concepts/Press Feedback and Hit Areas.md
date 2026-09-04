@@ -18,7 +18,7 @@ Every interactive element should provide visual feedback when pressed.
 ## Implementation
 
 ```tsx
-<Button className="active:scale-[0.96] transition-transform duration-100">
+<Button className="transition-transform duration-100 active:scale-[0.96]">
   Click me
 </Button>
 ```

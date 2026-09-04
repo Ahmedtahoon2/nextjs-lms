@@ -31,6 +31,8 @@ Visit `http://localhost:3000`
 | Components | shadcn/ui         |
 | Database   | PostgreSQL (Neon) |
 | ORM        | Prisma            |
+| Auth       | Better Auth       |
+| Monitoring | Sentry            |
 | Validation | Zod               |
 | Forms      | React Hook Form   |
 | Testing    | Jest              |

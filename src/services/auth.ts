@@ -69,10 +69,7 @@ export async function getUserSessions(userId: string) {
   return sessionRepository.findSessionsByUserId(userId);
 }
 
-export async function revokeSession(
-  sessionId: string,
-  currentUserId: string,
-) {
+export async function revokeSession(sessionId: string, currentUserId: string) {
   // Find the session to verify it exists and get its owner
   const session = await sessionRepository.findSessionById(sessionId);
 

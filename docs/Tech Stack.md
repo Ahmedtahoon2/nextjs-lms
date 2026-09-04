@@ -14,6 +14,7 @@
 | Testing       | Jest + RTL          | Standard Next.js testing stack                            |
 | Lint / Format | ESLint + Prettier   | Static analysis + consistent formatting                   |
 | Git hooks     | Husky + lint-staged | Quality gates on commit                                   |
+| Monitoring    | Sentry              | Error monitoring, performance tracing, and source maps    |
 
 ## Principles
 

@@ -1,10 +1,7 @@
 import * as authService from "../auth";
 import * as sessionRepository from "@/repositories/session";
 import * as authorizationService from "@/services/authorization";
-import {
-  AuthorizationError,
-  NotFoundError,
-} from "@/lib/errors";
+import { AuthorizationError, NotFoundError } from "@/lib/errors";
 
 jest.mock("@/repositories/session");
 jest.mock("@/services/authorization");

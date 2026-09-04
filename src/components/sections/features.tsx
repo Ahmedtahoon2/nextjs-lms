@@ -56,18 +56,18 @@ const features = [
 
 function Features() {
   return (
-    <section id="features" className="border-t border-border">
+    <section id="features" className="border-border border-t">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
         <div className="max-w-2xl">
-          <p className="text-sm font-medium text-muted-foreground">Features</p>
+          <p className="text-muted-foreground text-sm font-medium">Features</p>
           <h2
-            className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl lg:text-4xl"
+            className="text-foreground mt-2 text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl"
             style={{ textWrap: "balance" }}
           >
             Everything you need to learn effectively
           </h2>
           <p
-            className="mt-3 max-w-[60ch] text-base leading-relaxed text-muted-foreground sm:text-lg"
+            className="text-muted-foreground mt-3 max-w-[60ch] text-base leading-relaxed sm:text-lg"
             style={{ textWrap: "pretty" }}
           >
             A complete learning environment designed to help you stay focused,
@@ -79,8 +79,8 @@ function Features() {
           {features.map((feature) => (
             <Card key={feature.title}>
               <CardHeader>
-                <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10">
-                  <feature.icon className="size-4.5 text-primary" />
+                <div className="bg-primary/10 flex size-9 items-center justify-center rounded-lg">
+                  <feature.icon className="text-primary size-4.5" />
                 </div>
                 <CardTitle>{feature.title}</CardTitle>
               </CardHeader>

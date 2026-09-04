@@ -63,8 +63,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow Next.js internal routes
-  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {
+  // Allow Next.js internal routes and monitoring endpoints
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/monitoring")
+  ) {
     return NextResponse.next();
   }
 

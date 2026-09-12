@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import * as userRepository from "@/repositories/user";
 import * as sessionRepository from "@/repositories/session";
+import * as roleRepository from "@/repositories/role";
+import * as userRoleRepository from "@/repositories/user-role";
 import * as authorizationService from "@/services/authorization";
 import {
   AuthenticationError,
@@ -28,11 +30,28 @@ export async function signIn(email: string, password: string) {
   });
 }
 
-export async function signUp(email: string, password: string, name: string) {
-  return auth.api.signUpEmail({
+export async function signUp(
+  email: string,
+  password: string,
+  name: string,
+  role?: string,
+) {
+  const result = await auth.api.signUpEmail({
     body: { email, password, name },
     headers: await headers(),
   });
+
+  if (result?.user?.id && role === "instructor") {
+    const instructorRole = await roleRepository.findRoleByName("instructor");
+    if (instructorRole) {
+      await userRoleRepository.assignRoleToUser(
+        result.user.id,
+        instructorRole.id,
+      );
+    }
+  }
+
+  return result;
 }
 
 export async function signOut() {

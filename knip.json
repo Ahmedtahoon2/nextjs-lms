@@ -1,12 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "tags": ["-lintignore"],
-  "prettier": {
-    "config": ["prettier.config.mjs"]
-  },
-  "eslint": {
-    "config": ["eslint.config.mjs"]
-  },
   "typescript": {
     "config": ["tsconfig.json"]
   },
@@ -20,10 +14,5 @@
     "src/repositories/*.ts",
     "src/services/*.ts"
   ],
-  "ignoreDependencies": [
-    "@prisma/adapter-pg",
-    "react-hook-form",
-    "ts-node",
-    "tsx"
-  ]
+  "ignoreDependencies": ["ts-node"]
 }

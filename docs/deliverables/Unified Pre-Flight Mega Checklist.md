@@ -25,9 +25,10 @@ Combined checklist from all design skills. Run before every deliverable.
 
 ---
 
-# ESLint
+# Biome
 
 - [ ] `pnpm run lint` passes.
+- [ ] `pnpm run format:check` passes.
 - [ ] No disabled rules without justification.
 - [ ] No warnings.
 

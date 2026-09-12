@@ -63,9 +63,29 @@ export class ValidationError extends Error {
   readonly code = "VALIDATION_ERROR";
   readonly errors: Record<string, string[]>;
 
-  constructor(errors: Record<string, string[]>, message = "Validation failed") {
-    super(message);
+  constructor(
+    messageOrErrors: string | Record<string, string[]> = "Validation failed",
+    message?: string,
+  ) {
+    super(
+      typeof messageOrErrors === "string"
+        ? messageOrErrors
+        : message || "Validation failed",
+    );
     this.name = "ValidationError";
-    this.errors = errors;
+    this.errors =
+      typeof messageOrErrors === "string"
+        ? { _form: [messageOrErrors] }
+        : messageOrErrors;
+  }
+}
+
+export class ConflictError extends Error {
+  readonly statusCode = 409;
+  readonly code = "CONFLICT";
+
+  constructor(message = "Resource conflict") {
+    super(message);
+    this.name = "ConflictError";
   }
 }

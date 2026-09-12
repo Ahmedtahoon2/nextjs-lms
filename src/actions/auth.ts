@@ -64,6 +64,7 @@ export async function signUpAction(
       parsed.data.email,
       parsed.data.password,
       parsed.data.name,
+      parsed.data.role,
     );
 
     return { success: true, data: result as unknown as void };
@@ -167,5 +168,20 @@ export async function revokeAllSessionsAction(): Promise<ActionResponse> {
       return { success: false, error: "Not authenticated" };
     }
     return { success: false, error: "Failed to revoke sessions" };
+  }
+}
+
+export async function assignInitialRoleAction(
+  role: "student" | "instructor",
+): Promise<ActionResponse> {
+  try {
+    const session = await authService.getCurrentSession();
+    await authorizationService.assignInitialUserRole(session.user.id, role);
+    return { success: true };
+  } catch (error) {
+    if (error instanceof Error) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: "Failed to assign initial role" };
   }
 }

@@ -39,3 +39,19 @@ export async function findUserWithRoles(id: string) {
     },
   });
 }
+
+export async function updateUserProfile(
+  id: string,
+  data: {
+    name?: string;
+    headline?: string | null;
+    bio?: string | null;
+    avatarUrl?: string | null;
+    website?: string | null;
+  },
+) {
+  return prisma.user.update({
+    where: { id },
+    data,
+  });
+}

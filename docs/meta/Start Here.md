@@ -17,7 +17,7 @@ pnpm prisma migrate dev | generate | studio | db push
 pnpm run prepare          # set up Husky hooks
 ```
 
-Pre-commit: ESLint + Prettier + TypeScript on staged files via lint-staged.
+Pre-commit: Biome + TypeScript on staged files via lint-staged.
 
 ## Project Structure
 

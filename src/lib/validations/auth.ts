@@ -17,6 +17,7 @@ export const signUpSchema = z.object({
     .string()
     .min(2, "Name must be at least 2 characters")
     .max(100, "Name must be at most 100 characters"),
+  role: z.enum(["student", "instructor"]).default("student").optional(),
 });
 
 export const forgotPasswordSchema = z.object({

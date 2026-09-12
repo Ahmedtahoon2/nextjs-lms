@@ -27,41 +27,133 @@ jest.mock("@prisma/adapter-neon", () => ({
 jest.mock("ws", () => ({}));
 
 // Mock Prisma Client
-jest.mock("@prisma/client", () => ({
-  PrismaClient: jest.fn().mockImplementation(() => ({
-    $connect: jest.fn(),
-    $disconnect: jest.fn(),
-    user: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
+jest.mock("@prisma/client", () => {
+  class MockPrismaClientKnownRequestError extends Error {
+    code: string;
+    constructor(
+      message: string,
+      { code }: { code: string; clientVersion?: string },
+    ) {
+      super(message);
+      this.code = code;
+      this.name = "PrismaClientKnownRequestError";
+    }
+  }
+
+  return {
+    CourseStatus: {
+      DRAFT: "DRAFT",
+      PUBLISHED: "PUBLISHED",
+      ARCHIVED: "ARCHIVED",
     },
-    session: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
-      deleteMany: jest.fn(),
+    CourseLevel: {
+      BEGINNER: "BEGINNER",
+      INTERMEDIATE: "INTERMEDIATE",
+      ADVANCED: "ADVANCED",
+      ALL_LEVELS: "ALL_LEVELS",
     },
-    role: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
+    EnrollmentStatus: {
+      ACTIVE: "ACTIVE",
+      COMPLETED: "COMPLETED",
+      ARCHIVED: "ARCHIVED",
     },
-    permission: {
-      findUnique: jest.fn(),
-      findMany: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
+    Prisma: {
+      PrismaClientKnownRequestError: MockPrismaClientKnownRequestError,
     },
-  })),
-}));
+    PrismaClient: jest.fn().mockImplementation(() => ({
+      $connect: jest.fn(),
+      $disconnect: jest.fn(),
+      $transaction: jest.fn((cb) =>
+        typeof cb === "function" ? cb(this) : Promise.all(cb),
+      ),
+      $queryRaw: jest.fn(),
+      user: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
+      session: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        deleteMany: jest.fn(),
+      },
+      role: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
+      permission: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
+      course: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn(),
+      },
+      module: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn(),
+      },
+      lesson: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn(),
+      },
+      lessonContent: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        upsert: jest.fn(),
+        delete: jest.fn(),
+      },
+      courseEnrollment: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        upsert: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn(),
+      },
+      lessonProgress: {
+        findUnique: jest.fn(),
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        upsert: jest.fn(),
+        delete: jest.fn(),
+        count: jest.fn(),
+      },
+    })),
+  };
+});
 
 // Mock better-auth
 jest.mock("better-auth", () => ({
@@ -81,4 +173,19 @@ jest.mock("better-auth", () => ({
 // Mock better-auth adapters
 jest.mock("better-auth/adapters/prisma", () => ({
   prismaAdapter: jest.fn(() => ({})),
+}));
+
+// Mock goey-toast
+jest.mock("goey-toast", () => ({
+  GooeyToaster: () => null,
+  gooeyToast: {
+    success: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+    warning: jest.fn(),
+    promise: jest.fn(),
+    dismiss: jest.fn(),
+    custom: jest.fn(),
+    message: jest.fn(),
+  },
 }));

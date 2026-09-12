@@ -16,11 +16,18 @@ model User {
   name          String?
   emailVerified Boolean   @default(false)
   image         String?
+  headline      String?
+  bio           String?
+  avatarUrl     String?
+  website       String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
   userRoles     UserRole[]
+  authoredCourses Course[] @relation("AuthoredCourses")
+  enrollments   CourseEnrollment[]
+  lessonProgress LessonProgress[]
 
   @@map("user")
 }
@@ -130,3 +137,136 @@ model RolePermission {
   @@index([permissionId])
   @@map("role_permission")
 }
+
+// ──────────────────────────────────────────────
+// Course & Curriculum Models
+// ──────────────────────────────────────────────
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ALL_LEVELS
+}
+
+model Course {
+  id           String       @id @default(cuid())
+  title        String
+  slug         String       @unique
+  description  String?
+  thumbnailUrl String?
+  status       CourseStatus @default(DRAFT)
+  level        CourseLevel  @default(ALL_LEVELS)
+  category     String?
+  instructorId String
+  instructor   User         @relation("AuthoredCourses", fields: [instructorId], references: [id], onDelete: Cascade)
+  modules      Module[]
+  enrollments  CourseEnrollment[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([instructorId])
+  @@index([status])
+  @@map("course")
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  orderIndex  Int
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons     Lesson[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([courseId, orderIndex])
+  @@index([courseId])
+  @@map("module")
+}
+
+model Lesson {
+  id              String         @id @default(cuid())
+  title           String
+  slug            String
+  orderIndex      Int
+  durationMinutes Int?
+  isFreePreview   Boolean        @default(false)
+  moduleId        String
+  module          Module         @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  content         LessonContent?
+  progress        LessonProgress[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([moduleId, slug])
+  @@unique([moduleId, orderIndex])
+  @@index([moduleId])
+  @@map("lesson")
+}
+
+model LessonContent {
+  id           String   @id @default(cuid())
+  lessonId     String   @unique
+  lesson       Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  bodyMarkdown String?
+  bodyHtml     String?
+  videoUrl     String?
+  resources    Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("lesson_content")
+}
+
+// ──────────────────────────────────────────────
+// Enrollment & Progress Models
+// ──────────────────────────────────────────────
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+model CourseEnrollment {
+  id                 String           @id @default(cuid())
+  userId             String
+  courseId           String
+  status             EnrollmentStatus @default(ACTIVE)
+  progressPercentage Int              @default(0)
+  enrolledAt         DateTime         @default(now())
+  completedAt        DateTime?
+  lastAccessedAt     DateTime         @default(now())
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course             Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@index([courseId])
+  @@map("course_enrollment")
+}
+
+model LessonProgress {
+  id             String    @id @default(cuid())
+  userId         String
+  lessonId       String
+  isCompleted    Boolean   @default(false)
+  completedAt    DateTime?
+  lastAccessedAt DateTime  @default(now())
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@map("lesson_progress")
+}
+

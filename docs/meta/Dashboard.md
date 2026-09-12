@@ -1,32 +1,35 @@
-# Dashboard
+# Project Dashboard
 
-## Project Status
+High-level status overview for the Next.js LMS platform.
 
-- **Stage:** Foundation
-- **Framework:** Next.js 16 + React 19 + TypeScript
-- **UI:** shadcn/ui + Tailwind v4
-- **DB:** PostgreSQL (Neon) via Prisma
-- **Status:** Pre-production
+---
 
-## Authentication
+## 1. Project Status
 
-Better Auth · Prisma adapter (PostgreSQL/Neon) · RBAC · DB-backed sessions with cookie cache.
+- **Stage:** LMS Domain & Architecture Active
+- **Framework:** Next.js 16 (App Router) + React 19 + TypeScript (Strict)
+- **Styling:** Tailwind CSS v4 + shadcn/ui primitives + OKLCH design tokens
+- **Data & Storage:** Neon PostgreSQL with Prisma ORM (`@prisma/adapter-neon`)
+- **Authentication:** Better Auth (RBAC, email/password, cookie-cached sessions)
 
-## Tech Health
+---
 
-| Technology   | Version   | Status     |
-| ------------ | --------- | ---------- |
-| Next.js      | 16.2.10   | Active     |
-| React        | 19.2.4    | Active     |
-| TypeScript   | 5.9.3     | Active     |
-| Tailwind CSS | v4        | Active     |
-| Prisma       | 7.8.0     | Active     |
-| shadcn/ui    | base-nova | Active     |
-| Jest         | 30.4.2    | Configured |
-| ESLint       | 9.x       | Active     |
-| Prettier     | 3.9.x     | Active     |
-| Husky        | Active    | Pre-commit |
+## 2. Core Tech Stack Health
 
-## Documentation Folders
+| Technology | Role | Status |
+| --- | --- | --- |
+| **Next.js 16** | Full-stack App Router framework | Active |
+| **React 19** | Component model (Server Components default) | Active |
+| **TypeScript 5** | Strict type safety & contract enforcement | Active |
+| **Tailwind CSS v4** | Semantic utility styling | Active |
+| **Prisma ORM** | PostgreSQL schema & type-safe data access | Active |
+| **Biome** | Fast linting and formatting (`pnpm check`) | Active |
+| **Jest & RTL** | Unit, service, and security integration tests | Active |
+| **Sentry** | Error monitoring and performance tracing | Configured |
 
-`rules/` (8) · `meta/` (4) · `skills/` (4) · `flows/` (5) · `audits/` (6) · `deliverables/` (3) · `concepts/` (6) · `decisions/` (4) · `reference/` (placeholder) · `ADR/` (3) · `API/` (1) · `Development/` (6) — all current.
+---
+
+## 3. Documentation Navigation
+
+Comprehensive project documentation is structured and indexed in **[Master Index](../INDEX.md)**.
+Formal architectural decisions are tracked in **[Decisions Index](../decisions/README.md)**.

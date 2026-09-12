@@ -10,6 +10,19 @@ const config: Config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
+  transformIgnorePatterns: [
+    "/node_modules/(?!(htmlparser2|sanitize-html|domhandler|entities)/)",
+  ],
 };
 
-export default createJestConfig(config);
+const asyncConfig = createJestConfig(config);
+
+const jestConfig = async () => {
+  const resolved = await asyncConfig();
+  resolved.transformIgnorePatterns = [
+    "/node_modules/(?!(\\.pnpm|marked|htmlparser2|sanitize-html|dom.*|entities)/)",
+  ];
+  return resolved;
+};
+
+export default jestConfig;

@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
+import { Manrope, Geist } from "next/font/google";
+import { GooeyToaster } from "@/components/ui/goey-toaster";
 
 import { ThemeProvider } from "@/providers/theme-provider";
 import "./globals.css";
+import { cn } from "@/lib/utils";
 
-const manrope = Manrope({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "Next.js Project",
@@ -24,7 +23,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${manrope.variable} h-full antialiased`}
+      className={cn("h-full", "antialiased", "font-sans", geist.variable)}
     >
       <body className="flex min-h-full flex-col">
         <ThemeProvider
@@ -34,6 +33,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <GooeyToaster />
         </ThemeProvider>
       </body>
     </html>

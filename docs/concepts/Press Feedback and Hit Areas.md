@@ -33,12 +33,12 @@ Interactive elements must have sufficient touch/click targets.
 
 - Minimum 40x40px hit area.
 - Extend with pseudo-element when visible element is smaller.
-- Apply `min-h-[40px] min-w-[40px]` for minimum sizing.
+- Apply `min-h-10 min-w-10` for minimum sizing.
 
 ## Implementation
 
 ```tsx
-<Button className="min-h-[40px] min-w-[40px]">
+<Button className="min-h-10 min-w-10">
   <span className="sr-only">Label</span>
   <Icon className="h-4 w-4" />
 </Button>

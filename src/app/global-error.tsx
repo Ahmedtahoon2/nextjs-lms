@@ -30,7 +30,7 @@ export default function GlobalError({
             <button
               type="button"
               onClick={() => reset()}
-              className="bg-primary text-primary-foreground focus-visible:outline-ring inline-flex min-h-[40px] min-w-[100px] items-center justify-center rounded-md px-4 py-2 text-sm font-medium shadow-xs transition-transform hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.96]"
+              className="bg-primary text-primary-foreground focus-visible:outline-ring inline-flex min-h-10 min-w-25 items-center justify-center rounded-md px-4 py-2 text-sm font-medium shadow-xs transition-transform hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 active:scale-[0.96]"
             >
               Try again
             </button>

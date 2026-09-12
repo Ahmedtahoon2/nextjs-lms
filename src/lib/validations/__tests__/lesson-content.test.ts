@@ -52,7 +52,7 @@ describe("Lesson Content Validations", () => {
     });
 
     it("rejects URL exceeding 500 characters", () => {
-      const longUrl = "https://example.com/" + "a".repeat(500);
+      const longUrl = `https://example.com/${"a".repeat(500)}`;
       expect(httpUrlSchema.safeParse(longUrl).success).toBe(false);
     });
   });

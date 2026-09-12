@@ -65,7 +65,7 @@ export const SANITIZER_CONFIG: sanitizeHtml.IOptions = {
   exclusiveFilter: (frame) => {
     // 1. Strict WHATWG URL verification for iframes
     if (frame.tag === "iframe") {
-      const src = frame.attribs["src"];
+      const src = frame.attribs.src;
       if (!src) return true; // Drop iframe without src
 
       try {
@@ -85,7 +85,7 @@ export const SANITIZER_CONFIG: sanitizeHtml.IOptions = {
 
     // 2. Strict WHATWG URL verification for images (reject data:, javascript:, file:)
     if (frame.tag === "img") {
-      const src = frame.attribs["src"];
+      const src = frame.attribs.src;
       if (!src) return true;
 
       try {
@@ -116,7 +116,7 @@ export const SANITIZER_CONFIG: sanitizeHtml.IOptions = {
 export async function markdownToSanitizedHtml(
   markdown: string,
 ): Promise<string> {
-  if (!markdown || !markdown.trim()) {
+  if (!markdown?.trim()) {
     return "";
   }
 

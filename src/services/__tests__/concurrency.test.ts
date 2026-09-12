@@ -24,8 +24,8 @@ class AsyncLock {
   }
 
   private release() {
-    if (this.queue.length > 0) {
-      const next = this.queue.shift()!;
+    const next = this.queue.shift();
+    if (next) {
       next();
     } else {
       this.locked = false;
@@ -65,6 +65,14 @@ describe("Concurrency & Race Condition Suite", () => {
     courseLocks.clear();
     db = new Map();
   });
+
+  function getDbCourse(id: string): DbCourse {
+    const course = db.get(id);
+    if (!course) {
+      throw new Error(`Course ${id} not found in test DB`);
+    }
+    return course;
+  }
 
   // Simulated transactional domain operations using the exact row-level locking strategy
   async function lockCourseForUpdate(courseId: string) {
@@ -254,7 +262,7 @@ describe("Concurrency & Race Condition Suite", () => {
         simulateCreateModule(courseId, "Late Arrival Module", 15),
       ]);
 
-      const course = db.get(courseId)!;
+      const course = getDbCourse(courseId);
       expect(course.status).toBe(CourseStatus.PUBLISHED);
 
       // Either:
@@ -304,7 +312,7 @@ describe("Concurrency & Race Condition Suite", () => {
         simulateCreateLesson(courseId, "mod-1", "Late Lesson", 10),
       ]);
 
-      const course = db.get(courseId)!;
+      const course = getDbCourse(courseId);
       expect(course.status).toBe(CourseStatus.PUBLISHED);
 
       const publishResult = results[0];
@@ -345,7 +353,7 @@ describe("Concurrency & Race Condition Suite", () => {
         simulateCreateModule(courseId, "Module After Archive", 20),
       ]);
 
-      const course = db.get(courseId)!;
+      const course = getDbCourse(courseId);
       expect(course.status).toBe(CourseStatus.ARCHIVED);
 
       // Create module should have failed with ValidationError
@@ -378,7 +386,7 @@ describe("Concurrency & Race Condition Suite", () => {
         simulateCreateModule(courseId, "First Module", 15),
       ]);
 
-      const course = db.get(courseId)!;
+      const course = getDbCourse(courseId);
       // Even if createModule ran first (bringing moduleCount to 1), lessonCount is still 0!
       // So publish must fail regardless of ordering!
       const publishResult = results[0];
@@ -430,7 +438,7 @@ describe("Concurrency & Race Condition Suite", () => {
         ).rejects.toThrow(ValidationError);
 
         // Verify DB state is strictly unchanged
-        const course = db.get(courseId)!;
+        const course = getDbCourse(courseId);
         expect(course.modules).toHaveLength(1);
         expect(course.lessons).toHaveLength(1);
       }

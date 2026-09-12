@@ -34,13 +34,13 @@ const authRoutes = ["/sign-in", "/sign-up"];
 
 function isPublicRoute(pathname: string): boolean {
   return publicRoutes.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 }
 
 function isAuthRoute(pathname: string): boolean {
   return authRoutes.some(
-    (route) => pathname === route || pathname.startsWith(route + "/"),
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 }
 

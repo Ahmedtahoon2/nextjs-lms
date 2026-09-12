@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Manrope, Geist } from "next/font/google";
+import { Geist } from "next/font/google";
 import { GooeyToaster } from "@/components/ui/goey-toaster";
 
 import { ThemeProvider } from "@/providers/theme-provider";

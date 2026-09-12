@@ -1,4 +1,3 @@
-import * as React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LessonCompletionButton } from "../lesson-completion-button";
 import * as progressActions from "@/actions/progress";

@@ -33,12 +33,9 @@ export async function signInAction(
   }
 
   try {
-    const result = await authService.signIn(
-      parsed.data.email,
-      parsed.data.password,
-    );
+    await authService.signIn(parsed.data.email, parsed.data.password);
 
-    return { success: true, data: result as unknown as void };
+    return { success: true };
   } catch (error) {
     if (error instanceof Error) {
       return { success: false, error: error.message };
@@ -60,14 +57,14 @@ export async function signUpAction(
   }
 
   try {
-    const result = await authService.signUp(
+    await authService.signUp(
       parsed.data.email,
       parsed.data.password,
       parsed.data.name,
       parsed.data.role,
     );
 
-    return { success: true, data: result as unknown as void };
+    return { success: true };
   } catch (error) {
     if (error instanceof Error) {
       return { success: false, error: error.message };

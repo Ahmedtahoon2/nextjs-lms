@@ -14,5 +14,5 @@
     "src/repositories/*.ts",
     "src/services/*.ts"
   ],
-  "ignoreDependencies": ["ts-node"]
+  "ignoreDependencies": ["ts-node", "clsx", "tailwind-merge"]
 }

@@ -411,7 +411,6 @@ export async function findPublishedCoursesPaginated(
     case "title_desc":
       orderBy = { title: "desc" };
       break;
-    case "newest":
     default:
       orderBy = { createdAt: "desc" };
       break;

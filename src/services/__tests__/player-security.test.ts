@@ -1,6 +1,8 @@
 import { getCourseLessonForPlayer } from "../lesson-content";
 import * as courseRepository from "@/repositories/course";
+import type { CourseWithCurriculum } from "@/repositories/course";
 import * as lessonContentRepository from "@/repositories/lesson-content";
+import type { LessonHierarchy } from "@/repositories/lesson-content";
 import * as enrollmentService from "@/services/enrollment";
 import * as authorizationService from "@/services/authorization";
 import {
@@ -32,7 +34,9 @@ describe("Player Security & Cross-Course Isolation", () => {
     mockAuthService.hasRole.mockResolvedValue(false);
   });
 
-  const courseA = {
+  const now = new Date();
+
+  const courseA: CourseWithCurriculum = {
     id: "course-a-id",
     title: "Course A",
     slug: "course-a",
@@ -42,18 +46,35 @@ describe("Player Security & Cross-Course Isolation", () => {
     level: CourseLevel.BEGINNER,
     category: "Dev",
     instructorId: "instructor-a",
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: now,
+    updatedAt: now,
     modules: [
       {
         id: "mod-a",
+        title: "Module A",
+        description: null,
+        courseId: "course-a-id",
         orderIndex: 0,
-        lessons: [{ id: "lesson-a", title: "Lesson A", orderIndex: 0 }],
+        createdAt: now,
+        updatedAt: now,
+        lessons: [
+          {
+            id: "lesson-a",
+            title: "Lesson A",
+            slug: "lesson-a",
+            durationMinutes: null,
+            moduleId: "mod-a",
+            orderIndex: 0,
+            isFreePreview: false,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
       },
     ],
   };
 
-  const lessonAHierarchy = {
+  const lessonAHierarchy: LessonHierarchy = {
     id: "lesson-a",
     title: "Lesson A",
     isFreePreview: false,
@@ -69,7 +90,7 @@ describe("Player Security & Cross-Course Isolation", () => {
     },
   };
 
-  const lessonBHierarchy = {
+  const lessonBHierarchy: LessonHierarchy = {
     id: "lesson-b",
     title: "Lesson B",
     isFreePreview: false,
@@ -88,9 +109,9 @@ describe("Player Security & Cross-Course Isolation", () => {
   describe("Mandatory Cross-Course Isolation Guardrail", () => {
     it("strictly blocks cross-course lesson access when lesson belongs to another course", async () => {
       // User requests /courses/course-a/lessons/lesson-b
-      mockCourseRepo.findCourseBySlug.mockResolvedValue(courseA as any);
+      mockCourseRepo.findCourseBySlug.mockResolvedValue(courseA);
       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
-        lessonBHierarchy as any,
+        lessonBHierarchy,
       );
 
       await expect(
@@ -113,10 +134,10 @@ describe("Player Security & Cross-Course Isolation", () => {
 
   describe("Student Access & Authorization Boundary", () => {
     beforeEach(() => {
-      mockCourseRepo.findCourseBySlug.mockResolvedValue(courseA as any);
-      mockCourseRepo.findCourseById.mockResolvedValue(courseA as any);
+      mockCourseRepo.findCourseBySlug.mockResolvedValue(courseA);
+      mockCourseRepo.findCourseById.mockResolvedValue(courseA);
       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue(
-        lessonAHierarchy as any,
+        lessonAHierarchy,
       );
       mockLessonContentRepo.findLessonContentByLessonId.mockResolvedValue({
         id: "content-a",
@@ -137,7 +158,7 @@ describe("Player Security & Cross-Course Isolation", () => {
       mockLessonContentRepo.findLessonHierarchy.mockResolvedValue({
         ...lessonAHierarchy,
         isFreePreview: true,
-      } as any);
+      });
 
       const result = await getCourseLessonForPlayer({
         courseSlug: "course-a",
@@ -188,7 +209,7 @@ describe("Player Security & Cross-Course Isolation", () => {
       mockCourseRepo.findCourseBySlug.mockResolvedValue({
         ...courseA,
         status: CourseStatus.ARCHIVED,
-      } as any);
+      });
       mockEnrollmentService.isUserEnrolled.mockResolvedValue(true);
 
       await expect(
@@ -204,7 +225,7 @@ describe("Player Security & Cross-Course Isolation", () => {
       mockCourseRepo.findCourseBySlug.mockResolvedValue({
         ...courseA,
         status: CourseStatus.ARCHIVED,
-      } as any);
+      });
 
       const result = await getCourseLessonForPlayer({
         courseSlug: "course-a",
@@ -219,7 +240,7 @@ describe("Player Security & Cross-Course Isolation", () => {
       mockCourseRepo.findCourseBySlug.mockResolvedValue({
         ...courseA,
         status: CourseStatus.DRAFT,
-      } as any);
+      });
       mockAuthService.hasRole.mockResolvedValue(true);
 
       const result = await getCourseLessonForPlayer({

@@ -80,7 +80,7 @@ When architecture/conventions/folders/workflows change → update the docs.
 
 # Code Review Checklist
 
-- [ ] Builds, ESLint passes, TypeScript passes
+- [ ] Builds, Biome check passes, TypeScript passes
 - [ ] No duplicated logic, no dead code
 - [ ] Architecture respected, no business logic in UI
 - [ ] No anti-slop design patterns (see `docs/Design Rules.md`)

@@ -77,7 +77,7 @@ Quick reference for daily work with design skills.
 
 ```bash
 pnpm run typecheck    # TypeScript
-pnpm run lint         # ESLint
+pnpm run lint         # Biome
 pnpm run build        # Build
 pnpm run test         # Tests
 pnpm run knip         # Dead code

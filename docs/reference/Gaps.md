@@ -1,47 +1,21 @@
-# Gaps
+# Project Gaps & Roadmap
 
-Identified gaps and areas for future improvement.
-
----
-
-# Documentation Gaps
-
-- ADR/ folder is empty. First architecture decision record needed.
-- Features/ folder is empty. Feature documentation needed as features are built.
-- No testing documentation beyond basic setup.
+Identified gaps and areas for future enhancement across the repository.
 
 ---
 
-# Toolchain Gaps
+## 1. Resolved Areas
 
-- Impeccable not installed yet.
-- Taste Skill not installed yet.
-- No automated design audit in CI/CD.
-- No visual regression testing.
-
----
-
-# Knowledge Gaps
-
-- Token cost measurement not implemented.
-- Performance baseline not established.
-- Accessibility audit not run.
+- [x] **Architecture Decisions:** Formalized in **[decisions/](../decisions/README.md)** (ADR-001 to ADR-003).
+- [x] **Testing Strategy:** Complete testing architecture and layer patterns documented in **[.agents/skills/lms-testing](../../.agents/skills/lms-testing/SKILL.md)** and **[audits/quality-audit.md](../audits/quality-audit.md)**.
+- [x] **Release & Git Workflow:** Trunk-based workflow, commit standards, and tag release processes documented in **[Development/Git.md](../Development/Git.md)**.
+- [x] **Error Telemetry:** Sentry configuration for client, server, and edge documented in **[DEVELOPMENT.md](../DEVELOPMENT.md)**.
 
 ---
 
-# Process Gaps
+## 2. Active Toolchain & Quality Gaps
 
-- No formal release process documented.
-- No deployment pipeline documented.
-- No monitoring setup documented.
-
----
-
-# Future Work
-
-- Install and configure Impeccable.
-- Install and configure Taste Skill.
-- Set up visual regression testing.
-- Establish performance baseline.
-- Run full accessibility audit.
-- Document deployment pipeline.
+- **Automated Design & Accessibility Audits:** Integrate automated axe-core / Lighthouse checks into CI/CD.
+- **Visual Regression Testing:** Configure Playwright or Chromatic for visual diff regression testing.
+- **Performance Baseline:** Establish Core Web Vitals (LCP, FID/INP, CLS) and API latency baseline metrics under load.
+- **Production Deployment Pipeline:** Document and configure the production release pipeline (e.g. Vercel deployment hooks and database migration deployment).

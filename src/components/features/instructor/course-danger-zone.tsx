@@ -1,0 +1,139 @@
+"use client";
+
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { CourseStatus } from "@prisma/client";
+import { gooeyToast } from "@/components/ui/goey-toaster";
+import { archiveCourseAction, deleteCourseAction } from "@/actions/course";
+import { Button } from "@/components/ui/button";
+import { AlertTriangle, Archive, Trash2, Loader2 } from "lucide-react";
+
+interface CourseDangerZoneProps {
+  courseId: string;
+  courseTitle: string;
+  status: CourseStatus;
+}
+
+export function CourseDangerZone({
+  courseId,
+  courseTitle,
+  status,
+}: CourseDangerZoneProps) {
+  const router = useRouter();
+  const [isArchiving, setIsArchiving] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
+  const handleArchive = async () => {
+    const confirmed = window.confirm(
+      `Are you sure you want to archive "${courseTitle}"? Students will no longer be able to enroll, and current students will lose access to new updates.`,
+    );
+    if (!confirmed) return;
+
+    setIsArchiving(true);
+    try {
+      const result = await archiveCourseAction(courseId);
+      if (result.success) {
+        gooeyToast.success("Course archived successfully.");
+        router.refresh();
+      } else {
+        gooeyToast.error(result.error || "Failed to archive course.");
+      }
+    } catch {
+      gooeyToast.error("Failed to archive course. Please try again.");
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete "${courseTitle}"? This will delete all modules, lessons, and student progress records. This action CANNOT be undone.`,
+    );
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await deleteCourseAction(courseId);
+      if (result.success) {
+        gooeyToast.success("Course deleted successfully.");
+        router.push("/instructor/courses");
+      } else {
+        gooeyToast.error(result.error || "Failed to delete course.");
+      }
+    } catch {
+      gooeyToast.error("Failed to delete course. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const isArchived = status === CourseStatus.ARCHIVED;
+
+  return (
+    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 shadow-xs">
+      <div className="flex items-center gap-2.5 text-destructive">
+        <AlertTriangle className="size-5" />
+        <h3 className="text-base font-semibold">Danger Zone</h3>
+      </div>
+      <p className="mt-1 text-xs text-muted-foreground max-w-[65ch]">
+        These actions are destructive. Please proceed with caution.
+      </p>
+
+      <div className="mt-6 flex flex-col gap-4 divide-y divide-destructive/10">
+        {/* Archive Action */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
+          <div>
+            <h4 className="text-sm font-medium text-foreground">
+              Archive this course
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              {isArchived
+                ? "This course is currently archived."
+                : "Remove course from public view while preserving student records."}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isArchiving || isArchived}
+            onClick={handleArchive}
+            className="min-h-10 min-w-10 active:scale-[0.98] border-destructive/30 text-destructive hover:bg-destructive/10"
+          >
+            {isArchiving ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Archive className="mr-2 size-4" />
+            )}
+            {isArchived ? "Archived" : "Archive Course"}
+          </Button>
+        </div>
+
+        {/* Delete Action */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4">
+          <div>
+            <h4 className="text-sm font-medium text-foreground">
+              Delete this course
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Permanently remove this course and all its modules and lessons.
+            </p>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={isDeleting}
+            onClick={handleDelete}
+            className="min-h-10 min-w-10 active:scale-[0.98]"
+          >
+            {isDeleting ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Trash2 className="mr-2 size-4" />
+            )}
+            Delete Course
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

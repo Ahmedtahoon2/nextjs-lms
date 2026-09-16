@@ -59,7 +59,6 @@ dev/<feature> (your work)
    pnpm lint
    pnpm typecheck
    pnpm test
-   pnpm build
    ```
 
 4. **Create Pull Request:**
@@ -106,7 +105,7 @@ Use **Semantic Versioning** (MAJOR.MINOR.PATCH):
 ```bash
 # 1. Ensure dev is stable and tested
 git checkout dev
-pnpm lint && pnpm typecheck && pnpm test && pnpm build
+pnpm lint && pnpm typecheck && pnpm test 
 
 # 2. Update version (manually edit package.json or use npm version)
 # For a minor release:
@@ -159,7 +158,7 @@ chore(deps): upgrade Next.js to 16.2.10
 
 Every PR must:
 
-- ✅ Pass ESLint without errors
+- ✅ Pass Biome checks without errors
 - ✅ Pass TypeScript type checking
 - ✅ Pass all tests
 - ✅ Build successfully
@@ -170,8 +169,7 @@ Every PR must:
 
 Pre-commit hook runs automatically on `git commit`:
 
-- ESLint fix on staged `.js`, `.jsx`, `.ts`, `.tsx` files
-- Prettier format on staged files
+- Biome check and format on staged files
 - TypeScript check (full project)
 
 **To skip hooks** (only when absolutely necessary):
@@ -246,7 +244,7 @@ GitHub Actions runs on:
 
 CI checks:
 
-1. **Quality** - TypeScript, ESLint, Knip (dead code)
+1. **Quality** - TypeScript, Biome, Knip (dead code)
 2. **Tests** - Jest test suite
 3. **Build** - Production build verification
 
@@ -264,7 +262,7 @@ git commit -m "feat(scope): description"
 git push origin dev/my-feature
 
 # Before creating PR
-pnpm lint && pnpm typecheck && pnpm test && pnpm build
+pnpm lint && pnpm typecheck && pnpm test 
 
 # Update your branch with latest dev
 git checkout dev && git pull

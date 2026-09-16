@@ -1,152 +1,171 @@
-# Next.js Modern Starter
+# Next.js LMS Platform
 
-> A production-ready Next.js starter with TypeScript, Prisma, Tailwind CSS v4, and shadcn/ui.
+> A production-grade Learning Management System (LMS) built with Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui, Prisma ORM, Neon PostgreSQL, and Better Auth.
 
-## Quick Start
+---
 
-```bash
-# Install dependencies
-pnpm install
+## Key Features
 
-# Set up environment variables
-cp .env.example .env
+- **Role-Based Access Control (RBAC):** Multi-tier authorization supporting Students, Instructors, and Administrators via Better Auth with session management and route guards.
+- **Course Catalog & Discovery:** Server-side search, category and proficiency level filtering, sorting, and bounded pagination with automatic enrollment state decoration.
+- **Student Learning Player:** Interactive course player featuring dynamic curriculum sidebar navigation, video embeds (YouTube, Vimeo, Loom), server-sanitized markdown reader, downloadable resources, and granular per-lesson progress completion tracking.
+- **Instructor Course Management:** Dedicated instructor authoring workspace for course creation, curriculum organization (modules and lessons), atomic two-phase curriculum reordering, rich markdown editor with live sanitized preview, and publishing state machines.
+- **User Profiles:** Self-service profile management with bio, headline, website, and avatar customization.
+- **Enterprise Security & Concurrency:** IDOR protection on all resources, server-side XSS sanitization (`sanitize-html` and `marked`), parent course row locking (`SELECT ... FOR UPDATE`), and atomic database transactions.
 
-# Generate Prisma client
-pnpm db:generate
-
-# Start development server
-pnpm dev
-```
-
-Visit `http://localhost:3000`
+---
 
 ## Tech Stack
 
-| Category   | Technology        |
-| ---------- | ----------------- |
-| Framework  | Next.js 16        |
-| Language   | TypeScript        |
-| UI         | React 19          |
-| Styling    | Tailwind CSS v4   |
-| Components | shadcn/ui         |
-| Database   | PostgreSQL (Neon) |
-| ORM        | Prisma            |
-| Auth       | Better Auth       |
-| Monitoring | Sentry            |
-| Validation | Zod               |
-| Forms      | React Hook Form   |
-| Testing    | Jest              |
-| Linting    | ESLint + Prettier |
+| Category | Technology |
+| -------- | ---------- |
+| **Framework** | Next.js 16 (App Router) |
+| **Language** | TypeScript 5.9 |
+| **UI Library** | React 19 |
+| **Styling** | Tailwind CSS v4 + tw-animate-css |
+| **Components** | shadcn/ui (base-nova) + Lucide Icons |
+| **Database** | PostgreSQL (Neon serverless) |
+| **ORM** | Prisma 7.10 |
+| **Authentication** | Better Auth 1.7 |
+| **Validation** | Zod |
+| **Forms** | React Hook Form + `@hookform/resolvers` |
+| **Testing** | Jest 30 + React Testing Library |
+| **Tooling & Linter** | Biome 2.5 + Knip |
+| **Monitoring** | Sentry (`@sentry/nextjs`) |
+
+---
+
+## Architecture
+
+This project strictly adheres to a **5-layer architecture** with downward-only dependency flow:
+
+```
+UI Layer (Server & Client Components)
+  ↓
+Actions / Routes (@/actions/*, @/app/api/*)
+  ↓
+Domain Services (@/services/*)
+  ↓
+Repositories (@/repositories/*)
+  ↓
+Database (Prisma + Neon PostgreSQL)
+```
+
+- **UI:** Pure presentation. Never queries database or repositories directly. Interactive elements are isolated client leaves (`"use client"`).
+- **Actions / Routes:** Input validation via Zod schemas and session/role guards. Standardized `ActionResult<T>` responses.
+- **Domain Services:** Centralized business logic, transactions, state machines, and 4-tier authorization.
+- **Repositories:** Clean data access, queries, and atomic database mutations.
+- **Database:** Managed via Prisma schemas with indexes supporting foreign keys and query paths.
+
+---
+
+## Quick Start
+
+### 1. Clone & Install Dependencies
+
+```bash
+git clone <repository-url>
+cd nextjs
+pnpm install
+```
+
+### 2. Configure Environment Variables
+
+Create `.env` based on `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Ensure the following variables are configured:
+
+```env
+# Database (Neon PostgreSQL)
+DATABASE_URL="postgresql://user:password@endpoint.neon.tech/neondb?sslmode=require"
+
+# Better Auth Configuration
+BETTER_AUTH_SECRET="your-secure-random-secret-key-at-least-32-chars"
+BETTER_AUTH_URL="http://localhost:3000"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Sentry (Optional for local dev)
+NEXT_PUBLIC_SENTRY_DSN=""
+```
+
+### 3. Database Migration & Client Generation
+
+```bash
+pnpm db:generate
+pnpm db:push
+# or run migrations:
+# pnpm db:migrate
+```
+
+### 4. Run Development Server
+
+```bash
+pnpm dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## Available Scripts
+
+| Command | Description |
+| ------- | ----------- |
+| `pnpm dev` | Start Next.js development server |
+| `pnpm build` | Create production build |
+| `pnpm start` | Start production server |
+| `pnpm test` | Run complete Jest test suite (unit, integration, security) |
+| `pnpm typecheck` | Run TypeScript compiler check without emitting files |
+| `pnpm lint` | Run Biome linter across codebase |
+| `pnpm format` | Format files using Biome |
+| `pnpm check` | Run full quality gate: Biome check, typecheck, and Knip |
+| `pnpm db:generate` | Regenerate Prisma Client |
+| `pnpm db:push` | Sync Prisma schema with Neon database |
+| `pnpm db:studio` | Open Prisma Studio database viewer |
+
+---
 
 ## Project Structure
 
 ```
 src/
-├── app/              # Next.js App Router pages
-├── components/       # Reusable UI components
-│   ├── ui/          # shadcn/ui components
-│   ├── layout/      # Layout components
-│   └── shared/      # Shared components
-├── lib/             # Utilities and configurations
-├── actions/         # Server Actions
-├── services/        # Business logic
-├── repositories/    # Data access layer
-└── providers/       # React Context providers
-
-prisma/
-└── schema.prisma    # Database schema
-
-docs/                # Project documentation
+├── actions/             # Server Actions (Zod parsing, auth guards, ActionResult)
+├── app/                 # Next.js App Router (pages, layouts, route handlers)
+│   ├── (auth)/          # Authentication routes (/sign-in, /sign-up)
+│   ├── (dashboard)/     # Protected instructor & user dashboards
+│   ├── (marketing)/     # Public landing & static pages
+│   ├── courses/         # Course catalog, syllabus, and learning player
+│   └── api/             # API route handlers (Better Auth, webhooks)
+├── components/
+│   ├── features/        # Domain-scoped UI components (auth, catalog, player, etc.)
+│   ├── global/          # Global layout, header, footer, theme providers
+│   └── ui/              # shadcn/ui design primitives (button, card, dialog, etc.)
+├── lib/                 # Core utilities, errors, validators, auth config
+├── providers/           # React context providers (Theme, Auth)
+├── repositories/        # Concrete data access layer (Prisma models)
+├── services/            # Domain business logic & transaction boundaries
+└── __tests__/           # Security penetration tests (IDOR, XSS)
 ```
 
-## Architecture
+---
 
-This project follows a **layered architecture** to separate concerns:
+## Documentation Links
 
-```
-UI Layer (React Components)
-         ↓
-Actions/Routes (Server Actions, API Routes)
-         ↓
-Services (Business Logic)
-         ↓
-Repositories (Data Access)
-         ↓
-Database (Prisma + PostgreSQL)
-```
+- **[Master Index](docs/INDEX.md)** — Canonical project documentation hub
+- **[Architecture Guide](docs/Architecture.md)** — Detailed 5-layer boundaries and concurrency patterns
+- **[Domain Entities Reference](docs/reference/Entities.md)** — Comprehensive entity and relation definitions
+- **[ADR 001: Layered Architecture](docs/decisions/001-use-layered-architecture.md)**
+- **[ADR 002: Neon with Prisma](docs/decisions/002-use-neon-with-prisma.md)**
+- **[ADR 003: shadcn/ui Component Strategy](docs/decisions/003-use-shadcn-ui.md)**
+- **[ADR 004: LMS Domain Model](docs/decisions/004-lms-domain-model.md)**
 
-**Key Principles:**
-
-- Business logic lives in **Services**, never in UI components
-- Database access happens only through **Repositories**
-- Prefer **Server Components** by default
-- Use **Client Components** only when needed (state, events, browser APIs)
-
-## Available Scripts
-
-```bash
-pnpm dev          # Start development server
-pnpm build        # Build for production
-pnpm start        # Start production server
-pnpm lint         # Run ESLint
-pnpm format       # Format code with Prettier
-pnpm typecheck    # Run TypeScript type checking
-pnpm test         # Run Jest tests
-```
-
-## Documentation
-
-- **[Architecture](docs/ARCHITECTURE.md)** - Detailed architecture guide
-- **[Development Guide](docs/DEVELOPMENT.md)** - Development workflows and best practices
-- **[API Documentation](docs/API/)** - API references
-- **[ADRs](docs/ADR/)** - Architecture Decision Records
-
-## Project Goals
-
-- Clean, maintainable architecture
-- Type-safe code throughout
-- Excellent developer experience
-- AI-friendly codebase
-- Performance-optimized
-- Accessible by default
-
-## Git Workflow
-
-This project uses a trunk-based workflow:
-
-- **`master`** - Production/stable branch (protected)
-- **`dev`** - Development/integration branch (protected)
-- **`dev/<feature>`** - Feature branches
-
-### Quick Start
-
-```bash
-# Start new feature
-git checkout dev && git pull && git checkout -b dev/my-feature
-
-# Make changes and commit
-git add .
-git commit -m "feat(scope): description"
-
-# Verify before PR
-pnpm lint && pnpm typecheck && pnpm test && pnpm build
-
-# Push and create PR to dev
-git push origin dev/my-feature
-```
-
-See **[Git Workflow Guide](docs/Development/Git.md)** for complete branching, release, and versioning guidelines.
-
-## Contributing
-
-1. Create feature branches from `dev` (never from `master`)
-2. Follow Conventional Commits: `type(scope): description`
-3. Ensure all checks pass: lint, typecheck, tests, build
-4. Create PR targeting `dev` branch
-5. Delete feature branch after merge
-
-See [Development Guide](docs/DEVELOPMENT.md) for coding standards.
+---
 
 ## License
 
 MIT
+

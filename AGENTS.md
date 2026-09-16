@@ -1,221 +1,62 @@
-# AI Development Guide
+# Antigravity AI Guide — Next.js LMS
 
-> **Tool-agnostic instructions.** This file is the canonical, tool-independent source of truth for AI coding assistants working in this repository. It is intentionally written so any agent — regardless of vendor or runtime — can read and follow it.
->
-> See `docs/AI Instructions.md` for a longer discussion of tool compatibility and loading strategies.
->
-> Tool-specific mirrors (kept identical to this file) may exist at:
->
-> - `CLAUDE.md` (Claude Code)
-> - `.cursorrules` or `.cursor/rules/AGENTS.md` (Cursor)
-> - `.github/copilot-instructions.md` (GitHub Copilot)
-> - `.windsurfrules` (Windsurf)
-> - `.clinerules` or `.cline/AGENTS.md` (Cline / Roo Code)
-> - `.continuerc.json` reference (Continue.dev)
->
-> If you are an MCP-based agent (Context7, filesystem MCP, etc.), use your filesystem tool to read this file directly.
+Canonical instruction entry point for AI coding agents in this repository.
 
----
+## 1. Project Identity & Stack
+- **Domain:** Production-grade Learning Management System (LMS).
+- **Core Stack:** Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui.
+- **Data & Auth:** Prisma ORM, Neon PostgreSQL (`@prisma/adapter-neon`), Better Auth.
+- **Quality Tooling:** Biome (lint & format), Jest, Knip.
 
-# Mission
-
-Build maintainable, production-grade software.
-
-Readable code is preferred over clever code.
-
-Correctness is preferred over speed.
-
-Consistency is preferred over personal preference.
-
----
-
-# Technology Stack
-
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS v4
-- shadcn/ui
-- Prisma ORM
-- PostgreSQL
-- Neon Database
-- Zod
-- React Hook Form
-
----
-
-## Architecture Rules
-
-Always follow this architecture:
-
+## 2. Architecture & Layer Boundaries
+Strict downward dependency flow:
 ```
-UI
-↓
-
-Actions / Routes
-↓
-
-Services
-
-↓
-
-Repositories
-
-↓
-
-Database
+UI (Server & Client Components)
+  ↓
+Actions / Route Handlers (@/actions/*, @/app/api/*)
+  ↓
+Domain Services (@/services/*)
+  ↓
+Repositories (@/repositories/*)
+  ↓
+Database (Prisma + Neon PostgreSQL)
 ```
+- **UI:** Presentation only. Never import Prisma or repositories directly.
+- **Actions / Routes:** Input validation (Zod) and auth guards only. Must return `ActionResult<T>`. No business logic.
+- **Services:** All business logic, transaction boundaries, and state transitions live here.
+- **Repositories:** Data access and queries only. No business logic.
+- **Database:** Managed via Prisma schema and Neon migrations.
 
-Business logic must never exist inside UI components.
+## 3. Agent Operating Workflow
+Antigravity must follow the operating system defined in:
+`.agents/rules/operating-system.md`
 
-Database access must never happen directly inside UI components.
+Follow the 11-step cognitive cycle:
+Understand → Inspect → Route Skills → Verify Architecture → Plan → Implement → Verify → Audit → Document → Git Review → Report.
 
----
+## 4. Skill Routing & Context Control
+Do NOT load all skills for every task. Consult:
+`.agents/rules/skill-router.md`
+Select the **minimum sufficient skill set** matching the task intent before reading detailed guides.
 
-# Before Writing Code
+## 5. Source of Truth Hierarchy
+1. **Actual Code & Tests:** Ground truth of runtime behavior and contracts.
+2. **`docs/`:** Project documentation, architecture guides, and ADRs.
+3. **`.agents/`:** Operating rules and specialized skill instructions.
+4. **General AI Knowledge:** Fallback only. Never prioritize over repository evidence.
+*If documentation conflicts with tested code, investigate and escalate instead of guessing.*
 
-Always understand:
+## 6. Safety & Behavior Invariants
+- Never expose secrets, credentials, or private keys.
+- Never claim a check or test passed if it was not executed.
+- No destructive Git commands (`reset --hard`, `clean -fd`, `push --force`) without explicit approval.
+- Minimal diffs only: touch strictly what is required for the user request.
+- Preserve existing working behavior and tests.
 
-- Existing architecture
-- Current conventions
-- File organization
-- Naming conventions
-- Existing abstractions
+## 7. Error Suppression Policy
+Fix the root cause first. Avoid suppressions (`any`, unsafe casts, `@ts-ignore`, `@ts-expect-error`, `biome-ignore`, `eslint-disable`) as shortcuts.
+A suppression is permissible only when technically justified, narrowly scoped, documented when non-obvious, and preferable to a worse workaround.
 
-Never introduce a second pattern when one already exists.
-
----
-
-# Component Rules
-
-Components should:
-
-- Have a single responsibility.
-- Stay small.
-- Prefer composition over inheritance.
-- Avoid duplicated logic.
-- Avoid unnecessary props.
-
----
-
-# TypeScript Rules
-
-- Never use `any`.
-- Prefer inferred types.
-- Use Zod for runtime validation.
-- Export reusable types.
-- Keep types close to the feature.
-
----
-
-# Next.js Rules
-
-- Prefer Server Components.
-- Use Client Components only when required.
-- Keep business logic outside UI.
-- Use Server Actions when appropriate.
-- Keep routes thin.
-
----
-
-# UI Rules
-
-Use existing shadcn/ui components whenever appropriate.
-
-Prefer:
-
-- Accessible components
-- Consistent spacing
-- Responsive layouts
-- Semantic HTML
-
-Avoid generic AI-generated layouts.
-
-Every UI should feel intentional.
-
----
-
-# Design Quality Rules
-
-Every UI must follow the anti-slop rules defined in `docs/Design Rules.md`.
-
-Key rules:
-
-- Set the three dials (Design Variance, Motion Intensity, Visual Density) before layout.
-- One accent color per page. No purple-to-blue gradients.
-- Body text: `max-w-[65ch]`, `text-wrap: pretty`.
-- Headlines: `text-wrap: balance`.
-- Interactive elements: 40x40px minimum hit area, `scale(0.96)` press feedback.
-- Shadows over borders. Three-layer shadow composition.
-- Always honor `prefers-reduced-motion`.
-- Break the uniform grid intentionally.
-- No cards nested inside cards.
-- No em-dashes or en-dashes in visible text.
-
-Flag these anti-patterns immediately:
-
-- Inter used for everything without justification.
-- Purple-to-blue gradient backgrounds.
-- Uniform equal spacing everywhere.
-- Default Tailwind colors used without customization.
-
-Full rules: `docs/Design Rules.md`
-
----
-
-# Styling Rules
-
-- Use Tailwind consistently.
-- Reuse design tokens from globals.css.
-- Avoid arbitrary values unless justified.
-- Maintain consistent spacing.
-- Prefer shadows over borders for visual separation.
-
----
-
-# Performance
-
-Always optimize for:
-
-- Small bundles
-- Lazy loading
-- Minimal hydration
-- Server rendering
-- Efficient data fetching
-
----
-
-# Documentation
-
-Whenever architecture changes:
-
-- Update documentation.
-- Keep README accurate.
-- Document new conventions.
-
----
-
-# Before Finishing
-
-Verify:
-
-- TypeScript passes
-- ESLint passes
-- Build succeeds
-- No dead code
-- No duplicated logic
-- Naming is consistent
-- Imports are clean
-- Documentation updated if required
-
-If something can be simplified without changing behavior, simplify it.
-
----
-
-# Philosophy
-
-Readable code is more valuable than clever code.
-
-Consistency is more valuable than personal preference.
-
-Long-term maintainability is more important than short-term speed.
+## 8. Escalation & Stop Rules
+When encountering architectural conflicts, domain ambiguities, security boundary uncertainties (e.g., 403 vs 404), or destructive schema changes:
+**STOP immediately** and report using the escalation protocol in `.agents/rules/operating-system.md`.

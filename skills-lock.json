@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "goey-toast": {
+      "source": "anl331/goey-toast",
+      "sourceType": "github",
+      "skillPath": "skills/goey-toast/SKILL.md",
+      "computedHash": "ef55e1239a77ece0bf67b641d672593fcc43172aeefe2a20ee895c12552c8c33"
+    },
+    "next-dev-loop": {
+      "source": "vercel/next.js",
+      "sourceType": "github",
+      "skillPath": "skills/next-dev-loop/SKILL.md",
+      "computedHash": "d2a697a0a0429cad0bb7264644115457f588d4ed1007eeb0bb7f965b1185fa6e"
+    },
+    "search-registry-items": {
+      "source": "alibey-10/shoogle",
+      "sourceType": "github",
+      "skillPath": "skills/search-registry-items/SKILL.md",
+      "computedHash": "109b782b2697d70a2bc31728bcde618eca8d88d6df227952e4bbcf9c39eca10e"
+    }
+  }
+}

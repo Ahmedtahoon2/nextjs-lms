@@ -97,3 +97,40 @@ pnpm test -- src/components/
 # Run full project test suite before commit/PR
 pnpm test
 ```
+
+---
+
+## 5. Operational TDD Workflow (Red-Green-Refactor)
+
+For domain business logic and Server Action behavior, adhere to the strict test-first development sequence:
+
+```text
+RED ──► GREEN ──► REFACTOR
+```
+
+### The 3 Stages
+
+1. **RED (Write Failing Test First):**
+   - Write a focused test in the relevant `__tests__` directory describing the expected requirement or bug fix.
+   - Run the test (`pnpm test -- <test-file>`) and **verify that it fails** for the expected reason (e.g. method missing, wrong calculation, authorization not thrown).
+2. **GREEN (Minimal Implementation):**
+   - Write only the minimal code necessary to make the test pass.
+   - Enforce the Minimal-Diff Doctrine: do not add unrequested features or preemptive abstractions.
+   - Run the test and **verify that it passes**.
+3. **REFACTOR (Clean While Green):**
+   - Improve code readability, eliminate duplication, and tighten types.
+   - Re-run the tests continuously to guarantee no regressions were introduced.
+
+### When to Apply TDD (Contextual Application)
+
+TDD is applied with engineering judgment, not dogmatic rigidity:
+
+| Change Category | Testing Protocol |
+|---|---|
+| **Domain Services (`src/services/*`)** | **TDD Strongly Preferred:** Write unit tests for domain state transitions, calculations, and permission gates before implementation. |
+| **Server Actions (`src/actions/*`)** | **TDD Strongly Preferred:** Write tests verifying Zod parsing rejection and auth error wrapping before wiring service calls. |
+| **Bug Fixes / Defect Repair** | **Regression Test Expected:** Write a test that reproduces the bug (RED), apply the minimal fix (GREEN), and preserve the test to prevent recurrence. |
+| **UI Components (`src/components/*`)** | **Behavioral Verification:** Test interactive state, loading/error states, and accessibility; TDD optional. |
+| **Pure Styling & CSS** | **Visual Verification:** Test visually or with component interaction checks; unit TDD not required. |
+| **Documentation & Config** | **Static Validation:** Run `pnpm check` and schema validation; no unit tests required. |
+

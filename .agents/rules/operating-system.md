@@ -54,6 +54,7 @@ Confirm before writing or changing any code:
 - Implement the smallest clean change that solves the requirement.
 - Reuse existing utilities, UI components (`src/components/ui`), action helpers (`@/lib/action-result`), and error classes (`@/lib/errors`).
 - Never introduce a second pattern when an existing one serves the purpose.
+- **Minimal-Diff Doctrine During Error Resolution:** When fixing build, type, compiler, or linter errors, enforce strict isolation. Do not refactor, redesign, reorganize, or "improve" surrounding code while fixing an error unless strictly required to resolve the failure. Never turn a localized TypeScript error into an architectural refactoring session.
 
 ### 7. Verify (Change-Aware)
 Run only the commands relevant to the affected layers. Do not run the full suite for localized tweaks:
@@ -61,16 +62,29 @@ Run only the commands relevant to the affected layers. Do not run the full suite
 - **Service/Domain Changes:** `pnpm biome check <files>`, `pnpm typecheck`, relevant service tests.
 - **Database/Schema Changes:** `pnpm db:validate`, `pnpm typecheck`, affected repository/service tests.
 - **Auth/Security Changes:** `pnpm biome check <files>`, `pnpm typecheck`, auth helper and authorization tests.
+- **Error Resolution Loop:** Follow `Diagnose → Minimal Fix → Verify → STOP`.
 - **Pre-Commit / Pre-PR Gate:** Run the full project quality checks (`pnpm check` and `pnpm test`).
 *Use actual project scripts from `package.json`. Never invent commands.*
 
-### 8. Audit
-Inspect the changes for:
-- Layer boundary compliance (no DB calls in UI/Actions, no business logic in UI/Actions/Repos).
-- Type safety (no `any`, no unverified assertions).
-- Error handling (typed errors, safe error messages to clients).
-- Edge cases (nullability, empty states, loading states).
-- Security invariants (authorization gates, input sanitization).
+### 8. Audit (Two-Axis Review)
+Inspect the changes using the structured two-axis review model:
+```text
+                    REVIEW
+                       │
+              ┌────────┴────────┐
+              │                 │
+          STANDARDS            SPEC
+              │                 │
+       Architecture       Requirements
+       Maintainability    Behavior
+       Security            Acceptance
+       Biome               Edge cases
+       Layer boundaries    Regression
+```
+- **Standards Axis:** Is the implementation consistent with our 5-layer architecture (`UI → Actions → Services → Repositories → Database`), downward dependency rules, Biome quality standards, maintainability heuristics (no spaghetti, canonical helpers, decomposition of sprawling files), and security principles (4-tier auth, sanitization)?
+- **Spec Axis:** Does the implementation actually satisfy the requested behavior and acceptance criteria without scope creep or missed edge cases?
+- **Do not collapse these into one generic review.** A change can pass Standards while failing Spec, or pass Spec while introducing architectural rot.
+- **Subagent Delegation:** When a review involves cross-cutting changes, multiple layers, or high security sensitivity, delegate the review to isolated subagents to preserve context capacity and prevent orchestrator bias.
 
 ### 9. Documentation
 - Update `docs/` when architecture, domain rules, or public contracts change.

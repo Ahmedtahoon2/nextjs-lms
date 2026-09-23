@@ -23,14 +23,14 @@ export function CourseProgressBar({
   return (
     <div className={`flex flex-col gap-2 ${className ?? ""}`}>
       <div className="flex items-center justify-between text-sm">
-        <span className="font-medium text-foreground">Course Progress</span>
+        <span className="text-foreground font-medium">Course Progress</span>
         <div className="flex items-center gap-2">
           {completedLessons !== undefined && totalLessons !== undefined && (
             <span className="text-muted-foreground tabular-nums">
               {completedLessons}/{totalLessons} lessons
             </span>
           )}
-          <span className="font-semibold text-foreground tabular-nums">
+          <span className="text-foreground font-semibold tabular-nums">
             {clampedPercentage}% Complete
           </span>
         </div>
@@ -43,7 +43,7 @@ export function CourseProgressBar({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label="Course completion progress"
-        className="h-2.5 w-full overflow-hidden rounded-full bg-muted shadow-inner"
+        className="bg-muted h-2.5 w-full overflow-hidden rounded-full shadow-inner"
       >
         <div
           className={`h-full rounded-full transition-all duration-500 ease-out motion-reduce:transition-none ${
@@ -65,7 +65,7 @@ export function CourseProgressBar({
             <Trophy className="h-4 w-4" aria-hidden="true" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold leading-none">
+            <span className="text-xs leading-none font-semibold">
               Course Completed!
             </span>
             <span className="text-xs opacity-90">

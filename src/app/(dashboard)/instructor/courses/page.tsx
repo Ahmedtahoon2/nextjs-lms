@@ -31,10 +31,10 @@ export default async function InstructorCoursesPage() {
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl">
+          <h1 className="text-foreground text-2xl font-bold tracking-tight text-balance sm:text-3xl">
             My Courses
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground text-pretty max-w-[65ch]">
+          <p className="text-muted-foreground mt-1 max-w-[65ch] text-sm text-pretty">
             Create, manage curriculum, and track student progress across your
             authored courses.
           </p>
@@ -43,7 +43,7 @@ export default async function InstructorCoursesPage() {
         <div>
           <Button
             size="default"
-            className="min-h-10 min-w-10 active:scale-[0.98] shadow-xs"
+            className="min-h-10 min-w-10 shadow-xs active:scale-[0.98]"
             nativeButton={false}
             render={
               <Link href="/instructor/courses/new">
@@ -57,14 +57,14 @@ export default async function InstructorCoursesPage() {
 
       {/* Courses List / Empty State */}
       {courses.length === 0 ? (
-        <div className="mt-12 flex min-h-100 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center shadow-xs">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4 ring-8 ring-primary/5">
+        <div className="border-border bg-card/40 mt-12 flex min-h-100 flex-col items-center justify-center rounded-2xl border border-dashed p-8 text-center shadow-xs">
+          <div className="bg-primary/10 text-primary ring-primary/5 mb-4 flex size-14 items-center justify-center rounded-2xl ring-8">
             <BookOpen className="size-7" aria-hidden="true" />
           </div>
-          <h2 className="text-xl font-semibold tracking-tight text-foreground text-balance">
+          <h2 className="text-foreground text-xl font-semibold tracking-tight text-balance">
             No courses authored yet
           </h2>
-          <p className="mt-2 max-w-[55ch] text-sm text-muted-foreground text-pretty">
+          <p className="text-muted-foreground mt-2 max-w-[55ch] text-sm text-pretty">
             You have not created any courses yet. Start drafting your first
             course, organize your modules and lessons, and share your knowledge
             with students worldwide.
@@ -90,10 +90,10 @@ export default async function InstructorCoursesPage() {
             return (
               <div
                 key={course.id}
-                className="group relative flex flex-col rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+                className="group border-border bg-card relative flex flex-col overflow-hidden rounded-xl border shadow-sm transition-all duration-200 hover:shadow-md"
               >
                 {/* Course Thumbnail */}
-                <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                <div className="bg-muted relative aspect-video w-full overflow-hidden">
                   {course.thumbnailUrl ? (
                     <Image
                       src={course.thumbnailUrl}
@@ -103,7 +103,7 @@ export default async function InstructorCoursesPage() {
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   ) : (
-                    <div className="flex size-full items-center justify-center bg-linear-to-br from-primary/15 via-primary/5 to-background text-primary/40">
+                    <div className="from-primary/15 via-primary/5 to-background text-primary/40 flex size-full items-center justify-center bg-linear-to-br">
                       <BookOpen className="size-12" aria-hidden="true" />
                     </div>
                   )}
@@ -116,9 +116,9 @@ export default async function InstructorCoursesPage() {
 
                 {/* Content */}
                 <div className="flex flex-1 flex-col p-5">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2 font-medium">
+                  <div className="text-muted-foreground mb-2 flex items-center gap-2 text-xs font-medium">
                     {course.category && (
-                      <span className="rounded-sm bg-muted px-2 py-0.5">
+                      <span className="bg-muted rounded-sm px-2 py-0.5">
                         {course.category}
                       </span>
                     )}
@@ -126,51 +126,51 @@ export default async function InstructorCoursesPage() {
                     <span>{course.level.replace("_", " ")}</span>
                   </div>
 
-                  <h2 className="text-lg font-semibold tracking-tight text-foreground line-clamp-2 text-balance group-hover:text-primary transition-colors">
+                  <h2 className="text-foreground group-hover:text-primary line-clamp-2 text-lg font-semibold tracking-tight text-balance transition-colors">
                     {course.title}
                   </h2>
 
                   {course.description && (
-                    <p className="mt-2 text-sm text-muted-foreground line-clamp-2 text-pretty">
+                    <p className="text-muted-foreground mt-2 line-clamp-2 text-sm text-pretty">
                       {course.description}
                     </p>
                   )}
 
                   {/* Course Metrics */}
-                  <div className="mt-4 pt-4 border-t border-border/60 grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="border-border/60 mt-4 grid grid-cols-3 gap-2 border-t pt-4 text-center text-xs">
                     <div>
-                      <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                      <div className="text-muted-foreground flex items-center justify-center gap-1">
                         <Layers className="size-3.5" />
                         <span>Modules</span>
                       </div>
-                      <p className="mt-0.5 font-semibold text-foreground text-sm">
+                      <p className="text-foreground mt-0.5 text-sm font-semibold">
                         {course._count.modules}
                       </p>
                     </div>
 
                     <div>
-                      <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                      <div className="text-muted-foreground flex items-center justify-center gap-1">
                         <BookOpen className="size-3.5" />
                         <span>Lessons</span>
                       </div>
-                      <p className="mt-0.5 font-semibold text-foreground text-sm">
+                      <p className="text-foreground mt-0.5 text-sm font-semibold">
                         {course.totalLessons}
                       </p>
                     </div>
 
                     <div>
-                      <div className="flex items-center justify-center gap-1 text-muted-foreground">
+                      <div className="text-muted-foreground flex items-center justify-center gap-1">
                         <Users className="size-3.5" />
                         <span>Students</span>
                       </div>
-                      <p className="mt-0.5 font-semibold text-foreground text-sm">
+                      <p className="text-foreground mt-0.5 text-sm font-semibold">
                         {course._count.enrollments}
                       </p>
                     </div>
                   </div>
 
                   {/* Actions Footer */}
-                  <div className="mt-5 pt-3 border-t border-border flex items-center justify-between gap-2">
+                  <div className="border-border mt-5 flex items-center justify-between gap-2 border-t pt-3">
                     <div className="flex items-center gap-1">
                       <Button
                         variant="outline"
@@ -190,7 +190,7 @@ export default async function InstructorCoursesPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground active:scale-[0.98]"
+                        className="text-muted-foreground hover:text-foreground h-8 px-2.5 text-xs active:scale-[0.98]"
                         nativeButton={false}
                         render={
                           <Link

@@ -56,7 +56,7 @@ export function EnrollmentButton({
         type="button"
         variant="outline"
         disabled
-        className={`min-h-10 min-w-10 gap-2 border-primary/20 bg-primary/5 text-primary cursor-default opacity-100 ${
+        className={`border-primary/20 bg-primary/5 text-primary min-h-10 min-w-10 cursor-default gap-2 opacity-100 ${
           className ?? ""
         }`}
         aria-label="Already enrolled in this course"
@@ -88,7 +88,7 @@ export function EnrollmentButton({
         )}
       </Button>
       {error && (
-        <p className="text-xs text-destructive" role="alert">
+        <p className="text-destructive text-xs" role="alert">
           {error}
         </p>
       )}

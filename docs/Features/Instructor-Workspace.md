@@ -7,7 +7,7 @@ The Instructor Course Management Workspace provides authorized educators with a 
 ## 1. Role & Access Control
 
 - **Required Roles**: Access to `/instructor/*` routes is strictly restricted to users holding the `instructor` or `admin` role.
-- **Route Guard**: [src/app/(dashboard)/instructor/layout.tsx](file:///d:/dev%20folder/nextjs/nextjs/src/app/(dashboard)/instructor/layout.tsx) enforces authentication and role membership:
+- **Route Guard**: [src/app/(dashboard)/instructor/layout.tsx](<file:///d:/dev%20folder/nextjs/nextjs/src/app/(dashboard)/instructor/layout.tsx>) enforces authentication and role membership:
   - Unauthenticated requests are redirected to `/sign-in`.
   - Non-instructor users (e.g. students) trigger Next.js `forbidden()`, returning an authentic HTTP 403 response rendered via [src/app/forbidden.tsx](file:///d:/dev%20folder/nextjs/nextjs/src/app/forbidden.tsx).
 - **Ownership Isolation**: Every course query and mutation strictly asserts that `course.instructorId === session.userId` or that the caller is an administrator. Instructors cannot view, modify, or inspect the rosters of courses authored by other instructors.
@@ -16,14 +16,14 @@ The Instructor Course Management Workspace provides authorized educators with a 
 
 ## 2. Route Map
 
-| Route | Type | Description |
-| :--- | :--- | :--- |
-| `/instructor/courses` | Server Component | Dashboard listing authored courses with status badges, module counts, lesson counts, and student counts. |
-| `/instructor/courses/new` | Server Component | Form to author a new course with initial `DRAFT` status and collision-safe slug generation. |
-| `/instructor/courses/[courseId]/settings` | Server Component | Edit course metadata (title, description, level, category, cover image) and manage lifecycle state (archive / delete). |
-| `/instructor/courses/[courseId]/curriculum` | Server Component | Interactive curriculum builder for managing modules, lessons, and reordering. |
-| `/instructor/courses/[courseId]/lessons/[lessonId]` | Server Component | Direct navigation into lesson content editor for Markdown, video embedding, and companion resources. |
-| `/instructor/courses/[courseId]/students` | Server Component | Student roster table displaying enrolled students, enrollment dates, completion dates, and progress percentages. |
+| Route                                               | Type             | Description                                                                                                            |
+| :-------------------------------------------------- | :--------------- | :--------------------------------------------------------------------------------------------------------------------- |
+| `/instructor/courses`                               | Server Component | Dashboard listing authored courses with status badges, module counts, lesson counts, and student counts.               |
+| `/instructor/courses/new`                           | Server Component | Form to author a new course with initial `DRAFT` status and collision-safe slug generation.                            |
+| `/instructor/courses/[courseId]/settings`           | Server Component | Edit course metadata (title, description, level, category, cover image) and manage lifecycle state (archive / delete). |
+| `/instructor/courses/[courseId]/curriculum`         | Server Component | Interactive curriculum builder for managing modules, lessons, and reordering.                                          |
+| `/instructor/courses/[courseId]/lessons/[lessonId]` | Server Component | Direct navigation into lesson content editor for Markdown, video embedding, and companion resources.                   |
+| `/instructor/courses/[courseId]/students`           | Server Component | Student roster table displaying enrolled students, enrollment dates, completion dates, and progress percentages.       |
 
 ---
 
@@ -42,6 +42,7 @@ The curriculum builder ([src/components/instructor/curriculum-builder.tsx](file:
 ## 4. Publishing Lifecycles & Validation
 
 A course cannot transition to `PUBLISHED` unless:
+
 1. The caller is the course instructor or an administrator.
 2. The course contains **at least one module**.
 3. The course contains **at least one lesson**.

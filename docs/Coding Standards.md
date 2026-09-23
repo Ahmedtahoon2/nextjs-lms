@@ -47,10 +47,16 @@ All DB access through repositories. Never call Prisma from UI.
 ## Server Actions & Error Handling
 
 All Server Actions must return a standardized `ActionResult<T>`:
+
 ```typescript
 export type ActionResult<T = void> =
   | { success: true; data: T }
-  | { success: false; error: string; code?: string; details?: Record<string, string[]> };
+  | {
+      success: false;
+      error: string;
+      code?: string;
+      details?: Record<string, string[]>;
+    };
 ```
 
 - Use `actionSuccess(data)` and `actionFailure(error, code, details)` from `@/lib/action-result`.
@@ -85,4 +91,3 @@ Every important business rule has tests. Critical UI flows have component or int
 ## Documentation
 
 Architecture changes require doc updates. Docs must reflect current reality.
-

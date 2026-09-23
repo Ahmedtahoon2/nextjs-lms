@@ -66,10 +66,10 @@ export default async function CourseCurriculumPage({
 
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-col gap-1">
-          <h2 className="text-xl font-bold tracking-tight text-foreground text-balance">
+          <h2 className="text-foreground text-xl font-bold tracking-tight text-balance">
             Course Curriculum
           </h2>
-          <p className="text-sm text-muted-foreground text-pretty max-w-[65ch]">
+          <p className="text-muted-foreground max-w-[65ch] text-sm text-pretty">
             Organize modules, arrange lessons in chronological order, and
             configure free preview access for potential students.
           </p>

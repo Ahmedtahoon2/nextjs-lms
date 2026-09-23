@@ -14,10 +14,11 @@ pnpm run typecheck
 
 Verify: no errors, no warnings.
 
-## 2. Biome Check
+## 2. ESLint & Prettier Check
 
 ```bash
 pnpm run lint
+pnpm run format:check
 # or full project check (lint + format + typecheck + dead code):
 pnpm run check
 ```

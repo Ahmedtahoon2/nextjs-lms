@@ -46,7 +46,7 @@ export function UserNav() {
 
   if (isPending) {
     return (
-      <div className="size-8 animate-pulse rounded-full bg-muted ring-1 ring-border" />
+      <div className="bg-muted ring-border size-8 animate-pulse rounded-full ring-1" />
     );
   }
 
@@ -81,7 +81,7 @@ export function UserNav() {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex size-9 cursor-pointer items-center justify-center rounded-full bg-primary/10 font-semibold text-xs text-primary ring-1 ring-primary/20 transition-all hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]"
+        className="bg-primary/10 text-primary ring-primary/20 hover:ring-primary/40 focus-visible:ring-ring flex size-9 cursor-pointer items-center justify-center rounded-full text-xs font-semibold ring-1 transition-all focus-visible:ring-2 focus-visible:outline-none active:scale-[0.96]"
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label="User navigation menu"
@@ -103,14 +103,14 @@ export function UserNav() {
         <div
           role="menu"
           aria-orientation="vertical"
-          className="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border border-border bg-card p-1 text-card-foreground shadow-lg ring-1 ring-black/5 animate-in fade-in-50 zoom-in-95 duration-100"
+          className="border-border bg-card text-card-foreground animate-in fade-in-50 zoom-in-95 absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-xl border p-1 shadow-lg ring-1 ring-black/5 duration-100"
         >
           {/* User Details */}
           <div className="border-border border-b px-3 py-2.5">
-            <p className="truncate text-xs font-semibold text-foreground">
+            <p className="text-foreground truncate text-xs font-semibold">
               {user.name || "My Account"}
             </p>
-            <p className="truncate text-[11px] text-muted-foreground">
+            <p className="text-muted-foreground truncate text-[11px]">
               {user.email}
             </p>
           </div>
@@ -120,7 +120,7 @@ export function UserNav() {
             <Link
               href="/courses"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs transition-colors"
               role="menuitem"
             >
               <BookOpen className="size-4" aria-hidden="true" />
@@ -130,7 +130,7 @@ export function UserNav() {
             <Link
               href="/instructor/courses"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs transition-colors"
               role="menuitem"
             >
               <LayoutDashboard className="size-4" aria-hidden="true" />
@@ -140,7 +140,7 @@ export function UserNav() {
             <Link
               href="/settings/profile"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs transition-colors"
               role="menuitem"
             >
               <Settings className="size-4" aria-hidden="true" />
@@ -152,7 +152,7 @@ export function UserNav() {
             <button
               type="button"
               onClick={handleSignOut}
-              className="flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs text-destructive transition-colors hover:bg-destructive/10"
+              className="text-destructive hover:bg-destructive/10 flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs transition-colors"
               role="menuitem"
             >
               <LogOut className="size-4" aria-hidden="true" />

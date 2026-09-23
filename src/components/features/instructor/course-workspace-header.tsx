@@ -50,14 +50,14 @@ export function CourseWorkspaceHeader({
   const isPublished = course.status === CourseStatus.PUBLISHED;
 
   return (
-    <div className="border-b border-border bg-card/50 pb-0 pt-6">
+    <div className="border-border bg-card/50 border-b pt-6 pb-0">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Top breadcrumb & back */}
         <div className="flex items-center justify-between gap-4">
           <Button
             variant="ghost"
             size="sm"
-            className="text-muted-foreground hover:text-foreground active:scale-[0.98] -ml-2.5"
+            className="text-muted-foreground hover:text-foreground -ml-2.5 active:scale-[0.98]"
             nativeButton={false}
             render={
               <Link href="/instructor/courses">
@@ -71,7 +71,7 @@ export function CourseWorkspaceHeader({
             <Button
               variant="outline"
               size="sm"
-              className="text-xs min-h-9 active:scale-[0.98]"
+              className="min-h-9 text-xs active:scale-[0.98]"
               nativeButton={false}
               render={
                 <Link href={`/courses/${course.slug}`} target="_blank">
@@ -86,7 +86,7 @@ export function CourseWorkspaceHeader({
         {/* Title, Status badge & action buttons */}
         <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl">
+            <h1 className="text-foreground text-2xl font-bold tracking-tight text-balance sm:text-3xl">
               {course.title}
             </h1>
             <CourseStatusBadge status={course.status} />
@@ -108,10 +108,10 @@ export function CourseWorkspaceHeader({
               <Link
                 key={tab.id}
                 href={tab.href}
-                className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap min-h-10 ${
+                className={`flex min-h-10 items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors ${
                   isActive
                     ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+                    : "text-muted-foreground hover:border-border hover:text-foreground border-transparent"
                 }`}
               >
                 <Icon className="size-4" />

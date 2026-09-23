@@ -61,7 +61,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
           {/* Header section */}
           <div className="mb-8 flex flex-col gap-2">
-            <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-primary uppercase">
+            <div className="text-primary flex items-center gap-2 text-xs font-semibold tracking-wider uppercase">
               <GraduationCap className="h-4 w-4" aria-hidden="true" />
               <span>Catalog</span>
             </div>
@@ -86,7 +86,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
           </div>
 
           {/* Results count & status */}
-          <div className="mb-6 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="text-muted-foreground mb-6 flex items-center justify-between text-xs">
             <span>
               Showing{" "}
               <strong className="text-foreground tabular-nums">
@@ -108,7 +108,7 @@ export default async function CoursesPage({ searchParams }: CoursesPageProps) {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-card/50 p-12 text-center">
+            <div className="border-border/80 bg-card/50 flex flex-col items-center justify-center rounded-2xl border border-dashed p-12 text-center">
               <div className="bg-muted text-muted-foreground mb-4 flex h-12 w-12 items-center justify-center rounded-full">
                 <BookX className="h-6 w-6" aria-hidden="true" />
               </div>

@@ -66,7 +66,7 @@ export function CoursePagination({
         return isCurrent ? (
           <span
             key={p}
-            className="bg-primary text-primary-foreground inline-flex min-h-10 min-w-10 items-center justify-center rounded-md text-sm font-semibold shadow-xs tabular-nums"
+            className="bg-primary text-primary-foreground inline-flex min-h-10 min-w-10 items-center justify-center rounded-md text-sm font-semibold tabular-nums shadow-xs"
             aria-current="page"
           >
             {p}
@@ -75,7 +75,7 @@ export function CoursePagination({
           <Link
             key={p}
             href={createPageUrl(p)}
-            className="border-input bg-background hover:bg-muted text-foreground inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border text-sm font-medium transition-transform tabular-nums active:scale-[0.96] motion-reduce:transform-none"
+            className="border-input bg-background hover:bg-muted text-foreground inline-flex min-h-10 min-w-10 items-center justify-center rounded-md border text-sm font-medium tabular-nums transition-transform active:scale-[0.96] motion-reduce:transform-none"
             aria-label={`Go to page ${p}`}
           >
             {p}

@@ -17,7 +17,7 @@ Cross-cutting review ─────► Two-axis: code-review (+ isolated subage
 ```
 
 Follow this sequential decision sequence:
-1. **Detect Emergency / Reactive Trigger:** Is there an active compilation, type, or Biome failure? If yes, route immediately to `build-error-resolver` under the minimal-diff doctrine.
+1. **Detect Emergency / Reactive Trigger:** Is there an active compilation, type, or lint failure? If yes, route immediately to `build-error-resolver` under the minimal-diff doctrine.
 2. **Identify Task Intent:** What is the specific outcome? (e.g. adjust styling, fix a service calculation, add a schema field, build a page).
 3. **Identify Affected Layers:** Which of the 5 layers are touched? (`UI`, `Actions/Routes`, `Services`, `Repositories`, `Database`).
 4. **Evaluate Subagent Delegation (Multi-Factor Heuristic):**
@@ -51,7 +51,7 @@ Follow this sequential decision sequence:
 ### 2. Operational & Workflow Skills
 - **`build-error-resolver`:** Reactive on-demand build/type fix specialist enforcing minimal diffs.
 - **`code-review`:** Two-axis subagent review (Standards vs Spec) with structural maintainability heuristics.
-- **`refactor-cleaner`:** Conservative dead code and unused export cleanup via `pnpm knip` and `pnpm biome check`.
+- **`refactor-cleaner`:** Conservative dead code and unused export cleanup via `pnpm knip` and `pnpm lint`.
 - **`handoff`:** Cross-agent structured session state persistence.
 - **`github-pr`:** Pull request preparation and verification via `gh` CLI.
 - **`next-dev-loop`:** Runtime verification in a running `next dev` instance.

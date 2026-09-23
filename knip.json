@@ -1,6 +1,12 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "tags": ["-lintignore"],
+  "prettier": {
+    "config": ["prettier.config.mjs"]
+  },
+  "eslint": {
+    "config": ["eslint.config.mjs"]
+  },
   "typescript": {
     "config": ["tsconfig.json"]
   },
@@ -12,7 +18,8 @@
     "src/components/ui/*",
     "prisma/schema.prisma",
     "src/repositories/*.ts",
-    "src/services/*.ts"
+    "src/services/*.ts",
+    ".agents/**"
   ],
-  "ignoreDependencies": ["ts-node", "clsx", "tailwind-merge"]
+  "ignoreDependencies": ["ts-node", "clsx", "tailwind-merge", "morphicons"]
 }

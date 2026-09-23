@@ -43,23 +43,28 @@ User (Role: student | instructor | admin)
 ## 3. The 5 Core Domain Invariants
 
 ### Invariant 1: Slug Stability & Immutability
+
 - Slugs for courses and lessons are generated on initial creation via `slugify()`.
 - Uniqueness is enforced at the database level with collision retries on `P2002`.
 - **Rule:** Slugs are **permanently immutable**. Updates to course or lesson titles never modify existing slugs. This protects bookmarks, student URLs, and search rankings.
 
 ### Invariant 2: The 404 Security Policy (Obscured Existence)
+
 - When an unauthorized user (anonymous visitor or unauthenticated student) requests a `DRAFT` or `ARCHIVED` course by slug or ID, the service strictly throws `NotFoundError (404)`, **not** `AuthorizationError (403)`.
 - Returning `403` leaks that a private or unreleased draft exists; `404` completely obscures it.
 
 ### Invariant 3: Parent Course Row Locking (`SELECT ... FOR UPDATE`)
+
 - All curriculum mutations (adding/editing/deleting/reordering modules or lessons) and status transitions serialize through the parent course row lock (`lockCourseForUpdate`).
 - This prevents race conditions where curriculum is mutated concurrently while another process publishes or archives the course.
 
 ### Invariant 4: Two-Phase Atomic Curriculum Reordering
+
 - Both `[courseId, orderIndex]` and `[moduleId, orderIndex]` have unique compound constraints.
 - Reordering operations verify that the incoming ID array is an exact permutation of existing siblings, assign temporary negative offsets (`-1 - i`) in phase 1, and then assign contiguous sequential zero-based indexes (`0..N-1`) in phase 2.
 
 ### Invariant 5: Idempotent Enrollment & Atomic Progress Tracking
+
 - **Enrollment:** Any authenticated user can enroll in a `PUBLISHED` course. Attempting to enroll when already enrolled is idempotent and safely returns the existing record.
 - **Progress Tracking:** Enrolled students toggle lesson completion (`toggleLessonCompletion`). The upsert of `LessonProgress`, recalculation of completed lessons, and update of `CourseEnrollment.progressPercentage` execute within a single atomic Prisma transaction. Reaching 100% automatically sets status to `COMPLETED` and records `completedAt`.
 

@@ -106,6 +106,7 @@ Documentation of foundational tools and frameworks used in this project.
 # Domain Entities
 
 ## User
+
 - Primary entity for system accounts and profiles.
 - Table: `user`
 - Core fields:
@@ -131,6 +132,7 @@ Documentation of foundational tools and frameworks used in this project.
 ---
 
 ## Role
+
 - Role-based access control role identifier.
 - Table: `role`
 - Core fields:
@@ -145,6 +147,7 @@ Documentation of foundational tools and frameworks used in this project.
 ---
 
 ## Permission
+
 - Granular action/resource entitlement.
 - Table: `permission`
 - Core fields:
@@ -162,6 +165,7 @@ Documentation of foundational tools and frameworks used in this project.
 ---
 
 ## UserRole
+
 - Join table associating Users with Roles.
 - Table: `user_role`
 - Core fields:
@@ -179,6 +183,7 @@ Documentation of foundational tools and frameworks used in this project.
 ---
 
 ## RolePermission
+
 - Join table mapping Roles to Permissions.
 - Table: `role_permission`
 - Core fields:
@@ -196,6 +201,7 @@ Documentation of foundational tools and frameworks used in this project.
 ---
 
 ## Course
+
 - Core curriculum container representing a complete educational course.
 - Table: `course`
 - Core fields:
@@ -220,6 +226,7 @@ Documentation of foundational tools and frameworks used in this project.
 ---
 
 ## Module
+
 - Section/chapter grouping a sequence of lessons within a course.
 - Table: `module`
 - Core fields:
@@ -239,6 +246,7 @@ Documentation of foundational tools and frameworks used in this project.
 ---
 
 ## Lesson
+
 - Atomic unit of instruction within a curriculum module.
 - Table: `lesson`
 - Core fields:
@@ -261,6 +269,7 @@ Documentation of foundational tools and frameworks used in this project.
 ---
 
 ## LessonContent
+
 - Heavy educational material payload linked 1-to-1 with a Lesson.
 - Table: `lesson_content`
 - Purpose: Isolates large markdown notes, code blocks, server-sanitized HTML, video embed links, and resource attachments from lightweight curriculum navigation queries.
@@ -285,17 +294,20 @@ Documentation of foundational tools and frameworks used in this project.
 ## Curriculum Enums
 
 ### CourseStatus
+
 - `DRAFT`: Course under development; editable by instructor. Default state.
 - `PUBLISHED`: Publicly discoverable and enrollable. Requires >= 1 module and >= 1 lesson to transition. Curriculum mutations locked under draft state.
 - `ARCHIVED`: Deprecated course; no new enrollments.
 
 ### CourseLevel
+
 - `BEGINNER`: Introductory material.
 - `INTERMEDIATE`: Requires foundational knowledge.
 - `ADVANCED`: Mastery-level technical topics.
 - `ALL_LEVELS`: Suitable for any audience. Default level.
 
 ### EnrollmentStatus
+
 - `ACTIVE`: Student is actively enrolled and progressing through the course.
 - `COMPLETED`: Student has completed all lessons (100% progress). `completedAt` timestamp is set.
 - `ARCHIVED`: Enrollment is archived; student can no longer track progress.
@@ -303,6 +315,7 @@ Documentation of foundational tools and frameworks used in this project.
 ---
 
 ## CourseEnrollment
+
 - Tracks a student's enrollment in a course with aggregate progress metrics.
 - Table: `course_enrollment`
 - Core fields:
@@ -332,6 +345,7 @@ Documentation of foundational tools and frameworks used in this project.
 ---
 
 ## LessonProgress
+
 - Per-user, per-lesson completion tracking. Progress is strictly user-scoped and never shared.
 - Table: `lesson_progress`
 - Core fields:

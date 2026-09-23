@@ -87,7 +87,7 @@ export function CourseForm({ mode, courseId, initialData }: CourseFormProps) {
       {serverError && (
         <div
           role="alert"
-          className="flex items-center gap-2.5 rounded-lg border border-destructive/20 bg-destructive/10 p-3.5 text-sm text-destructive"
+          className="border-destructive/20 bg-destructive/10 text-destructive flex items-center gap-2.5 rounded-lg border p-3.5 text-sm"
         >
           <AlertCircle className="size-4 shrink-0" />
           <span>{serverError}</span>
@@ -107,7 +107,7 @@ export function CourseForm({ mode, courseId, initialData }: CourseFormProps) {
           className="h-10"
         />
         {errors.title && (
-          <p className="text-xs text-destructive">{errors.title.message}</p>
+          <p className="text-destructive text-xs">{errors.title.message}</p>
         )}
       </div>
 
@@ -124,7 +124,7 @@ export function CourseForm({ mode, courseId, initialData }: CourseFormProps) {
           aria-invalid={Boolean(errors.description)}
         />
         {errors.description && (
-          <p className="text-xs text-destructive">
+          <p className="text-destructive text-xs">
             {errors.description.message}
           </p>
         )}
@@ -144,7 +144,7 @@ export function CourseForm({ mode, courseId, initialData }: CourseFormProps) {
             className="h-10"
           />
           {errors.category && (
-            <p className="text-xs text-destructive">
+            <p className="text-destructive text-xs">
               {errors.category.message}
             </p>
           )}
@@ -181,7 +181,7 @@ export function CourseForm({ mode, courseId, initialData }: CourseFormProps) {
             })}
           </div>
           {errors.level && (
-            <p className="text-xs text-destructive">{errors.level.message}</p>
+            <p className="text-destructive text-xs">{errors.level.message}</p>
           )}
         </div>
       </div>
@@ -200,14 +200,14 @@ export function CourseForm({ mode, courseId, initialData }: CourseFormProps) {
           className="h-10"
         />
         {errors.thumbnailUrl && (
-          <p className="text-xs text-destructive">
+          <p className="text-destructive text-xs">
             {errors.thumbnailUrl.message}
           </p>
         )}
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
+      <div className="border-border flex items-center justify-end gap-3 border-t pt-4">
         <Button
           type="button"
           variant="outline"

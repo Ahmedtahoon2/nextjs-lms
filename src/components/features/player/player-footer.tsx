@@ -27,7 +27,7 @@ export function PlayerFooter({
   totalLessons,
 }: PlayerFooterProps) {
   return (
-    <footer className="sticky bottom-0 z-20 flex min-h-16 w-full items-center justify-between gap-3 border-t border-border/60 bg-background/95 px-4 py-3 shadow-md backdrop-blur-md sm:px-6">
+    <footer className="border-border/60 bg-background/95 sticky bottom-0 z-20 flex min-h-16 w-full items-center justify-between gap-3 border-t px-4 py-3 shadow-md backdrop-blur-md sm:px-6">
       {/* Previous Lesson */}
       <div className="flex items-center">
         {previousLesson ? (
@@ -60,7 +60,7 @@ export function PlayerFooter({
       {/* Center: Completion / Position Indicator */}
       <div className="flex items-center gap-4">
         {currentIndex !== undefined && totalLessons !== undefined && (
-          <span className="hidden text-xs text-muted-foreground tabular-nums md:inline">
+          <span className="text-muted-foreground hidden text-xs tabular-nums md:inline">
             Lesson {currentIndex} of {totalLessons}
           </span>
         )}

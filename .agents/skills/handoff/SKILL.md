@@ -49,7 +49,7 @@ List the non-negotiable architectural and domain constraints the next agent must
 - [ ] 5-layer hierarchy: Downward dependencies only (`UI → Actions → Services → Repositories → Database`).
 - [ ] Concurrency: Parent course row locking (`SELECT ... FOR UPDATE`) inside transactions.
 - [ ] Authorization: 4-Tier Doctrine (Auth, Role, Ownership, Lifecycle).
-- [ ] Type Safety: Strict TypeScript, zero `any`, Biome compliance.
+- [ ] Type Safety: Strict TypeScript, zero `any`, ESLint/Prettier compliance.
 
 ## Recommended Next Skills
 Explicitly recommend the minimum sufficient skills the incoming agent should load:

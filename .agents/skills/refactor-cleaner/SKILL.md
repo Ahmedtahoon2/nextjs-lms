@@ -1,6 +1,6 @@
 ---
 name: refactor-cleaner
-description: Dead code cleanup and consolidation specialist. Use on-demand for removing confirmed unused code, redundant exports, and unused dependencies using pnpm knip and pnpm biome check. Enforces a conservative, verified deletion workflow.
+description: Dead code cleanup and consolidation specialist. Use on-demand for removing confirmed unused code, redundant exports, and unused dependencies using pnpm knip and pnpm lint. Enforces a conservative, verified deletion workflow.
 ---
 
 # Refactor & Dead Code Cleaner
@@ -18,7 +18,8 @@ Always use the project's native scripts:
 pnpm knip
 
 # Verify formatting and static code quality
-pnpm biome check .
+pnpm lint
+pnpm format:check
 
 # Confirm type integrity across all packages and components
 pnpm typecheck
@@ -62,7 +63,7 @@ Before modifying any file:
 Run the project quality gates after every batch:
 ```bash
 pnpm typecheck
-pnpm biome check <modified-files>
+pnpm lint
 pnpm test
 ```
 

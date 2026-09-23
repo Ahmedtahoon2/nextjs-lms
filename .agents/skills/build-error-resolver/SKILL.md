@@ -1,6 +1,6 @@
 ---
 name: build-error-resolver
-description: Reactive build, compiler, and TypeScript error resolution specialist. Use ON-DEMAND when pnpm build, pnpm typecheck, or pnpm biome check fails. Enforces the minimal-diff doctrine to restore clean compilation without architectural edits.
+description: Reactive build, compiler, and TypeScript error resolution specialist. Use ON-DEMAND when pnpm build, pnpm typecheck, or pnpm lint fails. Enforces the minimal-diff doctrine to restore clean compilation without architectural edits.
 ---
 
 # Build Error Resolver
@@ -33,15 +33,18 @@ pnpm typecheck
 # Check build compilation (Next.js production bundle)
 pnpm build
 
-# Check linting and formatting with Biome
-pnpm biome check <affected-files>
+# Check linting with ESLint
+pnpm lint
+
+# Check formatting with Prettier
+pnpm format:check
 
 # Run change-aware tests on modified files
 pnpm test -- <relevant-test-file>
 ```
 
 > [!CAUTION]
-> Never run `npm`, `yarn`, `eslint`, or reference `package-lock.json`. This project strictly uses `pnpm` and `Biome`.
+> Never run `npm`, `yarn`, or reference `package-lock.json`. This project strictly uses `pnpm`.
 
 ---
 
@@ -61,7 +64,7 @@ Follow the strict 4-step sequence:
   - Next.js 16 async params/searchParams handling (dynamic segment props are `Promise<...>`).
   - Prisma client query type or relation payload mismatch.
   - Import path alias (`@/...`) error or missing module.
-  - Biome formatting or syntax violation.
+  - ESLint or Prettier syntax violation.
 
 ### Step 2: Minimal Fix
 Apply the smallest compliant change:
@@ -75,7 +78,7 @@ Run the specific check that failed:
 ```bash
 pnpm typecheck
 # or
-pnpm biome check <file>
+pnpm lint
 ```
 Ensure the diagnostic is resolved and no new errors were introduced.
 
@@ -95,7 +98,7 @@ Once the check passes cleanly:
 | `Object is possibly 'null' or 'undefined'` | Strict null checks | Add explicit null check or optional chaining `entity?.property` |
 | `Property 'X' does not exist on type 'Y'` | Prisma query omitted relation or field | Include relation in repository query or add field to type interface |
 | `Cannot find module '@/...'` | Tsconfig path alias misconfigured or typo | Verify path against `tsconfig.json` path mappings |
-| `Biome lint error: noExplicitAny` | Untyped variable | Replace `any` with `unknown` + narrowing or explicit interface |
+| `ESLint error: no-explicit-any` | Untyped variable | Replace `any` with `unknown` + narrowing or explicit interface |
 
 ---
 

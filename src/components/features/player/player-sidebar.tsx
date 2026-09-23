@@ -86,7 +86,7 @@ export function PlayerSidebar({
       {(isEnrolled || canAccessCourse) &&
         progressPercentage !== null &&
         progressPercentage !== undefined && (
-          <div className="border-b border-border/50 pb-4">
+          <div className="border-border/50 border-b pb-4">
             <CourseProgressBar
               progressPercentage={progressPercentage}
               totalLessons={totalLessons}
@@ -108,32 +108,32 @@ export function PlayerSidebar({
           return (
             <div
               key={mod.id}
-              className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-2xs"
+              className="border-border/60 bg-card overflow-hidden rounded-xl border shadow-2xs"
             >
               <button
                 type="button"
                 onClick={() => toggleModule(mod.id)}
-                className="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 active:scale-[0.99] motion-reduce:transform-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                className="hover:bg-muted/40 focus-visible:ring-ring flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:outline-hidden active:scale-[0.99] motion-reduce:transform-none"
                 aria-expanded={isOpen}
                 aria-controls={`player-mod-${mod.id}`}
               >
                 <div className="flex min-w-0 flex-col">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">
                     Module {modIdx + 1}
                   </span>
-                  <span className="truncate text-xs font-semibold text-foreground">
+                  <span className="text-foreground truncate text-xs font-semibold">
                     {mod.title}
                   </span>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                  <span className="text-muted-foreground text-[11px] tabular-nums">
                     {isEnrolled || canAccessCourse
                       ? `${completedInMod}/${lessonsCount}`
                       : `${lessonsCount} lessons`}
                   </span>
                   <ChevronDown
-                    className={`h-3.5 w-3.5 text-muted-foreground transition-transform duration-200 ${
+                    className={`text-muted-foreground h-3.5 w-3.5 transition-transform duration-200 ${
                       isOpen ? "rotate-180" : ""
                     }`}
                     aria-hidden="true"
@@ -144,10 +144,10 @@ export function PlayerSidebar({
               {isOpen && (
                 <div
                   id={`player-mod-${mod.id}`}
-                  className="divide-y divide-border/30 border-t border-border/40 bg-muted/10"
+                  className="divide-border/30 border-border/40 bg-muted/10 divide-y border-t"
                 >
                   {mod.lessons.length === 0 ? (
-                    <div className="px-3 py-2 text-[11px] italic text-muted-foreground">
+                    <div className="text-muted-foreground px-3 py-2 text-[11px] italic">
                       No lessons in this module.
                     </div>
                   ) : (
@@ -161,7 +161,7 @@ export function PlayerSidebar({
                           key={lesson.id}
                           className={`flex min-h-11 items-center justify-between gap-2.5 px-3 py-2 text-xs transition-colors ${
                             isActive
-                              ? "bg-primary/10 font-medium text-primary shadow-2xs"
+                              ? "bg-primary/10 text-primary font-medium shadow-2xs"
                               : "hover:bg-muted/30"
                           }`}
                         >
@@ -187,7 +187,7 @@ export function PlayerSidebar({
                               />
                             ) : (
                               <Lock
-                                className="h-4 w-4 shrink-0 text-muted-foreground/50"
+                                className="text-muted-foreground/50 h-4 w-4 shrink-0"
                                 aria-label="Locked lesson (enrollment required)"
                               />
                             )}
@@ -198,9 +198,9 @@ export function PlayerSidebar({
                                 <Link
                                   href={`/courses/${courseSlug}/lessons/${lesson.id}`}
                                   onClick={closeSidebar}
-                                  className={`truncate transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring ${
+                                  className={`focus-visible:ring-ring truncate transition-colors focus-visible:ring-1 focus-visible:outline-hidden ${
                                     isActive
-                                      ? "font-semibold text-primary"
+                                      ? "text-primary font-semibold"
                                       : "text-foreground hover:text-primary"
                                   }`}
                                   aria-current={isActive ? "page" : undefined}
@@ -208,7 +208,7 @@ export function PlayerSidebar({
                                   {lessonIdx + 1}. {lesson.title}
                                 </Link>
                               ) : (
-                                <span className="truncate text-muted-foreground">
+                                <span className="text-muted-foreground truncate">
                                   {lessonIdx + 1}. {lesson.title}
                                 </span>
                               )}
@@ -220,14 +220,14 @@ export function PlayerSidebar({
                             {lesson.isFreePreview && (
                               <Badge
                                 variant="secondary"
-                                className="px-1.5 py-0 text-[10px] font-medium bg-primary/10 text-primary"
+                                className="bg-primary/10 text-primary px-1.5 py-0 text-[10px] font-medium"
                               >
                                 Preview
                               </Badge>
                             )}
                             {lesson.durationMinutes !== null &&
                               lesson.durationMinutes > 0 && (
-                                <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground tabular-nums">
+                                <div className="text-muted-foreground flex items-center gap-0.5 text-[10px] tabular-nums">
                                   <Clock
                                     className="h-3 w-3"
                                     aria-hidden="true"
@@ -253,7 +253,7 @@ export function PlayerSidebar({
     <>
       {/* Desktop Sticky Sidebar */}
       <aside
-        className="hidden w-80 shrink-0 border-r border-border/60 bg-card/40 p-4 lg:block overflow-y-auto"
+        className="border-border/60 bg-card/40 hidden w-80 shrink-0 overflow-y-auto border-r p-4 lg:block"
         style={{ height: "calc(100vh - 3.5rem)" }}
         aria-label="Course curriculum navigation"
       >
@@ -277,13 +277,13 @@ export function PlayerSidebar({
           />
 
           {/* Drawer Sheet */}
-          <div className="relative z-10 flex h-full w-4/5 max-w-sm flex-col border-r border-border/60 bg-background p-4 shadow-xl">
-            <div className="mb-4 flex items-center justify-between border-b border-border/50 pb-3">
+          <div className="border-border/60 bg-background relative z-10 flex h-full w-4/5 max-w-sm flex-col border-r p-4 shadow-xl">
+            <div className="border-border/50 mb-4 flex items-center justify-between border-b pb-3">
               <div className="flex min-w-0 flex-col">
-                <span className="truncate text-xs font-semibold text-muted-foreground">
+                <span className="text-muted-foreground truncate text-xs font-semibold">
                   Curriculum
                 </span>
-                <span className="truncate font-heading text-sm font-bold text-foreground">
+                <span className="font-heading text-foreground truncate text-sm font-bold">
                   {courseTitle}
                 </span>
               </div>

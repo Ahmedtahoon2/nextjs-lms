@@ -12,7 +12,7 @@ export function PlayerVideo({ videoUrl, lessonTitle }: PlayerVideoProps) {
   if (!videoUrl) return null;
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black shadow-md ring-1 ring-border/50">
+    <div className="ring-border/50 relative aspect-video w-full overflow-hidden rounded-xl bg-black shadow-md ring-1">
       <iframe
         src={videoUrl}
         title={`${lessonTitle} video`}

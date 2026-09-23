@@ -17,11 +17,11 @@ export function CourseStatusBadge({
         <Badge
           variant="outline"
           className={cn(
-            "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 font-medium",
+            "border-emerald-500/30 bg-emerald-500/10 font-medium text-emerald-700 dark:text-emerald-400",
             className,
           )}
         >
-          <span className="size-1.5 rounded-full bg-emerald-500 mr-1 inline-block" />
+          <span className="mr-1 inline-block size-1.5 rounded-full bg-emerald-500" />
           Published
         </Badge>
       );
@@ -30,11 +30,11 @@ export function CourseStatusBadge({
         <Badge
           variant="outline"
           className={cn(
-            "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 font-medium",
+            "border-amber-500/30 bg-amber-500/10 font-medium text-amber-700 dark:text-amber-400",
             className,
           )}
         >
-          <span className="size-1.5 rounded-full bg-amber-500 mr-1 inline-block" />
+          <span className="mr-1 inline-block size-1.5 rounded-full bg-amber-500" />
           Draft
         </Badge>
       );
@@ -43,11 +43,11 @@ export function CourseStatusBadge({
         <Badge
           variant="outline"
           className={cn(
-            "bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/30 font-medium",
+            "border-slate-500/30 bg-slate-500/10 font-medium text-slate-700 dark:text-slate-400",
             className,
           )}
         >
-          <span className="size-1.5 rounded-full bg-slate-500 mr-1 inline-block" />
+          <span className="mr-1 inline-block size-1.5 rounded-full bg-slate-500" />
           Archived
         </Badge>
       );

@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Review changes since a fixed point (commit, branch, tag, or merge-base) along two separate axes — Standards (LMS 5-layer architecture, maintainability, Biome, security boundaries) and Spec (fidelity to requirements and acceptance criteria). Runs both reviews in parallel subagents.
+description: Review changes since a fixed point (commit, branch, tag, or merge-base) along two separate axes — Standards (LMS 5-layer architecture, maintainability, ESLint/Prettier, security boundaries) and Spec (fidelity to requirements and acceptance criteria). Runs both reviews in parallel subagents.
 ---
 
 # Two-Axis Code Review
@@ -17,7 +17,7 @@ This skill performs a rigorous, two-axis code review of changes between `HEAD` a
        Architecture       Requirements
        Maintainability    Behavior
        Security            Acceptance
-       Biome               Edge cases
+       ESLint/Prettier     Edge cases
        Layer boundaries    Regression
 ```
 
@@ -94,7 +94,7 @@ Inspect:
 1. 5-Layer compliance (UI → Actions → Services → Repositories → Database). Downward dependencies only.
 2. Server Action contracts (ActionResult<T>) and Server/Client component separation.
 3. Maintainability: No random spaghetti conditionals, canonical helper reuse, investigation of files approaching ~1k lines.
-4. Type safety: No 'any', Biome compliance.
+4. Type safety: No 'any', ESLint/Prettier compliance.
 Report format: Max 400 words. Group findings by severity (Blocker / Warning / Suggestion) citing file + line number.
 ```
 

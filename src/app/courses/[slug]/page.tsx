@@ -82,7 +82,7 @@ export default async function CourseOverviewPage({
       <Header />
       <main className="flex-1">
         {/* Course Hero Banner */}
-        <section className="border-b border-border/40 bg-muted/20 py-10 sm:py-14">
+        <section className="border-border/40 bg-muted/20 border-b py-10 sm:py-14">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-center">
               {/* Left Details */}
@@ -91,7 +91,7 @@ export default async function CourseOverviewPage({
                 <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
                   <Link
                     href="/courses"
-                    className="flex items-center gap-1.5 text-primary hover:underline"
+                    className="text-primary flex items-center gap-1.5 hover:underline"
                   >
                     <GraduationCap className="h-3.5 w-3.5" />
                     <span>Catalog</span>
@@ -99,7 +99,7 @@ export default async function CourseOverviewPage({
                   {course.category && (
                     <>
                       <span className="text-muted-foreground">•</span>
-                      <span className="text-muted-foreground uppercase tracking-wider">
+                      <span className="text-muted-foreground tracking-wider uppercase">
                         {course.category}
                       </span>
                     </>
@@ -116,7 +116,7 @@ export default async function CourseOverviewPage({
                 </div>
 
                 {/* Title & Description */}
-                <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground text-balance sm:text-4xl">
+                <h1 className="font-heading text-foreground text-3xl font-bold tracking-tight text-balance sm:text-4xl">
                   {course.title}
                 </h1>
                 {course.description && (
@@ -126,23 +126,23 @@ export default async function CourseOverviewPage({
                 )}
 
                 {/* Quick stats */}
-                <div className="flex flex-wrap items-center gap-6 pt-2 text-xs text-muted-foreground">
+                <div className="text-muted-foreground flex flex-wrap items-center gap-6 pt-2 text-xs">
                   <div className="flex items-center gap-1.5">
                     <Layers
-                      className="h-4 w-4 text-primary"
+                      className="text-primary h-4 w-4"
                       aria-hidden="true"
                     />
-                    <span className="font-medium text-foreground tabular-nums">
+                    <span className="text-foreground font-medium tabular-nums">
                       {modules.length}
                     </span>{" "}
                     {modules.length === 1 ? "Module" : "Modules"}
                   </div>
                   <div className="flex items-center gap-1.5">
                     <BookOpen
-                      className="h-4 w-4 text-primary"
+                      className="text-primary h-4 w-4"
                       aria-hidden="true"
                     />
-                    <span className="font-medium text-foreground tabular-nums">
+                    <span className="text-foreground font-medium tabular-nums">
                       {totalLessons}
                     </span>{" "}
                     {totalLessons === 1 ? "Lesson" : "Lessons"}
@@ -152,9 +152,9 @@ export default async function CourseOverviewPage({
 
               {/* Right Enrollment / Action Card */}
               <div className="lg:col-span-5">
-                <div className="overflow-hidden rounded-2xl border border-border/70 bg-card p-6 shadow-md">
+                <div className="border-border/70 bg-card overflow-hidden rounded-2xl border p-6 shadow-md">
                   {/* Thumbnail */}
-                  <div className="relative mb-5 aspect-video w-full overflow-hidden rounded-xl bg-muted/40 ring-1 ring-black/10 ring-inset dark:ring-white/10">
+                  <div className="bg-muted/40 relative mb-5 aspect-video w-full overflow-hidden rounded-xl ring-1 ring-black/10 ring-inset dark:ring-white/10">
                     {course.thumbnailUrl ? (
                       <Image
                         src={course.thumbnailUrl}
@@ -165,7 +165,7 @@ export default async function CourseOverviewPage({
                         sizes="(max-width: 1024px) 100vw, 400px"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/15 via-muted to-muted/80 text-muted-foreground">
+                      <div className="from-primary/15 via-muted to-muted/80 text-muted-foreground flex h-full w-full items-center justify-center bg-linear-to-br">
                         <BookOpen
                           className="h-12 w-12 stroke-1 opacity-60"
                           aria-hidden="true"
@@ -184,7 +184,7 @@ export default async function CourseOverviewPage({
                         className="text-xs"
                       />
                       <Button
-                        className="w-full min-h-11 gap-2 active:scale-[0.96] motion-reduce:transform-none"
+                        className="min-h-11 w-full gap-2 active:scale-[0.96] motion-reduce:transform-none"
                         render={<Link href={`/courses/${course.slug}/learn`} />}
                       >
                         <span>Continue Learning</span>
@@ -194,19 +194,19 @@ export default async function CourseOverviewPage({
                   ) : (
                     <div className="space-y-4">
                       <div className="flex items-baseline justify-between">
-                        <span className="text-2xl font-bold tracking-tight text-foreground">
+                        <span className="text-foreground text-2xl font-bold tracking-tight">
                           Free Enrollment
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-muted-foreground text-xs">
                           Full Course Access
                         </span>
                       </div>
                       <EnrollmentButton
                         courseId={course.id}
                         initialIsEnrolled={false}
-                        className="w-full min-h-11"
+                        className="min-h-11 w-full"
                       />
-                      <p className="text-center text-[11px] text-muted-foreground">
+                      <p className="text-muted-foreground text-center text-[11px]">
                         Instant access to all modules, source code, and lesson
                         content.
                       </p>
@@ -248,8 +248,8 @@ export default async function CourseOverviewPage({
 
               {/* Right Column: Instructor Credentials */}
               <div className="lg:col-span-4">
-                <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-xs space-y-4">
-                  <h3 className="font-heading text-base font-semibold text-foreground">
+                <div className="border-border/60 bg-card space-y-4 rounded-2xl border p-6 shadow-xs">
+                  <h3 className="font-heading text-foreground text-base font-semibold">
                     Instructor
                   </h3>
                   <div className="flex items-center gap-3">
@@ -263,19 +263,19 @@ export default async function CourseOverviewPage({
                         alt={course.instructor.name ?? "Instructor"}
                         width={48}
                         height={48}
-                        className="h-12 w-12 rounded-full object-cover ring-2 ring-primary/20"
+                        className="ring-primary/20 h-12 w-12 rounded-full object-cover ring-2"
                       />
                     ) : (
-                      <div className="bg-muted text-muted-foreground flex h-12 w-12 items-center justify-center rounded-full ring-2 ring-border">
+                      <div className="bg-muted text-muted-foreground ring-border flex h-12 w-12 items-center justify-center rounded-full ring-2">
                         <UserIcon className="h-6 w-6" aria-hidden="true" />
                       </div>
                     )}
                     <div>
-                      <h4 className="text-sm font-semibold text-foreground">
+                      <h4 className="text-foreground text-sm font-semibold">
                         {course.instructor.name ?? "Instructor"}
                       </h4>
                       {course.instructor.headline && (
-                        <p className="text-xs text-muted-foreground line-clamp-1">
+                        <p className="text-muted-foreground line-clamp-1 text-xs">
                           {course.instructor.headline}
                         </p>
                       )}
@@ -283,7 +283,7 @@ export default async function CourseOverviewPage({
                   </div>
 
                   {course.instructor.bio && (
-                    <p className="text-xs text-muted-foreground leading-relaxed text-pretty border-t border-border/40 pt-3">
+                    <p className="text-muted-foreground border-border/40 border-t pt-3 text-xs leading-relaxed text-pretty">
                       {course.instructor.bio}
                     </p>
                   )}

@@ -58,10 +58,10 @@ Confirm before writing or changing any code:
 
 ### 7. Verify (Change-Aware)
 Run only the commands relevant to the affected layers. Do not run the full suite for localized tweaks:
-- **UI Changes:** `pnpm biome check <files>`, `pnpm typecheck`, relevant component tests (`pnpm test -- <test-file>`).
-- **Service/Domain Changes:** `pnpm biome check <files>`, `pnpm typecheck`, relevant service tests.
+- **UI Changes:** `pnpm lint`, `pnpm typecheck`, relevant component tests (`pnpm test -- <test-file>`).
+- **Service/Domain Changes:** `pnpm lint`, `pnpm typecheck`, relevant service tests.
 - **Database/Schema Changes:** `pnpm db:validate`, `pnpm typecheck`, affected repository/service tests.
-- **Auth/Security Changes:** `pnpm biome check <files>`, `pnpm typecheck`, auth helper and authorization tests.
+- **Auth/Security Changes:** `pnpm lint`, `pnpm typecheck`, auth helper and authorization tests.
 - **Error Resolution Loop:** Follow `Diagnose → Minimal Fix → Verify → STOP`.
 - **Pre-Commit / Pre-PR Gate:** Run the full project quality checks (`pnpm check` and `pnpm test`).
 *Use actual project scripts from `package.json`. Never invent commands.*
@@ -78,10 +78,10 @@ Inspect the changes using the structured two-axis review model:
        Architecture       Requirements
        Maintainability    Behavior
        Security            Acceptance
-       Biome               Edge cases
+       ESLint/Prettier     Edge cases
        Layer boundaries    Regression
 ```
-- **Standards Axis:** Is the implementation consistent with our 5-layer architecture (`UI → Actions → Services → Repositories → Database`), downward dependency rules, Biome quality standards, maintainability heuristics (no spaghetti, canonical helpers, decomposition of sprawling files), and security principles (4-tier auth, sanitization)?
+- **Standards Axis:** Is the implementation consistent with our 5-layer architecture (`UI → Actions → Services → Repositories → Database`), downward dependency rules, ESLint/Prettier quality standards, maintainability heuristics (no spaghetti, canonical helpers, decomposition of sprawling files), and security principles (4-tier auth, sanitization)?
 - **Spec Axis:** Does the implementation actually satisfy the requested behavior and acceptance criteria without scope creep or missed edge cases?
 - **Do not collapse these into one generic review.** A change can pass Standards while failing Spec, or pass Spec while introducing architectural rot.
 - **Subagent Delegation:** When a review involves cross-cutting changes, multiple layers, or high security sensitivity, delegate the review to isolated subagents to preserve context capacity and prevent orchestrator bias.

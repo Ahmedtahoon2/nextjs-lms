@@ -19,7 +19,7 @@ export function PlayerHeader({
   const { isSidebarOpen, toggleSidebar } = usePlayerContext();
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/95 px-4 shadow-xs backdrop-blur-md sm:px-6">
+    <header className="border-border/60 bg-background/95 sticky top-0 z-30 flex h-14 w-full items-center justify-between border-b px-4 shadow-xs backdrop-blur-md sm:px-6">
       {/* Left: Back Link & Breadcrumb */}
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <Link
@@ -36,13 +36,13 @@ export function PlayerHeader({
           <span className="hidden text-xs font-medium sm:inline">Overview</span>
         </Link>
 
-        <div className="h-4 w-px bg-border/60" aria-hidden="true" />
+        <div className="bg-border/60 h-4 w-px" aria-hidden="true" />
 
         <div className="flex min-w-0 flex-col">
-          <span className="truncate text-[11px] font-medium text-muted-foreground">
+          <span className="text-muted-foreground truncate text-[11px] font-medium">
             {courseTitle}
           </span>
-          <h1 className="truncate font-heading text-xs font-semibold text-foreground sm:text-sm">
+          <h1 className="font-heading text-foreground truncate text-xs font-semibold sm:text-sm">
             {lessonTitle}
           </h1>
         </div>

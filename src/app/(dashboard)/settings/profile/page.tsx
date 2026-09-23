@@ -28,7 +28,7 @@ export default async function ProfileSettingsPage() {
   const profile = await profileService.getUserProfile(session.user.id);
 
   return (
-    <div className="container mx-auto max-w-2xl py-10 px-4">
+    <div className="container mx-auto max-w-2xl px-4 py-10">
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl font-bold tracking-tight text-balance">

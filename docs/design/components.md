@@ -34,10 +34,12 @@ Canonical contracts and usage guidelines for UI components in `src/components/ui
 ## 3. Form Controls
 
 ### Input (`@/components/ui/input`) & Textarea (`@/components/ui/textarea`)
+
 - Fully integrated with `border-input focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50`.
 - Always paired with a `<Label htmlFor="...">` element for accessibility.
 
 ### Badge (`@/components/ui/badge`)
+
 - Status indicators: `default` (primary), `secondary`, `destructive`, `outline`.
 - Used for course status (`DRAFT`, `PUBLISHED`, `ARCHIVED`), level tags, and preview badges.
 

@@ -18,16 +18,16 @@ UI → Actions/Routes → Services → Repositories → Database (Prisma + Postg
 
 ## Domain Services & Repositories Registry
 
-| Domain Area | Service Layer (`@/services/*`) | Concrete Repositories (`@/repositories/*`) | Primary Responsibilities |
-| ----------- | ------------------------------ | ------------------------------------------ | ------------------------ |
-| **Authentication & Users** | `auth.ts`, `session.ts`, `user.ts` | `user.ts`, `session.ts` | Credentials, session management, user lifecycle |
-| **RBAC Authorization** | `authorization.ts` | `role.ts`, `permission.ts`, `user-role.ts`, `role-permission.ts` | Role checks (`admin`, `instructor`, `student`), permissions |
-| **Profile Management** | `profile.ts` | `user.ts` | Self-ownership profile updates and avatar metadata |
-| **Courses & Publishing** | `course.ts` | `course.ts` | Course CRUD, slug generation, publishing state machines |
-| **Curriculum Structure** | `curriculum.ts` | `module.ts`, `lesson.ts` | Modules, lessons, atomic two-phase reordering |
-| **Lesson Content & Media** | `lesson-content.ts` | `lesson-content.ts` | Markdown compilation, HTML sanitization, video normalization |
-| **Enrollment** | `enrollment.ts` | `enrollment.ts` | Student course enrollment, batch status decoration |
-| **Progress & Completion** | `progress.ts` | `lesson-progress.ts`, `enrollment.ts` | Atomic progress tracking, percent calculation, next lesson |
+| Domain Area                | Service Layer (`@/services/*`)     | Concrete Repositories (`@/repositories/*`)                       | Primary Responsibilities                                     |
+| -------------------------- | ---------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Authentication & Users** | `auth.ts`, `session.ts`, `user.ts` | `user.ts`, `session.ts`                                          | Credentials, session management, user lifecycle              |
+| **RBAC Authorization**     | `authorization.ts`                 | `role.ts`, `permission.ts`, `user-role.ts`, `role-permission.ts` | Role checks (`admin`, `instructor`, `student`), permissions  |
+| **Profile Management**     | `profile.ts`                       | `user.ts`                                                        | Self-ownership profile updates and avatar metadata           |
+| **Courses & Publishing**   | `course.ts`                        | `course.ts`                                                      | Course CRUD, slug generation, publishing state machines      |
+| **Curriculum Structure**   | `curriculum.ts`                    | `module.ts`, `lesson.ts`                                         | Modules, lessons, atomic two-phase reordering                |
+| **Lesson Content & Media** | `lesson-content.ts`                | `lesson-content.ts`                                              | Markdown compilation, HTML sanitization, video normalization |
+| **Enrollment**             | `enrollment.ts`                    | `enrollment.ts`                                                  | Student course enrollment, batch status decoration           |
+| **Progress & Completion**  | `progress.ts`                      | `lesson-progress.ts`, `enrollment.ts`                            | Atomic progress tracking, percent calculation, next lesson   |
 
 ---
 
@@ -78,6 +78,7 @@ Every server operation enforces security in depth across four distinct layers:
 ## Concurrency & Transaction Patterns
 
 ### 1. Parent Course Row Locking (`SELECT ... FOR UPDATE`)
+
 All curriculum mutations and course lifecycle transitions are serialized through an explicit parent course row lock (`lockCourseForUpdate(tx, courseId)`):
 
 ```
@@ -91,16 +92,20 @@ COMMIT
 ```
 
 This synchronization boundary guarantees that:
+
 - Concurrent curriculum mutations cannot occur while a course is being published or archived.
 - A course cannot be published concurrently with a module/lesson creation, reorder, or deletion.
 - Cascading `deleteCourse` is safely serialized against concurrent curriculum mutations.
 
 ### 2. Atomic Curriculum Reordering
+
 Reordering of modules and lessons guarantees exact sequential ordering `0..N-1` with no duplicates or gaps:
+
 - **In-Transaction Verification:** The current sibling list is fetched inside the transaction after acquiring the lock. The provided ID array must be an exact permutation of existing siblings (no foreign, duplicate, or missing IDs).
 - **Two-Phase Update:** When unique constraints on `[parentId, orderIndex]` exist, reordering assigns temporary negative offsets (`-1 - i`) in phase 1, followed by final contiguous zero-based indexes (`0..N-1`) in phase 2, preventing transient unique key violations.
 
 ### 3. Concurrency-Safe Retries (`P2002`)
+
 - For operations susceptible to concurrent insert collisions (slug generation, sequential `orderIndex` assignment), retries wrap the entire `prisma.$transaction(...)` boundary.
 - Each retry attempt begins a completely fresh transaction after full rollback of the preceding attempt, ensuring consistent reads of the latest committed state.
 
@@ -109,11 +114,13 @@ Reordering of modules and lessons guarantees exact sequential ordering `0..N-1` 
 ## Course Catalog & Learning Player Architecture
 
 ### 1. Catalog & Overview Routes
+
 - **`/courses`**: Server Component reading validated query params (`search`, `category`, `level`, `sort`, `page`). Queries published courses via bounded pagination (`limit=12`) with batch enrollment decoration. Zero client-side fetching libraries or external search engines.
 - **`/courses/[slug]`**: Server Component presenting course metadata, instructor credentials, and full curriculum outline (`CourseSyllabus`). Enforces public visibility for published courses, requiring instructor author or admin authorization for draft/archived previews.
 - **`/courses/[slug]/learn`**: Deterministic server-side redirect entry. Routes enrolled students to their next incomplete lesson (or lesson 1 if 100% completed), or first free preview lesson for anonymous/unenrolled visitors.
 
 ### 2. Student Learning Player (`/courses/[slug]/lessons/[lessonId]`)
+
 - **Security & Authorization Invariants:**
   - Mandatory cross-course boundary check: verifies `lesson.module.course.id === course.id`. Cross-course lesson requests strictly return `NotFoundError` (preventing ID enumeration).
   - Enrollment & Preview Gate: Unenrolled visitors can only access lessons where `isFreePreview === true`. Non-preview lesson requests by unenrolled users safely redirect to `/courses/[slug]?enrolled=false`.
@@ -125,4 +132,3 @@ Reordering of modules and lessons guarantees exact sequential ordering `0..N-1` 
   - `PlayerContent`: Sanitized lesson markdown reader using typography tokens.
   - `PlayerResources`: Validated downloadable and reference links (http/https only).
   - `PlayerFooter`: Persistent previous/next lesson navigation and `LessonCompletionButton`.
-

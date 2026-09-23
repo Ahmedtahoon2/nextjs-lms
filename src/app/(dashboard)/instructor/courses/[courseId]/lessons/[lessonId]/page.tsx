@@ -50,12 +50,12 @@ export default async function LessonContentPage({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between gap-4">
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-foreground active:scale-[0.98] -ml-2.5"
+          className="text-muted-foreground hover:text-foreground -ml-2.5 active:scale-[0.98]"
           nativeButton={false}
           render={
             <Link
@@ -67,22 +67,22 @@ export default async function LessonContentPage({
           }
         />
 
-        <span className="text-xs text-muted-foreground font-medium">
+        <span className="text-muted-foreground text-xs font-medium">
           Lesson ID: {lessonData.lessonId}
         </span>
       </div>
 
-      <div className="border-b border-border pb-4">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground text-balance sm:text-3xl">
+      <div className="border-border border-b pb-4">
+        <h1 className="text-foreground text-2xl font-bold tracking-tight text-balance sm:text-3xl">
           {lessonData.lessonTitle}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground text-pretty max-w-[65ch]">
+        <p className="text-muted-foreground mt-1 max-w-[65ch] text-sm text-pretty">
           Author markdown lessons with sanitized HTML output, embed streaming
           videos, and upload companion resources.
         </p>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6 shadow-xs">
+      <div className="border-border bg-card rounded-xl border p-6 shadow-xs">
         <LessonContentEditor
           lessonId={lessonData.lessonId}
           initialData={{

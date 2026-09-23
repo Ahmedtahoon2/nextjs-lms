@@ -25,7 +25,7 @@ export default function NewCoursePage() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-foreground active:scale-[0.98] -ml-2.5"
+          className="text-muted-foreground hover:text-foreground -ml-2.5 active:scale-[0.98]"
           nativeButton={false}
           render={
             <Link href="/instructor/courses">
@@ -38,10 +38,10 @@ export default function NewCoursePage() {
 
       <Card className="border-border shadow-sm">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold tracking-tight text-foreground text-balance">
+          <CardTitle className="text-foreground text-2xl font-bold tracking-tight text-balance">
             Create a New Course
           </CardTitle>
-          <CardDescription className="text-muted-foreground text-pretty max-w-[65ch]">
+          <CardDescription className="text-muted-foreground max-w-[65ch] text-pretty">
             Fill in the essential information for your course. You will be able
             to organize modules, lessons, and content in the next step.
           </CardDescription>

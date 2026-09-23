@@ -16,16 +16,16 @@ High-level status overview for the Next.js LMS platform.
 
 ## 2. Core Tech Stack Health
 
-| Technology | Role | Status |
-| --- | --- | --- |
-| **Next.js 16** | Full-stack App Router framework | Active |
-| **React 19** | Component model (Server Components default) | Active |
-| **TypeScript 5** | Strict type safety & contract enforcement | Active |
-| **Tailwind CSS v4** | Semantic utility styling | Active |
-| **Prisma ORM** | PostgreSQL schema & type-safe data access | Active |
-| **Biome** | Fast linting and formatting (`pnpm check`) | Active |
-| **Jest & RTL** | Unit, service, and security integration tests | Active |
-| **Sentry** | Error monitoring and performance tracing | Configured |
+| Technology            | Role                                          | Status     |
+| --------------------- | --------------------------------------------- | ---------- |
+| **Next.js 16**        | Full-stack App Router framework               | Active     |
+| **React 19**          | Component model (Server Components default)   | Active     |
+| **TypeScript 5**      | Strict type safety & contract enforcement     | Active     |
+| **Tailwind CSS v4**   | Semantic utility styling                      | Active     |
+| **Prisma ORM**        | PostgreSQL schema & type-safe data access     | Active     |
+| **ESLint & Prettier** | Linting and formatting (`pnpm check`)         | Active     |
+| **Jest & RTL**        | Unit, service, and security integration tests | Active     |
+| **Sentry**            | Error monitoring and performance tracing      | Configured |
 
 ---
 

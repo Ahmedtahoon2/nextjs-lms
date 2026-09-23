@@ -75,8 +75,8 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
           role="alert"
           className={`flex items-center gap-2.5 rounded-lg p-3.5 text-sm ${
             feedback.type === "success"
-              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-              : "bg-destructive/10 text-destructive border border-destructive/20"
+              ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              : "bg-destructive/10 text-destructive border-destructive/20 border"
           }`}
         >
           {feedback.type === "success" ? (
@@ -173,7 +173,7 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="min-h-10 px-5 active:scale-[0.98] transition-transform"
+        className="min-h-10 px-5 transition-transform active:scale-[0.98]"
       >
         {isSubmitting ? (
           <>

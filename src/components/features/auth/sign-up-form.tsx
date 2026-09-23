@@ -92,7 +92,7 @@ export function SignUpForm() {
       {serverError && (
         <div
           role="alert"
-          className="flex items-center gap-2.5 rounded-lg border border-destructive/20 bg-destructive/10 p-3.5 text-sm text-destructive"
+          className="border-destructive/20 bg-destructive/10 text-destructive flex items-center gap-2.5 rounded-lg border p-3.5 text-sm"
         >
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           <span>{serverError}</span>
@@ -101,7 +101,7 @@ export function SignUpForm() {
 
       {/* Role Selection Tabs */}
       <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-foreground">
+        <Label className="text-foreground text-sm font-medium">
           I want to join as a
         </Label>
         <div
@@ -110,9 +110,9 @@ export function SignUpForm() {
           aria-label="Account Type"
         >
           <label
-            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-center transition-all cursor-pointer active:scale-[0.98] ${
+            className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-center transition-all active:scale-[0.98] ${
               selectedRole === "student"
-                ? "border-primary bg-primary/10 text-primary font-medium shadow-xs ring-1 ring-primary/20"
+                ? "border-primary bg-primary/10 text-primary ring-primary/20 font-medium shadow-xs ring-1"
                 : "border-border bg-card/60 text-muted-foreground hover:border-foreground/20 hover:text-foreground"
             }`}
           >
@@ -124,15 +124,15 @@ export function SignUpForm() {
             />
             <GraduationCap className="size-5" aria-hidden="true" />
             <span className="text-xs font-semibold">Student</span>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-muted-foreground text-[10px]">
               Take courses
             </span>
           </label>
 
           <label
-            className={`flex flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-center transition-all cursor-pointer active:scale-[0.98] ${
+            className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border p-3 text-center transition-all active:scale-[0.98] ${
               selectedRole === "instructor"
-                ? "border-primary bg-primary/10 text-primary font-medium shadow-xs ring-1 ring-primary/20"
+                ? "border-primary bg-primary/10 text-primary ring-primary/20 font-medium shadow-xs ring-1"
                 : "border-border bg-card/60 text-muted-foreground hover:border-foreground/20 hover:text-foreground"
             }`}
           >
@@ -144,7 +144,7 @@ export function SignUpForm() {
             />
             <BookOpen className="size-5" aria-hidden="true" />
             <span className="text-xs font-semibold">Instructor</span>
-            <span className="text-[10px] text-muted-foreground">
+            <span className="text-muted-foreground text-[10px]">
               Create courses
             </span>
           </label>
@@ -153,7 +153,7 @@ export function SignUpForm() {
 
       {/* Name field */}
       <div className="space-y-1.5">
-        <Label htmlFor="name" className="text-sm font-medium text-foreground">
+        <Label htmlFor="name" className="text-foreground text-sm font-medium">
           Full Name
         </Label>
         <Input
@@ -166,13 +166,13 @@ export function SignUpForm() {
           className="h-10"
         />
         {errors.name && (
-          <p className="text-xs text-destructive">{errors.name.message}</p>
+          <p className="text-destructive text-xs">{errors.name.message}</p>
         )}
       </div>
 
       {/* Email field */}
       <div className="space-y-1.5">
-        <Label htmlFor="email" className="text-sm font-medium text-foreground">
+        <Label htmlFor="email" className="text-foreground text-sm font-medium">
           Email Address
         </Label>
         <Input
@@ -185,7 +185,7 @@ export function SignUpForm() {
           className="h-10"
         />
         {errors.email && (
-          <p className="text-xs text-destructive">{errors.email.message}</p>
+          <p className="text-destructive text-xs">{errors.email.message}</p>
         )}
       </div>
 
@@ -193,7 +193,7 @@ export function SignUpForm() {
       <div className="space-y-1.5">
         <Label
           htmlFor="password"
-          className="text-sm font-medium text-foreground"
+          className="text-foreground text-sm font-medium"
         >
           Password
         </Label>
@@ -221,9 +221,9 @@ export function SignUpForm() {
           </button>
         </div>
         {errors.password ? (
-          <p className="text-xs text-destructive">{errors.password.message}</p>
+          <p className="text-destructive text-xs">{errors.password.message}</p>
         ) : (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-muted-foreground text-[11px]">
             Must be at least 8 characters with 1 uppercase, 1 lowercase, and 1
             number.
           </p>
@@ -234,7 +234,7 @@ export function SignUpForm() {
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full h-10 font-semibold cursor-pointer active:scale-[0.98] transition-transform mt-2"
+        className="mt-2 h-10 w-full cursor-pointer font-semibold transition-transform active:scale-[0.98]"
       >
         {isSubmitting ? (
           <>

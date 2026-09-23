@@ -94,7 +94,7 @@ export default async function LessonPlayerPage({ params }: PlayerPageProps) {
 
   return (
     <PlayerProvider>
-      <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <div className="bg-background text-foreground flex min-h-screen flex-col">
         {/* Top Header with Breadcrumbs & Mobile Trigger */}
         <PlayerHeader
           courseTitle={course.title}
@@ -130,16 +130,16 @@ export default async function LessonPlayerPage({ params }: PlayerPageProps) {
               )}
 
               {/* Lesson Header Information */}
-              <div className="flex flex-col gap-2 border-b border-border/50 pb-4">
+              <div className="border-border/50 flex flex-col gap-2 border-b pb-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold text-primary">
+                  <span className="text-primary text-xs font-semibold">
                     Lesson {navigation.currentIndex} of{" "}
                     {navigation.totalLessons}
                   </span>
                   {lesson.isFreePreview && (
                     <Badge
                       variant="secondary"
-                      className="px-2 py-0 text-[10px] font-medium bg-primary/10 text-primary"
+                      className="bg-primary/10 text-primary px-2 py-0 text-[10px] font-medium"
                     >
                       Free Preview
                     </Badge>
@@ -151,7 +151,7 @@ export default async function LessonPlayerPage({ params }: PlayerPageProps) {
                   )}
                 </div>
 
-                <h1 className="font-heading text-xl font-bold tracking-tight text-foreground text-balance sm:text-2xl">
+                <h1 className="font-heading text-foreground text-xl font-bold tracking-tight text-balance sm:text-2xl">
                   {lesson.lessonTitle}
                 </h1>
               </div>

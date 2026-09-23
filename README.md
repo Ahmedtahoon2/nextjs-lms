@@ -17,21 +17,21 @@
 
 ## Tech Stack
 
-| Category | Technology |
-| -------- | ---------- |
-| **Framework** | Next.js 16 (App Router) |
-| **Language** | TypeScript 5.9 |
-| **UI Library** | React 19 |
-| **Styling** | Tailwind CSS v4 + tw-animate-css |
-| **Components** | shadcn/ui (base-nova) + Lucide Icons |
-| **Database** | PostgreSQL (Neon serverless) |
-| **ORM** | Prisma 7.10 |
-| **Authentication** | Better Auth 1.7 |
-| **Validation** | Zod |
-| **Forms** | React Hook Form + `@hookform/resolvers` |
-| **Testing** | Jest 30 + React Testing Library |
-| **Tooling & Linter** | Biome 2.5 + Knip |
-| **Monitoring** | Sentry (`@sentry/nextjs`) |
+| Category             | Technology                              |
+| -------------------- | --------------------------------------- |
+| **Framework**        | Next.js 16 (App Router)                 |
+| **Language**         | TypeScript 5.9                          |
+| **UI Library**       | React 19                                |
+| **Styling**          | Tailwind CSS v4 + tw-animate-css        |
+| **Components**       | shadcn/ui (base-nova) + Lucide Icons    |
+| **Database**         | PostgreSQL (Neon serverless)            |
+| **ORM**              | Prisma 7.10                             |
+| **Authentication**   | Better Auth 1.7                         |
+| **Validation**       | Zod                                     |
+| **Forms**            | React Hook Form + `@hookform/resolvers` |
+| **Testing**          | Jest 30 + React Testing Library         |
+| **Tooling & Linter** | ESLint 9 + Prettier 3 + Knip            |
+| **Monitoring**       | Sentry (`@sentry/nextjs`)               |
 
 ---
 
@@ -113,19 +113,19 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Available Scripts
 
-| Command | Description |
-| ------- | ----------- |
-| `pnpm dev` | Start Next.js development server |
-| `pnpm build` | Create production build |
-| `pnpm start` | Start production server |
-| `pnpm test` | Run complete Jest test suite (unit, integration, security) |
-| `pnpm typecheck` | Run TypeScript compiler check without emitting files |
-| `pnpm lint` | Run Biome linter across codebase |
-| `pnpm format` | Format files using Biome |
-| `pnpm check` | Run full quality gate: Biome check, typecheck, and Knip |
-| `pnpm db:generate` | Regenerate Prisma Client |
-| `pnpm db:push` | Sync Prisma schema with Neon database |
-| `pnpm db:studio` | Open Prisma Studio database viewer |
+| Command            | Description                                                               |
+| ------------------ | ------------------------------------------------------------------------- |
+| `pnpm dev`         | Start Next.js development server                                          |
+| `pnpm build`       | Create production build                                                   |
+| `pnpm start`       | Start production server                                                   |
+| `pnpm test`        | Run complete Jest test suite (unit, integration, security)                |
+| `pnpm typecheck`   | Run TypeScript compiler check without emitting files                      |
+| `pnpm lint`        | Run ESLint across codebase                                                |
+| `pnpm format`      | Format files using Prettier                                               |
+| `pnpm check`       | Run full quality gate: ESLint, TypeScript check, Knip, and Prettier check |
+| `pnpm db:generate` | Regenerate Prisma Client                                                  |
+| `pnpm db:push`     | Sync Prisma schema with Neon database                                     |
+| `pnpm db:studio`   | Open Prisma Studio database viewer                                        |
 
 ---
 
@@ -168,4 +168,3 @@ src/
 ## License
 
 MIT
-

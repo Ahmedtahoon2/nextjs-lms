@@ -19,12 +19,12 @@ export const metadata: Metadata = {
 
 export default function SignInPage() {
   return (
-    <Card className="border border-border/80 bg-card shadow-sm">
+    <Card className="border-border/80 bg-card border shadow-sm">
       <CardHeader className="space-y-1 text-center">
-        <CardTitle className="text-2xl font-bold tracking-tight text-foreground text-balance">
+        <CardTitle className="text-foreground text-2xl font-bold tracking-tight text-balance">
           Welcome back
         </CardTitle>
-        <CardDescription className="text-sm text-muted-foreground text-pretty">
+        <CardDescription className="text-muted-foreground text-sm text-pretty">
           Enter your credentials to access your account
         </CardDescription>
       </CardHeader>
@@ -32,19 +32,19 @@ export default function SignInPage() {
       <CardContent className="pt-2">
         <React.Suspense
           fallback={
-            <div className="h-48 animate-pulse rounded-lg bg-muted/40" />
+            <div className="bg-muted/40 h-48 animate-pulse rounded-lg" />
           }
         >
           <SignInForm />
         </React.Suspense>
       </CardContent>
 
-      <CardFooter className="flex flex-col items-center justify-center border-border/50 border-t py-4 text-xs text-muted-foreground">
+      <CardFooter className="border-border/50 text-muted-foreground flex flex-col items-center justify-center border-t py-4 text-xs">
         <p>
           Don&apos;t have an account?{" "}
           <Link
             href="/sign-up"
-            className="font-medium text-primary hover:underline transition-colors cursor-pointer"
+            className="text-primary cursor-pointer font-medium transition-colors hover:underline"
           >
             Create an account
           </Link>

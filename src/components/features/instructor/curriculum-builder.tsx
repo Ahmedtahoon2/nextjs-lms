@@ -445,8 +445,8 @@ export function CurriculumBuilder({
           aria-label="Course publication status notice"
           className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-900 dark:text-amber-300"
         >
-          <Lock className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-          <div className="text-pretty max-w-[65ch]">
+          <Lock className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="max-w-[65ch] text-pretty">
             <p className="font-semibold">Course is Published</p>
             <p className="mt-1 text-xs text-amber-800 dark:text-amber-400/90">
               Structural modifications (adding, deleting, or reordering modules
@@ -460,14 +460,14 @@ export function CurriculumBuilder({
 
       {/* Modules Outline */}
       {modules.length === 0 ? (
-        <div className="flex min-h-75 flex-col items-center justify-center rounded-xl border border-dashed border-border p-8 text-center bg-card/30">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-3">
+        <div className="border-border bg-card/30 flex min-h-75 flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center">
+          <div className="bg-primary/10 text-primary mb-3 flex size-12 items-center justify-center rounded-xl">
             <Layers className="size-6" />
           </div>
-          <h3 className="text-base font-semibold text-foreground">
+          <h3 className="text-foreground text-base font-semibold">
             No curriculum items yet
           </h3>
-          <p className="mt-1 text-xs text-muted-foreground max-w-[45ch] text-pretty">
+          <p className="text-muted-foreground mt-1 max-w-[45ch] text-xs text-pretty">
             Begin structuring your course by creating your first module. Modules
             group related lessons together.
           </p>
@@ -477,11 +477,11 @@ export function CurriculumBuilder({
           {modules.map((module, modIndex) => (
             <div
               key={module.id}
-              className="rounded-xl border border-border bg-card shadow-xs overflow-hidden transition-all"
+              className="border-border bg-card overflow-hidden rounded-xl border shadow-xs transition-all"
             >
               {/* Module Header */}
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-muted/40 px-4 py-3 sm:px-5">
-                <div className="flex items-center gap-3 flex-1 min-w-50">
+              <div className="border-border/70 bg-muted/40 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 sm:px-5">
+                <div className="flex min-w-50 flex-1 items-center gap-3">
                   {/* Module Reordering Controls */}
                   <div className="flex items-center gap-0.5">
                     <button
@@ -489,7 +489,7 @@ export function CurriculumBuilder({
                       aria-label="Move module up"
                       disabled={isPublished || isArchived || modIndex === 0}
                       onClick={() => handleMoveModule(modIndex, "up")}
-                      className="flex size-9 sm:size-8 min-h-9 min-w-9 sm:min-h-8 sm:min-w-8 items-center justify-center rounded-md border border-input text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none active:scale-[0.98]"
+                      className="border-input text-muted-foreground hover:bg-accent hover:text-foreground flex size-9 min-h-9 min-w-9 items-center justify-center rounded-md border active:scale-[0.98] disabled:pointer-events-none disabled:opacity-30 sm:size-8 sm:min-h-8 sm:min-w-8"
                     >
                       <ChevronUp className="size-4" />
                     </button>
@@ -502,19 +502,19 @@ export function CurriculumBuilder({
                         modIndex === modules.length - 1
                       }
                       onClick={() => handleMoveModule(modIndex, "down")}
-                      className="flex size-9 sm:size-8 min-h-9 min-w-9 sm:min-h-8 sm:min-w-8 items-center justify-center rounded-md border border-input text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none active:scale-[0.98]"
+                      className="border-input text-muted-foreground hover:bg-accent hover:text-foreground flex size-9 min-h-9 min-w-9 items-center justify-center rounded-md border active:scale-[0.98] disabled:pointer-events-none disabled:opacity-30 sm:size-8 sm:min-h-8 sm:min-w-8"
                     >
                       <ChevronDown className="size-4" />
                     </button>
                   </div>
 
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <span className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
                     Module {modIndex + 1}
                   </span>
 
                   {/* Inline Module Title Editor */}
                   {editingModuleId === module.id ? (
-                    <div className="flex items-center gap-2 flex-1 max-w-md">
+                    <div className="flex max-w-md flex-1 items-center gap-2">
                       <Input
                         value={editingModuleTitle}
                         onChange={(e) => setEditingModuleTitle(e.target.value)}
@@ -529,21 +529,21 @@ export function CurriculumBuilder({
                       <button
                         type="button"
                         onClick={() => handleSaveModuleTitle(module.id)}
-                        className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 flex size-8 items-center justify-center rounded-md"
                       >
                         <Check className="size-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingModuleId(null)}
-                        className="flex size-8 items-center justify-center rounded-md border border-input hover:bg-muted text-muted-foreground"
+                        className="border-input hover:bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-md border"
                       >
                         <X className="size-4" />
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 flex-1">
-                      <h3 className="text-sm font-semibold text-foreground">
+                    <div className="flex flex-1 items-center gap-2">
+                      <h3 className="text-foreground text-sm font-semibold">
                         {module.title}
                       </h3>
                       {!isPublished && !isArchived && (
@@ -554,7 +554,7 @@ export function CurriculumBuilder({
                             setEditingModuleId(module.id);
                             setEditingModuleTitle(module.title);
                           }}
-                          className="flex size-7 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
+                          className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-7 items-center justify-center rounded"
                         >
                           <Edit2 className="size-3.5" />
                         </button>
@@ -570,7 +570,7 @@ export function CurriculumBuilder({
                     size="icon-sm"
                     aria-label={`Delete module ${module.title}`}
                     onClick={() => handleDeleteModule(module.id, module.title)}
-                    className="size-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 active:scale-[0.98]"
+                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 size-8 active:scale-[0.98]"
                   >
                     <Trash2 className="size-3.5" />
                   </Button>
@@ -578,18 +578,18 @@ export function CurriculumBuilder({
               </div>
 
               {/* Lessons List within Module */}
-              <div className="divide-y divide-border/40 p-2 sm:p-3">
+              <div className="divide-border/40 divide-y p-2 sm:p-3">
                 {module.lessons.length === 0 ? (
-                  <p className="py-4 text-center text-xs text-muted-foreground">
+                  <p className="text-muted-foreground py-4 text-center text-xs">
                     No lessons in this module yet.
                   </p>
                 ) : (
                   module.lessons.map((lesson, lessonIndex) => (
                     <div
                       key={lesson.id}
-                      className="flex flex-wrap items-center justify-between gap-2.5 py-2 px-3 rounded-lg hover:bg-muted/30 transition-colors"
+                      className="hover:bg-muted/30 flex flex-wrap items-center justify-between gap-2.5 rounded-lg px-3 py-2 transition-colors"
                     >
-                      <div className="flex items-center gap-3 flex-1 min-w-50">
+                      <div className="flex min-w-50 flex-1 items-center gap-3">
                         {/* Lesson Reordering Controls */}
                         <div className="flex items-center gap-0.5">
                           <button
@@ -601,7 +601,7 @@ export function CurriculumBuilder({
                             onClick={() =>
                               handleMoveLesson(module.id, lessonIndex, "up")
                             }
-                            className="flex size-8 min-h-8 min-w-8 items-center justify-center rounded border border-input text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none active:scale-[0.98]"
+                            className="border-input text-muted-foreground hover:bg-accent hover:text-foreground flex size-8 min-h-8 min-w-8 items-center justify-center rounded border active:scale-[0.98] disabled:pointer-events-none disabled:opacity-30"
                           >
                             <ChevronUp className="size-3.5" />
                           </button>
@@ -616,19 +616,19 @@ export function CurriculumBuilder({
                             onClick={() =>
                               handleMoveLesson(module.id, lessonIndex, "down")
                             }
-                            className="flex size-8 min-h-8 min-w-8 items-center justify-center rounded border border-input text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:pointer-events-none active:scale-[0.98]"
+                            className="border-input text-muted-foreground hover:bg-accent hover:text-foreground flex size-8 min-h-8 min-w-8 items-center justify-center rounded border active:scale-[0.98] disabled:pointer-events-none disabled:opacity-30"
                           >
                             <ChevronDown className="size-3.5" />
                           </button>
                         </div>
 
-                        <span className="text-xs text-muted-foreground font-mono">
+                        <span className="text-muted-foreground font-mono text-xs">
                           {modIndex + 1}.{lessonIndex + 1}
                         </span>
 
                         {/* Inline Lesson Title Editor */}
                         {editingLessonId === lesson.id ? (
-                          <div className="flex items-center gap-2 flex-1 max-w-sm">
+                          <div className="flex max-w-sm flex-1 items-center gap-2">
                             <Input
                               value={editingLessonTitle}
                               onChange={(e) =>
@@ -648,21 +648,21 @@ export function CurriculumBuilder({
                               onClick={() =>
                                 handleSaveLessonTitle(module.id, lesson.id)
                               }
-                              className="flex size-7 items-center justify-center rounded bg-primary text-primary-foreground"
+                              className="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded"
                             >
                               <Check className="size-3.5" />
                             </button>
                             <button
                               type="button"
                               onClick={() => setEditingLessonId(null)}
-                              className="flex size-7 items-center justify-center rounded border border-input text-muted-foreground"
+                              className="border-input text-muted-foreground flex size-7 items-center justify-center rounded border"
                             >
                               <X className="size-3.5" />
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 flex-1">
-                            <span className="text-xs font-medium text-foreground">
+                          <div className="flex flex-1 items-center gap-2">
+                            <span className="text-foreground text-xs font-medium">
                               {lesson.title}
                             </span>
                             {!isPublished && !isArchived && (
@@ -673,7 +673,7 @@ export function CurriculumBuilder({
                                   setEditingLessonId(lesson.id);
                                   setEditingLessonTitle(lesson.title);
                                 }}
-                                className="flex size-6 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+                                className="text-muted-foreground hover:text-foreground flex size-6 items-center justify-center rounded"
                               >
                                 <Edit2 className="size-3" />
                               </button>
@@ -697,7 +697,7 @@ export function CurriculumBuilder({
                           disabled={isArchived}
                           className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
                             lesson.isFreePreview
-                              ? "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15"
+                              ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/15 border"
                               : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
                           }`}
                         >
@@ -718,7 +718,7 @@ export function CurriculumBuilder({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 px-2 text-xs min-h-7 active:scale-[0.98]"
+                          className="h-7 min-h-7 px-2 text-xs active:scale-[0.98]"
                           nativeButton={false}
                           render={
                             <Link
@@ -742,7 +742,7 @@ export function CurriculumBuilder({
                                 lesson.title,
                               )
                             }
-                            className="flex size-7 items-center justify-center rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex size-7 items-center justify-center rounded transition-colors"
                           >
                             <Trash2 className="size-3" />
                           </button>
@@ -764,7 +764,7 @@ export function CurriculumBuilder({
                           placeholder="Lesson title..."
                           value={newLessonTitle}
                           onChange={(e) => setNewLessonTitle(e.target.value)}
-                          className="h-8 text-xs flex-1"
+                          className="h-8 flex-1 text-xs"
                           autoFocus
                         />
                         <Button
@@ -799,7 +799,7 @@ export function CurriculumBuilder({
                         variant="ghost"
                         size="sm"
                         onClick={() => setAddingLessonForModuleId(module.id)}
-                        className="text-xs text-muted-foreground hover:text-foreground h-8 active:scale-[0.98]"
+                        className="text-muted-foreground hover:text-foreground h-8 text-xs active:scale-[0.98]"
                       >
                         <Plus className="mr-1.5 size-3.5" />
                         Add Lesson
@@ -819,9 +819,9 @@ export function CurriculumBuilder({
           {isAddingModule ? (
             <form
               onSubmit={handleCreateModule}
-              className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3"
+              className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-xs"
             >
-              <h4 className="text-sm font-semibold text-foreground">
+              <h4 className="text-foreground text-sm font-semibold">
                 Add New Module
               </h4>
               <Input
@@ -863,7 +863,7 @@ export function CurriculumBuilder({
             <Button
               variant="outline"
               onClick={() => setIsAddingModule(true)}
-              className="w-full border-dashed min-h-11 active:scale-[0.98] text-sm"
+              className="min-h-11 w-full border-dashed text-sm active:scale-[0.98]"
             >
               <Plus className="mr-2 size-4" />
               Add Module

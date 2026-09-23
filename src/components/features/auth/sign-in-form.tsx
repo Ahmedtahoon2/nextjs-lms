@@ -72,7 +72,7 @@ export function SignInForm() {
       {serverError && (
         <div
           role="alert"
-          className="flex items-center gap-2.5 rounded-lg border border-destructive/20 bg-destructive/10 p-3.5 text-sm text-destructive"
+          className="border-destructive/20 bg-destructive/10 text-destructive flex items-center gap-2.5 rounded-lg border p-3.5 text-sm"
         >
           <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
           <span>{serverError}</span>
@@ -81,7 +81,7 @@ export function SignInForm() {
 
       {/* Email field */}
       <div className="space-y-1.5">
-        <Label htmlFor="email" className="text-sm font-medium text-foreground">
+        <Label htmlFor="email" className="text-foreground text-sm font-medium">
           Email Address
         </Label>
         <Input
@@ -94,7 +94,7 @@ export function SignInForm() {
           className="h-10"
         />
         {errors.email && (
-          <p className="text-xs text-destructive">{errors.email.message}</p>
+          <p className="text-destructive text-xs">{errors.email.message}</p>
         )}
       </div>
 
@@ -103,7 +103,7 @@ export function SignInForm() {
         <div className="flex items-center justify-between">
           <Label
             htmlFor="password"
-            className="text-sm font-medium text-foreground"
+            className="text-foreground text-sm font-medium"
           >
             Password
           </Label>
@@ -132,7 +132,7 @@ export function SignInForm() {
           </button>
         </div>
         {errors.password && (
-          <p className="text-xs text-destructive">{errors.password.message}</p>
+          <p className="text-destructive text-xs">{errors.password.message}</p>
         )}
       </div>
 
@@ -140,7 +140,7 @@ export function SignInForm() {
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full h-10 font-semibold cursor-pointer active:scale-[0.98] transition-transform"
+        className="h-10 w-full cursor-pointer font-semibold transition-transform active:scale-[0.98]"
       >
         {isSubmitting ? (
           <>

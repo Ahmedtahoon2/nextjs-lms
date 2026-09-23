@@ -26,9 +26,9 @@ export function CourseCard({ course }: CourseCardProps) {
   const levelText = levelLabels[course.level] ?? course.level;
 
   return (
-    <Card className="flex h-full flex-col overflow-hidden transition-all duration-200 hover:shadow-md dark:hover:border-border/80">
+    <Card className="dark:hover:border-border/80 flex h-full flex-col overflow-hidden transition-all duration-200 hover:shadow-md">
       {/* Course Thumbnail */}
-      <div className="relative aspect-video w-full overflow-hidden bg-muted/40">
+      <div className="bg-muted/40 relative aspect-video w-full overflow-hidden">
         {course.thumbnailUrl ? (
           <Image
             src={course.thumbnailUrl}
@@ -38,7 +38,7 @@ export function CourseCard({ course }: CourseCardProps) {
             className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-primary/10 via-muted to-muted/80 text-muted-foreground">
+          <div className="from-primary/10 via-muted to-muted/80 text-muted-foreground flex h-full w-full items-center justify-center bg-linear-to-br">
             <BookOpen
               className="h-10 w-10 stroke-1 opacity-70"
               aria-hidden="true"
@@ -73,7 +73,7 @@ export function CourseCard({ course }: CourseCardProps) {
           href={`/courses/${course.slug}`}
           className="focus-visible:ring-ring group rounded-md outline-none focus-visible:ring-2"
         >
-          <h3 className="group-hover:text-primary font-heading line-clamp-2 text-base font-semibold leading-snug transition-colors text-balance">
+          <h3 className="group-hover:text-primary font-heading line-clamp-2 text-base leading-snug font-semibold text-balance transition-colors">
             {course.title}
           </h3>
         </Link>
@@ -124,7 +124,7 @@ export function CourseCard({ course }: CourseCardProps) {
               alt={course.instructor.name ?? "Instructor"}
               width={24}
               height={24}
-              className="h-6 w-6 rounded-full object-cover ring-1 ring-border"
+              className="ring-border h-6 w-6 rounded-full object-cover ring-1"
             />
           ) : (
             <div className="bg-muted text-muted-foreground flex h-6 w-6 items-center justify-center rounded-full">

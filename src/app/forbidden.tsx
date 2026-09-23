@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 export default function Forbidden() {
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center px-4 text-center">
-      <div className="bg-destructive/10 text-destructive mb-6 flex size-16 items-center justify-center rounded-2xl ring-8 ring-destructive/5">
+      <div className="bg-destructive/10 text-destructive ring-destructive/5 mb-6 flex size-16 items-center justify-center rounded-2xl ring-8">
         <ShieldAlert className="size-8" aria-hidden="true" />
       </div>
 
@@ -22,7 +22,7 @@ export default function Forbidden() {
         <Button
           variant="outline"
           size="default"
-          className="min-h-10 min-w-10 active:scale-[0.98] transition-transform"
+          className="min-h-10 min-w-10 transition-transform active:scale-[0.98]"
           nativeButton={false}
           render={
             <Link href="/courses">
@@ -34,7 +34,7 @@ export default function Forbidden() {
 
         <Button
           size="default"
-          className="min-h-10 min-w-10 active:scale-[0.98] transition-transform"
+          className="min-h-10 min-w-10 transition-transform active:scale-[0.98]"
           nativeButton={false}
           render={
             <Link href="/">

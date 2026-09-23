@@ -17,14 +17,14 @@ export default function LessonPlayerError({
   }, [error]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-16 text-center">
-      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+    <div className="bg-background flex min-h-screen flex-col items-center justify-center px-4 py-16 text-center">
+      <div className="bg-destructive/10 text-destructive mb-4 flex h-12 w-12 items-center justify-center rounded-full">
         <AlertCircle className="h-6 w-6" aria-hidden="true" />
       </div>
-      <h1 className="font-heading text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+      <h1 className="font-heading text-foreground text-xl font-bold tracking-tight sm:text-2xl">
         Failed to load lesson content
       </h1>
-      <p className="mt-2 max-w-md text-xs leading-relaxed text-muted-foreground text-pretty">
+      <p className="text-muted-foreground mt-2 max-w-md text-xs leading-relaxed text-pretty">
         We encountered an error loading this lesson. You might need to refresh
         or verify your enrollment status.
       </p>

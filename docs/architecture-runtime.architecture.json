@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Next.js LMS — Runtime Architecture",
+    "output": "docs/architecture-runtime.html",
+    "quality_profile": "showcase",
+    "viewBox": [1220, 240],
+    "views": [
+      {
+        "id": "runtime-spine",
+        "label": "Primary runtime path",
+        "focus": [
+          "client",
+          "app_router",
+          "services",
+          "repositories",
+          "prisma_client",
+          "neon_db"
+        ],
+        "note": "Follow an authenticated student request or action down the 5-layer downward architecture to Neon PostgreSQL."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "client",
+      "type": "external",
+      "label": "Student Client",
+      "sublabel": "React 19 & Browser UI",
+      "pos": [30, 80],
+      "size": [130, 64]
+    },
+    {
+      "id": "app_router",
+      "type": "frontend",
+      "label": "App Router",
+      "sublabel": "Server Components & Actions",
+      "brand": "next-js",
+      "pos": [230, 80],
+      "size": [140, 64]
+    },
+    {
+      "id": "services",
+      "type": "backend",
+      "label": "Domain Services",
+      "sublabel": "4-Tier Auth & Domain Logic",
+      "pos": [440, 80],
+      "size": [140, 64]
+    },
+    {
+      "id": "repositories",
+      "type": "backend",
+      "label": "Repositories",
+      "sublabel": "Data Access & Mapping",
+      "pos": [650, 80],
+      "size": [130, 64]
+    },
+    {
+      "id": "prisma_client",
+      "type": "database",
+      "label": "Prisma ORM",
+      "sublabel": "Neon Serverless Adapter",
+      "brand": "prisma",
+      "pos": [850, 80],
+      "size": [130, 64]
+    },
+    {
+      "id": "neon_db",
+      "type": "database",
+      "label": "Neon PostgreSQL",
+      "sublabel": "Serverless Database",
+      "brand": "neon",
+      "pos": [1050, 80],
+      "size": [130, 64]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Next.js Server Application Boundary (@/src)",
+      "wraps": ["app_router", "services", "repositories", "prisma_client"],
+      "pad": 16
+    },
+    {
+      "kind": "region",
+      "label": "Neon Serverless Cloud",
+      "wraps": ["neon_db"],
+      "pad": 16
+    }
+  ],
+  "connections": [
+    {
+      "id": "req-client-to-app",
+      "from": "client",
+      "to": "app_router",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "req-app-to-services",
+      "from": "app_router",
+      "to": "services",
+      "label": "Action",
+      "variant": "emphasis"
+    },
+    {
+      "id": "req-services-to-repos",
+      "from": "services",
+      "to": "repositories",
+      "label": "Domain",
+      "variant": "emphasis"
+    },
+    {
+      "id": "req-repos-to-prisma",
+      "from": "repositories",
+      "to": "prisma_client",
+      "label": "Queries",
+      "variant": "emphasis"
+    },
+    {
+      "id": "req-prisma-to-neon",
+      "from": "prisma_client",
+      "to": "neon_db",
+      "label": "SQL / WS",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "4-Tier Authorization & Auth",
+      "items": [
+        "Better Auth session and RBAC guards (requireAuth, requireRole) protect mutating endpoints",
+        "Resource ownership asserts user identity and DRAFT/PUBLISHED lifecycle state constraints"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Concurrency & Transactions",
+      "items": [
+        "Parent Course Row Locking (SELECT ... FOR UPDATE) serializes curriculum mutations",
+        "Two-Phase Reordering (-1 - i) and P2002 retry handlers prevent unique key collisions"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Architecture & Quality Rules",
+      "items": [
+        "Strict downward flow: UI calls Actions, Services hold logic, Repositories query database",
+        "Sanitized Markdown reader, sandboxed 16:9 media player, and Sentry runtime telemetry"
+      ]
+    }
+  ]
+}

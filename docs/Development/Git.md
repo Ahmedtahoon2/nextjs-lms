@@ -105,7 +105,7 @@ Use **Semantic Versioning** (MAJOR.MINOR.PATCH):
 ```bash
 # 1. Ensure dev is stable and tested
 git checkout dev
-pnpm lint && pnpm typecheck && pnpm test 
+pnpm lint && pnpm typecheck && pnpm test
 
 # 2. Update version (manually edit package.json or use npm version)
 # For a minor release:
@@ -262,7 +262,7 @@ git commit -m "feat(scope): description"
 git push origin dev/my-feature
 
 # Before creating PR
-pnpm lint && pnpm typecheck && pnpm test 
+pnpm lint && pnpm typecheck && pnpm test
 
 # Update your branch with latest dev
 git checkout dev && git pull

@@ -48,12 +48,12 @@ export default async function CourseStudentsPage({
     <div>
       <CourseWorkspaceHeader course={course} currentTab="students" />
 
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-bold tracking-tight text-foreground text-balance">
+          <h2 className="text-foreground text-xl font-bold tracking-tight text-balance">
             Enrolled Students
           </h2>
-          <p className="text-sm text-muted-foreground text-pretty max-w-[65ch]">
+          <p className="text-muted-foreground max-w-[65ch] text-sm text-pretty">
             Track student enrollment activity, completion percentages, and
             identify students who may need assistance.
           </p>

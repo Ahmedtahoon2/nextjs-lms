@@ -41,22 +41,22 @@ export default async function InstructorLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="bg-background text-foreground flex min-h-screen flex-col">
       {/* Instructor Top Bar */}
-      <header className="sticky top-0 z-40 w-full border-b border-border bg-background/80 backdrop-blur-md">
+      <header className="border-border bg-background/80 sticky top-0 z-40 w-full border-b backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-6">
             <Link
               href="/instructor/courses"
-              className="flex items-center gap-2 text-foreground font-semibold"
+              className="text-foreground flex items-center gap-2 font-semibold"
             >
-              <GraduationCap className="size-5 text-primary" />
+              <GraduationCap className="text-primary size-5" />
               <span>EduPlatform</span>
             </Link>
 
             <Badge
               variant="secondary"
-              className="hidden sm:inline-flex text-xs font-medium"
+              className="hidden text-xs font-medium sm:inline-flex"
             >
               Instructor Workspace
             </Badge>
@@ -67,14 +67,14 @@ export default async function InstructorLayout({
             >
               <Link
                 href="/instructor/courses"
-                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
               >
                 <LayoutDashboard className="size-4" />
                 My Courses
               </Link>
               <Link
                 href="/instructor/courses/new"
-                className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
               >
                 <PlusCircle className="size-4" />
                 New Course
@@ -85,7 +85,7 @@ export default async function InstructorLayout({
           <div className="flex items-center gap-3">
             <Link
               href="/courses"
-              className="hidden items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors sm:flex"
+              className="text-muted-foreground hover:text-foreground hidden items-center gap-1.5 rounded-md px-3 py-1.5 text-xs transition-colors sm:flex"
             >
               <BookOpen className="size-3.5" />
               Student Catalog
@@ -93,12 +93,12 @@ export default async function InstructorLayout({
 
             <ModeToggle />
 
-            <div className="flex items-center gap-2 border-l border-border pl-3">
+            <div className="border-border flex items-center gap-2 border-l pl-3">
               <div className="flex flex-col text-right">
-                <span className="text-xs font-semibold leading-none">
+                <span className="text-xs leading-none font-semibold">
                   {session.user.name || "Instructor"}
                 </span>
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-muted-foreground text-[10px]">
                   {session.user.email}
                 </span>
               </div>

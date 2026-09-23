@@ -4,36 +4,58 @@ This rule defines how Antigravity selects and loads skills. Its primary purpose 
 
 ---
 
-## A. Routing Algorithm
-When handling any user request, follow this sequential routing algorithm:
-1. **Identify Task Intent:** What is the specific outcome? (e.g. adjust styling, fix a service calculation, add a schema field, build a page).
-2. **Identify Affected Layers:** Which of the 5 layers are touched? (`UI`, `Actions/Routes`, `Services`, `Repositories`, `Database`).
-3. **Identify Risk Area:** Does this touch security, authorization, data integrity, or public UI contracts?
-4. **Select Minimum Sufficient Skills:** Pick only the primary skills required for the immediate task.
-5. **Progressive Loading:** Load secondary skills only if implementation or verification evidence reveals a need.
-6. **Exclude Non-Relevant Skills:** Never load database or auth skills for UI styling tasks; never load UI skills for service logic tasks.
+## A. Routing Algorithm & Task Classification
+
+When handling any user request, classify the operational mode first:
+
+```text
+Normal task ──────────────► Direct execution / Target layer skill
+Build/type failure ───────► Reactive: build-error-resolver
+Security-sensitive change ► Guarded: lms-auth-security
+Testing/domain behavior ──► TDD: lms-testing + lms-domain
+Cross-cutting review ─────► Two-axis: code-review (+ isolated subagents)
+```
+
+Follow this sequential decision sequence:
+1. **Detect Emergency / Reactive Trigger:** Is there an active compilation, type, or lint failure? If yes, route immediately to `build-error-resolver` under the minimal-diff doctrine.
+2. **Identify Task Intent:** What is the specific outcome? (e.g. adjust styling, fix a service calculation, add a schema field, build a page).
+3. **Identify Affected Layers:** Which of the 5 layers are touched? (`UI`, `Actions/Routes`, `Services`, `Repositories`, `Database`).
+4. **Evaluate Subagent Delegation (Multi-Factor Heuristic):**
+   > **Important Rule:** Diff size is a routing signal, NOT a hard delegation threshold. Never use rigid rules like "diff > 500 lines = subagent".  
+   Evaluate multiple risk factors:
+   - Diff size and line churn.
+   - Number of files touched.
+   - Number of architectural layers crossed.
+   - Security sensitivity (auth, permissions, sanitization).
+   - Database/schema impact (Prisma migrations, transaction boundaries).
+   - Complexity and risk of context window pollution.  
+   *Example:* A 100-line security or role-checking change may warrant an isolated subagent review. A 700-line generated or localization change may not. Use engineering judgment.
+5. **Select Minimum Sufficient Skills:** Load only the primary skills required for the immediate task.
+6. **Progressive Loading:** Load secondary skills only if implementation or verification evidence reveals a genuine need.
+7. **Exclude Orthogonal Skills:** Never load database or auth skills for UI styling tasks; never load UI skills for service logic tasks.
 
 ---
 
-## B. Skill Ecosystem Status
+## B. Active Skill Inventory
 
-### 1. Planned Project Skills (To Be Implemented in Later Phases)
-The router is designed around these targeted LMS skills:
+### 1. LMS Domain & Architectural Skills
+- **`lms-architecture`:** 5-layer separation, downward dependency rules, Server/Client boundary, `ActionResult<T>`.
 - **`lms-domain`:** Course lifecycle, module/lesson hierarchy, enrollment, progress invariants.
-- **`lms-architecture`:** 5-layer separation, dependency directions, Server/Client boundary.
-- **`lms-nextjs`:** App Router, Server Components, Server Actions (`ActionResult<T>`), streaming.
-- **`lms-database`:** Prisma repositories, Neon pooler, row locking (`FOR UPDATE`), P2002 retry loops.
-- **`lms-auth-security`:** Better Auth, RBAC guards (`requireRole`), course ownership, input sanitization.
-- **`lms-ui-ux`:** Preferred design tokens, concentric radii, 3-layer shadows, press feedback, 40×40px hit areas.
+- **`lms-nextjs`:** App Router, Server Components, Server Actions, streaming, async params.
+- **`lms-database`:** Prisma repositories, Neon pooler, row locking (`FOR UPDATE`), atomic curriculum reordering.
+- **`lms-auth-security`:** 4-tier auth doctrine (Auth, Role, Ownership, Lifecycle), Better Auth, sanitization pipeline, web vulnerability checks.
+- **`lms-ui-ux`:** Preferred design tokens, concentric radii, 3-layer shadows, hit areas, visual hierarchy.
 - **`lms-frontend-quality`:** Anti-slop detection, accessibility checks, dark mode consistency.
-- **`lms-testing`:** Jest and React Testing Library strategy per layer.
+- **`lms-testing`:** Jest and React Testing Library strategy, layer mocks, and operational TDD cycle.
 
-### 2. Existing Installed Skills (Currently Available)
-Use these existing installed skills when their specific domain is involved:
-- **Better Auth Skills:** `better-auth-best-practices`, `better-auth-security-best-practices`, `create-auth`, `email-and-password-best-practices`, `organization-best-practices`, `two-factor-authentication-best-practices`.
-- **`goey-toast`:** When implementing or updating toast notifications.
-- **`next-dev-loop`:** When verifying runtime behavior in a running `next dev` instance.
-- **`github-pr`:** When preparing pull requests via the GitHub CLI.
+### 2. Operational & Workflow Skills
+- **`build-error-resolver`:** Reactive on-demand build/type fix specialist enforcing minimal diffs.
+- **`code-review`:** Two-axis subagent review (Standards vs Spec) with structural maintainability heuristics.
+- **`refactor-cleaner`:** Conservative dead code and unused export cleanup via `pnpm knip` and `pnpm lint`.
+- **`handoff`:** Cross-agent structured session state persistence.
+- **`github-pr`:** Pull request preparation and verification via `gh` CLI.
+- **`next-dev-loop`:** Runtime verification in a running `next dev` instance.
+- **`goey-toast`:** Toast notifications implementation.
 
 ---
 
@@ -41,21 +63,23 @@ Use these existing installed skills when their specific domain is involved:
 
 | Task Type | Primary Skills | Add When Needed | Explicitly Avoid |
 |---|---|---|---|
+| **Build or TypeScript failure** | `build-error-resolver` | Relevant layer skill (only if diagnostic demands it) | Refactoring or redesign skills |
 | **UI styling only** (color, padding, font) | `lms-ui-ux` | `lms-frontend-quality` | `lms-database`, `lms-auth-security`, `lms-domain` |
 | **New UI component** (Dialog, Card, Button) | `lms-ui-ux` | `lms-frontend-quality`, `lms-testing` | `lms-database`, `lms-domain` |
 | **UI bug / state issue** (missing loading/empty) | `lms-ui-ux`, `lms-frontend-quality` | `lms-testing` | `lms-database`, `lms-architecture` |
 | **Next.js page/layout/route** | `lms-nextjs` | `lms-architecture`, `lms-testing` | `lms-database` (DB belongs in repos) |
 | **Server Action** | `lms-nextjs`, `lms-architecture` | `lms-auth-security`, `lms-testing` | `lms-ui-ux` |
-| **Service / business logic** | `lms-domain`, `lms-architecture` | `lms-testing` | `lms-ui-ux`, `lms-nextjs` |
+| **Service / business logic** | `lms-domain`, `lms-architecture` | `lms-testing` (TDD workflow) | `lms-ui-ux`, `lms-nextjs` |
 | **Course / curriculum behavior** | `lms-domain` | `lms-architecture`, `lms-testing` | `lms-ui-ux` |
 | **Repository / data access** | `lms-database`, `lms-architecture` | `lms-testing` | `lms-ui-ux`, `lms-nextjs` |
 | **Prisma schema / migration** | `lms-database`, `lms-architecture` | `lms-domain`, `lms-testing` | `lms-ui-ux`, `lms-nextjs` |
-| **Auth / RBAC / security** | `lms-auth-security`, `lms-architecture` | `lms-testing`, Better Auth skills | `lms-ui-ux` |
+| **Auth / RBAC / security audit** | `lms-auth-security` | `lms-architecture`, `lms-testing` | `lms-ui-ux` |
 | **Content sanitization** | `lms-auth-security` | `lms-domain`, `lms-testing` | `lms-database` |
 | **Testing task** | `lms-testing` | Target layer skill (e.g. `lms-domain`) | Unrelated layer skills |
+| **Dead code cleanup** | `refactor-cleaner` | Target layer skill | Editing active features |
 | **Full-stack feature** | Start: `lms-architecture`, `lms-domain` | Progressive: `lms-nextjs`, `lms-database`, `lms-auth-security`, `lms-ui-ux`, `lms-testing` | Loading all simultaneously at step 1 |
-| **Code review** | `lms-architecture`, `lms-testing` | `lms-frontend-quality`, `lms-auth-security` | Generating new features |
-| **PR preparation** | `lms-architecture`, `lms-testing` | `github-pr` | Unrelated editing skills |
+| **Code review (local or PR)** | `code-review` | Spawn parallel subagents: Standards + Spec | Unrelated editing skills |
+| **Session transition / handoff** | `handoff` | None | Broad codebase edits |
 
 ---
 

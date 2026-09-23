@@ -34,10 +34,10 @@ export function PlayerResources({ resources }: PlayerResourcesProps) {
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card p-4 shadow-xs">
+    <div className="border-border/60 bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-xs">
       <div className="flex items-center gap-2">
-        <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
-        <h3 className="font-heading text-sm font-semibold text-foreground">
+        <FileText className="text-primary h-4 w-4" aria-hidden="true" />
+        <h3 className="font-heading text-foreground text-sm font-semibold">
           Lesson Resources ({validResources.length})
         </h3>
       </div>
@@ -49,17 +49,17 @@ export function PlayerResources({ resources }: PlayerResourcesProps) {
               href={resource.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex min-h-10 items-center justify-between gap-3 rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-xs font-medium text-foreground transition-all hover:border-primary/40 hover:bg-muted/40 hover:text-primary active:scale-[0.96] motion-reduce:transform-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+              className="border-border/50 bg-background/50 text-foreground hover:border-primary/40 hover:bg-muted/40 hover:text-primary focus-visible:ring-ring flex min-h-10 items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs font-medium transition-all focus-visible:ring-2 focus-visible:outline-hidden active:scale-[0.96] motion-reduce:transform-none"
             >
               <div className="flex items-center gap-2.5 truncate">
                 <Download
-                  className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                  className="text-muted-foreground h-3.5 w-3.5 shrink-0"
                   aria-hidden="true"
                 />
                 <span className="truncate">{resource.name}</span>
               </div>
               <ExternalLink
-                className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60"
+                className="text-muted-foreground/60 h-3.5 w-3.5 shrink-0"
                 aria-hidden="true"
               />
             </a>

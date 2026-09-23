@@ -25,14 +25,14 @@ export default async function AuthLayout({
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-muted/20 px-4 py-12 sm:px-6 lg:px-8">
+    <div className="bg-muted/20 flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
       {/* Platform Branding */}
       <div className="mb-8 text-center">
         <Link
           href="/"
-          className="inline-flex items-center gap-2.5 text-xl font-bold tracking-tight text-foreground transition-opacity hover:opacity-80"
+          className="text-foreground inline-flex items-center gap-2.5 text-xl font-bold tracking-tight transition-opacity hover:opacity-80"
         >
-          <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs">
+          <div className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-xl shadow-xs">
             <GraduationCap className="size-5" aria-hidden="true" />
           </div>
           <span>EduPlatform</span>
@@ -43,7 +43,7 @@ export default async function AuthLayout({
       <div className="w-full max-w-md">{children}</div>
 
       {/* Footer copyright */}
-      <div className="mt-8 text-center text-xs text-muted-foreground">
+      <div className="text-muted-foreground mt-8 text-center text-xs">
         © {new Date().getFullYear()} EduPlatform. All rights reserved.
       </div>
     </div>

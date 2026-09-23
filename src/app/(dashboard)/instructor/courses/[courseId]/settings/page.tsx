@@ -53,13 +53,13 @@ export default async function CourseSettingsPage({
     <div>
       <CourseWorkspaceHeader course={course} currentTab="settings" />
 
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+      <div className="mx-auto max-w-4xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
         <Card className="border-border shadow-sm">
           <CardHeader>
-            <CardTitle className="text-xl font-bold tracking-tight text-foreground text-balance">
+            <CardTitle className="text-foreground text-xl font-bold tracking-tight text-balance">
               General Information
             </CardTitle>
-            <CardDescription className="text-muted-foreground text-pretty max-w-[65ch]">
+            <CardDescription className="text-muted-foreground max-w-[65ch] text-pretty">
               Update the course title, description, category, and difficulty
               level.
             </CardDescription>

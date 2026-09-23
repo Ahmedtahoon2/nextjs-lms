@@ -96,7 +96,7 @@ export function LessonCompletionButton({
         <span>{isCompleted ? "Completed" : "Mark as Complete"}</span>
       </Button>
       {error && (
-        <p className="text-xs text-destructive" role="alert">
+        <p className="text-destructive text-xs" role="alert">
           {error}
         </p>
       )}

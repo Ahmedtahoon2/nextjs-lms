@@ -74,13 +74,13 @@ export function CourseFilterBar({
 
   const hasActiveFilters = Boolean(
     currentSearch ||
-      currentCategory ||
-      currentLevel ||
-      (currentSort && currentSort !== "newest"),
+    currentCategory ||
+    currentLevel ||
+    (currentSort && currentSort !== "newest"),
   );
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-border/50 bg-card p-4 shadow-xs">
+    <div className="border-border/50 bg-card flex flex-col gap-3 rounded-xl border p-4 shadow-xs">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         {/* Search input form */}
         <form onSubmit={handleSearchSubmit} className="relative flex-1">
@@ -93,7 +93,7 @@ export function CourseFilterBar({
             placeholder="Search courses by title or topic..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="min-h-10 pl-9 pr-8 text-sm"
+            className="min-h-10 pr-8 pl-9 text-sm"
             aria-label="Search courses"
           />
           {searchTerm && (

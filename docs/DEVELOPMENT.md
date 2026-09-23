@@ -69,15 +69,16 @@ This project integrates **Sentry** for client, server, and edge exception tracki
 
 ### Environment Variables
 
-| Variable | Description | Required |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SENTRY_DSN` | Client DSN URL | Production |
-| `SENTRY_DSN` | Server DSN URL (falls back to `NEXT_PUBLIC_SENTRY_DSN`) | Production |
-| `SENTRY_ORG` | Sentry organization slug | CI / Build |
-| `SENTRY_PROJECT` | Sentry project slug | CI / Build |
-| `SENTRY_AUTH_TOKEN` | Sentry auth token for source map uploads | CI / Build |
+| Variable                 | Description                                             | Required   |
+| ------------------------ | ------------------------------------------------------- | ---------- |
+| `NEXT_PUBLIC_SENTRY_DSN` | Client DSN URL                                          | Production |
+| `SENTRY_DSN`             | Server DSN URL (falls back to `NEXT_PUBLIC_SENTRY_DSN`) | Production |
+| `SENTRY_ORG`             | Sentry organization slug                                | CI / Build |
+| `SENTRY_PROJECT`         | Sentry project slug                                     | CI / Build |
+| `SENTRY_AUTH_TOKEN`      | Sentry auth token for source map uploads                | CI / Build |
 
 ### Logging Notes
+
 - Server Component and Server Action errors log to the **terminal** console, not the browser devtools.
 - Prisma query logging can be enabled in `src/lib/db.ts` via `new PrismaClient({ log: ["query", "error", "warn"] })`.
 

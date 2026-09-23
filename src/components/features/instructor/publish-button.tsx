@@ -83,7 +83,7 @@ export function PublishButton({
         variant="outline"
         size="sm"
         disabled
-        className="min-h-10 min-w-10 opacity-60 text-xs"
+        className="min-h-10 min-w-10 text-xs opacity-60"
       >
         Archived Course
       </Button>
@@ -96,10 +96,10 @@ export function PublishButton({
       size="sm"
       disabled={isLoading}
       onClick={handleTogglePublish}
-      className={`min-h-10 min-w-10 active:scale-[0.98] font-medium transition-all ${
+      className={`min-h-10 min-w-10 font-medium transition-all active:scale-[0.98] ${
         isPublished
-          ? "border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-          : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+          ? "border-amber-500/30 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+          : "bg-emerald-600 text-white shadow-xs hover:bg-emerald-700"
       }`}
     >
       {isLoading ? (

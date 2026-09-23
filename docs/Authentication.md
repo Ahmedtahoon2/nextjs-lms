@@ -34,11 +34,10 @@ Role assignment is strictly restricted: only users with the `admin` role (or pos
 
 ### Instructor Role & Workspace Guards
 
-- Access to the `/instructor/*` workspace is guarded at the Server Component layout level ([src/app/(dashboard)/instructor/layout.tsx](file:///d:/dev%20folder/nextjs/nextjs/src/app/(dashboard)/instructor/layout.tsx)) using `requireAnyRole(session.user.id, ["instructor", "admin"])`.
+- Access to the `/instructor/*` workspace is guarded at the Server Component layout level ([src/app/(dashboard)/instructor/layout.tsx](<file:///d:/dev%20folder/nextjs/nextjs/src/app/(dashboard)/instructor/layout.tsx>)) using `requireAnyRole(session.user.id, ["instructor", "admin"])`.
 - Unauthenticated requests are redirected to `/sign-in`.
 - Authenticated non-instructors (such as students) trigger Next.js `forbidden()`, returning HTTP 403 status code rendered by [src/app/forbidden.tsx](file:///d:/dev%20folder/nextjs/nextjs/src/app/forbidden.tsx).
 - All instructor domain services strictly enforce individual resource ownership (`course.instructorId === session.userId` or admin role) on both read queries and write mutations.
-
 
 ## File Map
 

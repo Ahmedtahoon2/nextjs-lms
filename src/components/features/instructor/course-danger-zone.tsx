@@ -70,23 +70,23 @@ export function CourseDangerZone({
   const isArchived = status === CourseStatus.ARCHIVED;
 
   return (
-    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 shadow-xs">
-      <div className="flex items-center gap-2.5 text-destructive">
+    <div className="border-destructive/30 bg-destructive/5 rounded-xl border p-6 shadow-xs">
+      <div className="text-destructive flex items-center gap-2.5">
         <AlertTriangle className="size-5" />
         <h3 className="text-base font-semibold">Danger Zone</h3>
       </div>
-      <p className="mt-1 text-xs text-muted-foreground max-w-[65ch]">
+      <p className="text-muted-foreground mt-1 max-w-[65ch] text-xs">
         These actions are destructive. Please proceed with caution.
       </p>
 
-      <div className="mt-6 flex flex-col gap-4 divide-y divide-destructive/10">
+      <div className="divide-destructive/10 mt-6 flex flex-col gap-4 divide-y">
         {/* Archive Action */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
+        <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h4 className="text-sm font-medium text-foreground">
+            <h4 className="text-foreground text-sm font-medium">
               Archive this course
             </h4>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               {isArchived
                 ? "This course is currently archived."
                 : "Remove course from public view while preserving student records."}
@@ -97,7 +97,7 @@ export function CourseDangerZone({
             size="sm"
             disabled={isArchiving || isArchived}
             onClick={handleArchive}
-            className="min-h-10 min-w-10 active:scale-[0.98] border-destructive/30 text-destructive hover:bg-destructive/10"
+            className="border-destructive/30 text-destructive hover:bg-destructive/10 min-h-10 min-w-10 active:scale-[0.98]"
           >
             {isArchiving ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
@@ -109,12 +109,12 @@ export function CourseDangerZone({
         </div>
 
         {/* Delete Action */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4">
+        <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h4 className="text-sm font-medium text-foreground">
+            <h4 className="text-foreground text-sm font-medium">
               Delete this course
             </h4>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Permanently remove this course and all its modules and lessons.
             </p>
           </div>

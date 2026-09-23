@@ -35,42 +35,42 @@ export function StudentRosterTable({ roster }: StudentRosterTableProps) {
     <div className="space-y-6">
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <Users className="size-4 text-primary" />
+        <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
+            <Users className="text-primary size-4" />
             <span>Total Enrolled</span>
           </div>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+          <p className="text-foreground mt-2 text-2xl font-bold tracking-tight">
             {totalStudents}
           </p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
             <Clock className="size-4 text-amber-500" />
             <span>Active</span>
           </div>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+          <p className="text-foreground mt-2 text-2xl font-bold tracking-tight">
             {activeStudents}
           </p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+        <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
             <CheckCircle2 className="size-4 text-emerald-500" />
             <span>Completed</span>
           </div>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+          <p className="text-foreground mt-2 text-2xl font-bold tracking-tight">
             {completedStudents}
           </p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <GraduationCap className="size-4 text-primary" />
+        <div className="border-border bg-card rounded-xl border p-4 shadow-xs">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium">
+            <GraduationCap className="text-primary size-4" />
             <span>Avg. Progress</span>
           </div>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">
+          <p className="text-foreground mt-2 text-2xl font-bold tracking-tight">
             {avgProgress}%
           </p>
         </div>
@@ -78,26 +78,26 @@ export function StudentRosterTable({ roster }: StudentRosterTableProps) {
 
       {/* Roster Table or Empty State */}
       {totalStudents === 0 ? (
-        <div className="flex min-h-75 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/40 p-8 text-center shadow-xs">
-          <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-3">
+        <div className="border-border bg-card/40 flex min-h-75 flex-col items-center justify-center rounded-xl border border-dashed p-8 text-center shadow-xs">
+          <div className="bg-primary/10 text-primary mb-3 flex size-12 items-center justify-center rounded-xl">
             <Users className="size-6" />
           </div>
-          <h3 className="text-base font-semibold text-foreground">
+          <h3 className="text-foreground text-base font-semibold">
             No students enrolled yet
           </h3>
-          <p className="mt-1 text-xs text-muted-foreground max-w-[45ch] text-pretty">
+          <p className="text-muted-foreground mt-1 max-w-[45ch] text-xs text-pretty">
             Once your course is published, students who enroll will appear in
             this roster with their real-time progress metrics.
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+        <div className="border-border bg-card overflow-hidden rounded-xl border shadow-xs">
           <div className="overflow-x-auto">
             <table
               className="w-full text-left text-sm"
               aria-label="Enrolled students roster"
             >
-              <thead className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground">
+              <thead className="border-border bg-muted/40 text-muted-foreground border-b text-xs font-semibold">
                 <tr>
                   <th scope="col" className="px-5 py-3.5">
                     Student
@@ -113,7 +113,7 @@ export function StudentRosterTable({ roster }: StudentRosterTableProps) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/60">
+              <tbody className="divide-border/60 divide-y">
                 {roster.map((enrollment) => {
                   const user = enrollment.user;
                   const avatar = user.avatarUrl || user.image;
@@ -138,18 +138,18 @@ export function StudentRosterTable({ roster }: StudentRosterTableProps) {
                               alt={user.name ?? "Student"}
                               width={36}
                               height={36}
-                              className="size-9 rounded-full object-cover border border-border"
+                              className="border-border size-9 rounded-full border object-cover"
                             />
                           ) : (
-                            <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                            <div className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-full text-xs font-semibold">
                               {initials}
                             </div>
                           )}
                           <div>
-                            <p className="font-medium text-foreground text-sm leading-tight">
+                            <p className="text-foreground text-sm leading-tight font-medium">
                               {user.name || "Student"}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-muted-foreground text-xs">
                               {user.email}
                             </p>
                           </div>
@@ -157,7 +157,7 @@ export function StudentRosterTable({ roster }: StudentRosterTableProps) {
                       </td>
 
                       {/* Enrolled Date */}
-                      <td className="px-5 py-3.5 whitespace-nowrap text-xs text-muted-foreground">
+                      <td className="text-muted-foreground px-5 py-3.5 text-xs whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Calendar className="size-3.5" />
                           <span>
@@ -175,35 +175,35 @@ export function StudentRosterTable({ roster }: StudentRosterTableProps) {
 
                       {/* Progress bar */}
                       <td className="px-5 py-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-3 max-w-45">
-                          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                        <div className="flex max-w-45 items-center gap-3">
+                          <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
                             <div
-                              className="h-full bg-primary rounded-full transition-all duration-300"
+                              className="bg-primary h-full rounded-full transition-all duration-300"
                               style={{
                                 width: `${Math.min(100, Math.max(0, enrollment.progressPercentage))}%`,
                               }}
                             />
                           </div>
-                          <span className="font-mono text-xs font-medium text-foreground w-9 text-right tabular-nums">
+                          <span className="text-foreground w-9 text-right font-mono text-xs font-medium tabular-nums">
                             {enrollment.progressPercentage}%
                           </span>
                         </div>
                       </td>
 
                       {/* Status */}
-                      <td className="px-5 py-3.5 whitespace-nowrap text-right">
+                      <td className="px-5 py-3.5 text-right whitespace-nowrap">
                         {enrollment.status === EnrollmentStatus.COMPLETED ||
                         enrollment.progressPercentage === 100 ? (
                           <Badge
                             variant="outline"
-                            className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 text-xs"
+                            className="border-emerald-500/30 bg-emerald-500/10 text-xs text-emerald-700 dark:text-emerald-400"
                           >
                             Completed
                           </Badge>
                         ) : enrollment.status === EnrollmentStatus.ARCHIVED ? (
                           <Badge
                             variant="outline"
-                            className="bg-slate-500/10 text-slate-700 dark:text-slate-400 border-slate-500/30 text-xs"
+                            className="border-slate-500/30 bg-slate-500/10 text-xs text-slate-700 dark:text-slate-400"
                           >
                             Archived
                           </Badge>

@@ -266,10 +266,10 @@ export function LessonContentEditor({
   return (
     <div className="space-y-6">
       {/* Header bar with Status & Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border/40 pb-4">
+      <div className="border-border/40 flex flex-wrap items-center justify-between gap-4 border-b pb-4">
         <div className="flex items-center gap-2">
           {/* Write / Preview Tab Switcher */}
-          <div className="inline-flex rounded-lg bg-muted p-1 text-muted-foreground">
+          <div className="bg-muted text-muted-foreground inline-flex rounded-lg p-1">
             <button
               type="button"
               onClick={() => setActiveTab("write")}
@@ -302,7 +302,7 @@ export function LessonContentEditor({
           <div className="flex items-center gap-1.5 text-xs">
             {saveStatus === "saving" && (
               <>
-                <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                <Loader2 className="text-muted-foreground size-3.5 animate-spin" />
                 <span className="text-muted-foreground">Saving...</span>
               </>
             )}
@@ -320,7 +320,7 @@ export function LessonContentEditor({
             )}
             {saveStatus === "error" && (
               <>
-                <AlertCircle className="size-3.5 text-destructive" />
+                <AlertCircle className="text-destructive size-3.5" />
                 <span className="text-destructive font-medium">
                   Save failed
                 </span>
@@ -335,7 +335,7 @@ export function LessonContentEditor({
               size="sm"
               onClick={handleManualSave}
               disabled={saveStatus === "saving"}
-              className="min-h-10 px-3 active:scale-[0.96] transition-transform"
+              className="min-h-10 px-3 transition-transform active:scale-[0.96]"
             >
               Save
             </Button>
@@ -346,7 +346,7 @@ export function LessonContentEditor({
       {errorMessage && (
         <div
           role="alert"
-          className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive"
+          className="bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg p-3 text-sm"
         >
           <AlertCircle className="size-4 shrink-0" />
           <span>{errorMessage}</span>
@@ -354,12 +354,12 @@ export function LessonContentEditor({
       )}
 
       {/* Video URL Section */}
-      <div className="space-y-3 rounded-lg border border-border/50 bg-card p-4 shadow-sm">
+      <div className="border-border/50 bg-card space-y-3 rounded-lg border p-4 shadow-sm">
         <div className="space-y-1">
           <Label htmlFor="video-url" className="text-sm font-semibold">
             Video Lecture URL
           </Label>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Supports YouTube, Vimeo, and Loom video links.
           </p>
         </div>
@@ -375,7 +375,7 @@ export function LessonContentEditor({
         />
 
         {videoUrlInput.trim() && videoEmbedUrl === null && (
-          <p className="text-xs text-destructive flex items-center gap-1">
+          <p className="text-destructive flex items-center gap-1 text-xs">
             <AlertCircle className="size-3" />
             Unsupported or invalid video link. Please enter a valid YouTube,
             Vimeo, or Loom URL.
@@ -383,7 +383,7 @@ export function LessonContentEditor({
         )}
 
         {videoEmbedUrl && (
-          <div className="mt-3 overflow-hidden rounded-lg border border-border/60 bg-black aspect-video max-w-xl">
+          <div className="border-border/60 mt-3 aspect-video max-w-xl overflow-hidden rounded-lg border bg-black">
             <iframe
               src={videoEmbedUrl}
               title="Lesson Video Preview"
@@ -402,7 +402,7 @@ export function LessonContentEditor({
             <Label htmlFor="body-markdown" className="text-sm font-semibold">
               Lesson Text & Curriculum Notes (Markdown)
             </Label>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-muted-foreground text-xs">
               {bodyMarkdown.length} / 50,000 characters
             </span>
           </div>
@@ -422,8 +422,7 @@ export function LessonContentEditor({
             Rendered Lesson Preview
           </Label>
           <div
-            className="min-h-10 rounded-lg border border-border/50 bg-card p-6 shadow-sm prose dark:prose-invert max-w-none"
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: previewHtml is strictly sanitized via server-side sanitize-html pipeline
+            className="border-border/50 bg-card prose dark:prose-invert min-h-10 max-w-none rounded-lg border p-6 shadow-sm"
             dangerouslySetInnerHTML={{
               __html:
                 previewHtml ||
@@ -434,13 +433,13 @@ export function LessonContentEditor({
       )}
 
       {/* Resource Attachments Section */}
-      <div className="space-y-4 rounded-lg border border-border/50 bg-card p-4 shadow-sm">
+      <div className="border-border/50 bg-card space-y-4 rounded-lg border p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <Label className="text-sm font-semibold">
               Downloadable Resources
             </Label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-muted-foreground text-xs">
               Direct links to slide decks, cheatsheets, or repositories (Max
               10).
             </p>
@@ -451,7 +450,7 @@ export function LessonContentEditor({
               variant="outline"
               size="sm"
               onClick={handleAddResource}
-              className="min-h-10 px-3 active:scale-[0.96] transition-transform"
+              className="min-h-10 px-3 transition-transform active:scale-[0.96]"
             >
               <Plus className="mr-1.5 size-3.5" />
               Add Link
@@ -460,7 +459,7 @@ export function LessonContentEditor({
         </div>
 
         {resources.length === 0 ? (
-          <p className="py-2 text-xs text-muted-foreground italic">
+          <p className="text-muted-foreground py-2 text-xs italic">
             No resource attachments added to this lesson.
           </p>
         ) : (
@@ -468,7 +467,7 @@ export function LessonContentEditor({
             {resources.map((resource) => (
               <div
                 key={resource.id}
-                className="flex flex-col gap-2 rounded-md border border-border/40 bg-muted/20 p-2.5 sm:flex-row sm:items-center"
+                className="border-border/40 bg-muted/20 flex flex-col gap-2 rounded-md border p-2.5 sm:flex-row sm:items-center"
               >
                 <div className="flex-1 sm:max-w-xs">
                   <Input
@@ -497,7 +496,7 @@ export function LessonContentEditor({
                       href={resource.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-input text-muted-foreground hover:text-foreground"
+                      className="border-input text-muted-foreground hover:text-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-md border"
                       title="Open URL"
                     >
                       <ExternalLink className="size-3.5" />
@@ -509,7 +508,7 @@ export function LessonContentEditor({
                       variant="ghost"
                       size="icon"
                       onClick={() => handleRemoveResource(resource.id)}
-                      className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive active:scale-[0.96]"
+                      className="text-muted-foreground hover:text-destructive h-9 w-9 shrink-0 active:scale-[0.96]"
                       title="Remove Resource"
                     >
                       <Trash2 className="size-3.5" />

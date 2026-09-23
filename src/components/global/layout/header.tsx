@@ -72,7 +72,7 @@ function Header() {
           <ModeToggle className="hidden md:inline-flex" />
 
           {isPending ? (
-            <div className="hidden h-8 w-16 animate-pulse rounded-md bg-muted md:inline-flex" />
+            <div className="bg-muted hidden h-8 w-16 animate-pulse rounded-md md:inline-flex" />
           ) : session?.user ? (
             <div className="hidden md:inline-flex">
               <UserNav />
@@ -133,19 +133,19 @@ function Header() {
           <div className="mt-3 flex flex-col gap-2">
             <ModeToggle className="w-full" />
             {session?.user ? (
-              <div className="flex flex-col gap-1 border-t border-border pt-2">
+              <div className="border-border flex flex-col gap-1 border-t pt-2">
                 <div className="px-2 py-1.5">
-                  <p className="text-xs font-semibold text-foreground">
+                  <p className="text-foreground text-xs font-semibold">
                     {session.user.name || "My Account"}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-muted-foreground text-[11px]">
                     {session.user.email}
                   </p>
                 </div>
                 <Link
                   href="/settings/profile"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-2 rounded-md px-2 py-1.5 text-xs"
                 >
                   <Settings className="size-3.5" />
                   <span>Profile Settings</span>
@@ -153,7 +153,7 @@ function Header() {
                 <Link
                   href="/instructor/courses"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-2 rounded-md px-2 py-1.5 text-xs"
                 >
                   <LayoutDashboard className="size-3.5" />
                   <span>Instructor Workspace</span>
@@ -161,7 +161,7 @@ function Header() {
                 <button
                   type="button"
                   onClick={handleMobileSignOut}
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-destructive hover:bg-destructive/10"
+                  className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs"
                 >
                   <LogOut className="size-3.5" />
                   <span>Sign Out</span>

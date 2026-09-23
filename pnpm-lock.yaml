@@ -56,6 +56,9 @@ importers:
       marked:
         specifier: ^18.0.11
         version: 18.0.11
+      morphicons:
+        specifier: ^1.7.1
+        version: 1.7.1(react@19.2.8)
       next:
         specifier: 16.3.4
         version: 16.3.4(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(@types/node@26.4.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -4445,6 +4448,26 @@ packages:
 
   module-details-from-path@1.0.4:
     resolution: {integrity: sha512-EGWKgxALGMgzvxYF1UyGTy0HXX/2vHLkw6+NvDKW2jypWbHpjQuj4UMcqQWXHERJhVGKikolT06G3bcKe4fi7w==}
+
+  morphicons@1.7.1:
+    resolution: {integrity: sha512-q5ylxy5/d7vBg0OAzanlooXf05PekovMYDuuQVpr6vAQZxl99lrJbaIi+jJ32PXQf9WEEaDO2pbNBsx1ZhEnFQ==}
+    peerDependencies:
+      react: '>=18'
+      react-native: '>=0.71'
+      react-native-svg: '>=14'
+      svelte: '>=5'
+      vue: '>=3.3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-native:
+        optional: true
+      react-native-svg:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   motion-dom@13.2.0:
     resolution: {integrity: sha512-N6gdSoWRDk0Rh/fVtlqUtLs+fEN3ELFZI3cn3IQE9Mnf3E+Mh8wjO6MstzCOPFh4Yf0L1as5m2eUyYWj8ylVSQ==}
@@ -9798,6 +9821,10 @@ snapshots:
   minipass@7.1.3: {}
 
   module-details-from-path@1.0.4: {}
+
+  morphicons@1.7.1(react@19.2.8):
+    optionalDependencies:
+      react: 19.2.8
 
   motion-dom@13.2.0:
     dependencies:

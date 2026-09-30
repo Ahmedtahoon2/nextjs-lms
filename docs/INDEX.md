@@ -47,20 +47,15 @@ Canonical navigation hub for developers and AI coding agents. This vault is the 
 
 ## 6. Implementation Roadmap & Tasks
 
-- [Tasks Overview (Tasks 00–08)](tasks/00-overview.md)
-- [Task 01: Architecture Foundation](tasks/01-architecture-foundation.md)
-- [Task 02: User Profile & Roles](tasks/02-user-profile-roles.md)
-- [Task 03: Course & Curriculum Domain](tasks/03-course-curriculum-domain.md)
-- [Task 04: Lesson Content Authoring](tasks/04-lesson-content-authoring.md)
-- [Task 05: Enrollment & Progress Tracking](tasks/05-enrollment-progress-tracking.md)
-- [Task 06: Course Catalog & Player](tasks/06-course-catalog-player.md)
-- [Task 07: Instructor Dashboard](tasks/07-instructor-dashboard.md)
-- [Task 08: QA, Security & Documentation](tasks/08-qa-security-documentation.md)
+> **Milestone Status:** Initial platform bootstrap tasks (`Tasks 00–08`: Foundation, Auth/Roles, Curriculum, Lesson Authoring, Enrollment, Catalog/Player, Instructor Dashboard, QA/Security) were fully implemented and validated in commits `0d1f05d` and `7b86a29`.
+>
+> For future development, feature and architectural specifications for Tier 2 and Tier 3 tasks are placed under `docs/tasks/` as scoped plans.
 
 ---
 
 ## 7. AI Agent Operating System
 
 - [AGENTS.md](../AGENTS.md) — Canonical agent entry point and source of truth hierarchy.
-- [Operating System Contract](../.agents/rules/operating-system.md) — 11-step cognitive cycle, change-aware verification, definition of done, and escalation triggers.
-- [Skill Router](../.agents/rules/skill-router.md) — Context-efficient skill orchestration matrix.
+- **Operating System Contract** — 11-step cognitive cycle, change-aware verification, and definition of done.
+- **Task Protocol & Governance** — Risk-based task tiers, scope lock, approval gates, proportional verification, 4-Layer Security Doctrine, and escalation triggers.
+- **Skill Router** — Context-efficient skill orchestration matrix.

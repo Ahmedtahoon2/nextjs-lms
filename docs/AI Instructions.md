@@ -80,9 +80,11 @@ When architecture/conventions/folders/workflows change → update the docs.
 
 # Code Review Checklist
 
-- [ ] Builds, Biome check passes, TypeScript passes
+- [ ] Builds, `pnpm check` passes (ESLint, TypeScript, Knip, Prettier)
 - [ ] No duplicated logic, no dead code
-- [ ] Architecture respected, no business logic in UI
+- [ ] Architecture respected, no business logic in UI, no Prisma leakage outside repositories
+- [ ] 4-Layer Security Doctrine and `ActionResult<T>` contracts preserved
+- [ ] Scope Lock respected: no unauthorized file changes or dependency modifications
 - [ ] No anti-slop design patterns (see `docs/Design Rules.md`)
 - [ ] UI follows three dials, press states, hit areas
 - [ ] Docs updated

@@ -1,29 +1,34 @@
 # LMS Knowledge Vault — Master Index
 
-Canonical navigation hub for developers and AI coding agents. This vault is the Single Source of Truth for architecture, domain models, design system contracts, and decision records.
+Canonical navigation hub for developers and AI coding agents. This vault is the Single Source of Truth for architecture, domain models, development workflows, design system contracts, and decision records.
 
 ---
 
-## 1. Core Architecture
+## 1. Core Architecture & Engineering
 
-- [Architecture & Layers](Architecture.md) — 5-layer hierarchy, downward dependency flow, and concurrency locks.
-- [Coding Standards](Coding%20Standards.md) — TypeScript conventions, error handling, and file naming.
+- [Architecture & Layers](Architecture.md) — 5-layer hierarchy, downward dependency flow, and parent row concurrency locks.
 - [Authentication Architecture](Authentication.md) — Better Auth, session lifecycle, and RBAC models.
+- [Coding Standards](Coding%20Standards.md) — Strict TypeScript conventions, error handling, and `ActionResult<T>`.
 - [Tech Stack Overview](Tech%20Stack.md) — Next.js 16, React 19, Tailwind v4, Prisma, Neon, ESLint, Prettier, Jest.
+- [Development Guide](DEVELOPMENT.md) — Setup, quality commands, Sentry telemetry, and toolchain roadmap.
+- [Git Workflow](Development/Git.md) — Trunk-based strategy (`master` / `dev` / `dev/<feature>`), commit standards, and release tagging.
+- [Database & Storage API](API/Database.md) — Neon PostgreSQL connection pooling, Prisma schema models, and access patterns.
+- [Runtime Architecture Diagram](architecture-runtime.html) — Interactive visual diagram of runtime components.
 
 ---
 
-## 2. LMS Domain Knowledge
+## 2. LMS Domain Knowledge & Features
 
-- [LMS Domain Model & Invariants](domain/lms-domain.md) — Comprehensive specification of courses, modules, lessons, course lifecycle state machine (`DRAFT` $\to$ `PUBLISHED` $\to$ `ARCHIVED`), slug immutability, 404 security policy, and curriculum concurrency.
-- [Domain Entity Reference](reference/Entities.md) — Relational entity attributes, fields, and schema notes.
+- [LMS Domain Model & Invariants](domain/lms-domain.md) — Specification of courses, modules, lessons, course lifecycle state machine (`DRAFT` $\to$ `PUBLISHED` $\to$ `ARCHIVED`), slug immutability, and 404 security policy.
+- [Domain Entity Reference](reference/Entities.md) — Relational entity attributes, fields, constraints, and invariants.
+- [Instructor Workspace Feature](Features/Instructor-Workspace.md) — Instructor dashboard, course authoring, curriculum builder, and student rosters.
 
 ---
 
 ## 3. Design System Contract
 
 - [Design Tokens](design/tokens.md) — Semantic OKLCH colors, typography scale, concentric radii formulas, and 3-layer shadows.
-- [Component Contracts](design/components.md) — Button, Card, Input, Textarea, Badge, and Toast specifications.
+- [Component Contracts](design/components.md) — Component architecture, Button, Card, Form Controls, Badge, and Toast specifications.
 - [Anti-Slop Doctrine](design/anti-slop.md) — The 10 forbidden AI tells, aesthetic remedies, and preferred defaults.
 
 ---
@@ -45,17 +50,8 @@ Canonical navigation hub for developers and AI coding agents. This vault is the 
 
 ---
 
-## 6. Implementation Roadmap & Tasks
-
-> **Milestone Status:** Initial platform bootstrap tasks (`Tasks 00–08`: Foundation, Auth/Roles, Curriculum, Lesson Authoring, Enrollment, Catalog/Player, Instructor Dashboard, QA/Security) were fully implemented and validated in commits `0d1f05d` and `7b86a29`.
->
-> For future development, feature and architectural specifications for Tier 2 and Tier 3 tasks are placed under `docs/tasks/` as scoped plans.
-
----
-
-## 7. AI Agent Operating System
+## 6. AI Agent Operating System
 
 - [AGENTS.md](../AGENTS.md) — Canonical agent entry point and source of truth hierarchy.
 - **Operating System Contract** — 11-step cognitive cycle, change-aware verification, and definition of done.
 - **Task Protocol & Governance** — Risk-based task tiers, scope lock, approval gates, proportional verification, 4-Layer Security Doctrine, and escalation triggers.
-- **Skill Router** — Context-efficient skill orchestration matrix.

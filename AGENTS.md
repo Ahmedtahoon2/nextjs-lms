@@ -93,3 +93,15 @@ A suppression is permissible only when technically justified, narrowly scoped, d
 
 When encountering architectural conflicts, domain ambiguities, security boundary uncertainties (e.g., 403 vs 404), or destructive schema changes:
 **STOP immediately** and report using the escalation protocol.
+
+## 9. Design Context
+
+Interface design decisions are **not** improvised. Before any UI work:
+
+- **`PRODUCT.md`** (project root) — strategic design context. Register: `product`. Platform: `web`. Primary users: students and instructors, equally. Personality: encouraging, generous, human, with Linear's restraint underneath. Read the five Design Principles before touching a screen. Two audiences are equally primary, so never optimize a screen for one at the cost of the other.
+- **`DESIGN.md`** (project root) — the normative visual system. Tokens live in its YAML frontmatter; the six sections carry the rules. Non-negotiables: zero chroma on every neutral, hairline rings at rest with shadow only on hover, radii capped at 14px on cards, 16px floor for anything a user must read to decide something, no status communicated by color alone, and no gradient text / nested cards / side-stripe borders.
+- **`.impeccable/design.json`** — machine-readable sidecar (shadow scale, motion tokens, tonal ramps, component snippets). Consult when a token is not in `globals.css`.
+- **`src/app/globals.css`** — the OKLCH source of truth. Semantic tokens only; raw Tailwind palette colors are forbidden. `emerald-500` in the progress and sidebar components is a known un-tokenized violation.
+- **`.agents/skills/lms-ui-ux/SKILL.md`** — interaction conventions (hit areas, press feedback, state coverage). Its three-layer shadow stack is superseded by `DESIGN.md`'s hairline-at-rest rule.
+
+Accessibility floor for all UI: WCAG 2.2 AA, every animation has a `prefers-reduced-motion` path, and every state carries an icon or text so it survives color blindness and monochrome contexts.

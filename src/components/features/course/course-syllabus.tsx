@@ -69,7 +69,7 @@ export function CourseSyllabus({
             <button
               type="button"
               onClick={() => toggleModule(mod.id)}
-              className="hover:bg-muted/40 focus-visible:ring-ring flex min-h-[52px] w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-hidden active:scale-[0.99] motion-reduce:transform-none"
+              className="hover:bg-muted/40 focus-visible:ring-ring flex min-h-13 w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-hidden active:scale-[0.99] motion-reduce:transform-none"
               aria-expanded={isOpen}
               aria-controls={`module-panel-${mod.id}`}
             >

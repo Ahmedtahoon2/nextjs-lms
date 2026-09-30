@@ -1,10 +1,29 @@
 # Design System Contract — Components
 
-Canonical contracts and usage guidelines for UI components in `src/components/ui/`. Built on Base UI / Radix and styled with Tailwind CSS v4.
+Canonical contracts and usage guidelines for UI components in `src/components/`. Built on Base UI / Radix and styled with Tailwind CSS v4.
 
 ---
 
-## 1. Button (`@/components/ui/button`)
+## 1. Component Architecture & Hierarchy
+
+```text
+Page → Layout → Feature → Shared → UI Primitives
+```
+
+- **`src/components/ui/`**: Headless/shadcn primitives (Button, Input, Card, Badge, Dialog). Completely generic, no business logic.
+- **`src/components/shared/`**: Composed reusable patterns (UserMenu, SearchBar, EmptyState).
+- **`src/components/layout/`**: Page skeletons and wrappers (Navbar, Sidebar, AppShell).
+- **`src/components/<feature>/`**: Feature-specific UI (e.g. `curriculum-builder.tsx`, `publish-button.tsx`).
+
+### Principles & Accessibility
+
+- **Server Components first**: Keep client components (`"use client"`) as thin leaf nodes.
+- **Interactive hit areas**: Minimum $40 \times 40\text{px}$ touch targets on all clickables.
+- **Accessibility**: Visible focus rings (`focus-visible:ring-2`), semantic HTML, and proper ARIA labels.
+
+---
+
+## 2. Button (`@/components/ui/button`)
 
 - **Variants:**
   - `default`: Primary actions (`bg-primary text-primary-foreground hover:bg-primary/80`).
@@ -18,7 +37,7 @@ Canonical contracts and usage guidelines for UI components in `src/components/ui
 
 ---
 
-## 2. Card (`@/components/ui/card`)
+## 3. Card (`@/components/ui/card`)
 
 - **Structure:**
   - `<Card>`: Outer container with `rounded-xl border bg-card text-card-foreground shadow-sm`.
@@ -31,7 +50,7 @@ Canonical contracts and usage guidelines for UI components in `src/components/ui
 
 ---
 
-## 3. Form Controls
+## 4. Form Controls
 
 ### Input (`@/components/ui/input`) & Textarea (`@/components/ui/textarea`)
 
@@ -45,7 +64,7 @@ Canonical contracts and usage guidelines for UI components in `src/components/ui
 
 ---
 
-## 4. Notifications (Toasts)
+## 5. Notifications (Toasts)
 
 - Component: `GooeyToaster` from `goey-toast` (`@/components/ui/goey-toaster`).
 - Usage: `import { gooeyToast } from "goey-toast"`.

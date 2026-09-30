@@ -131,7 +131,7 @@ export function CourseCard({ course }: CourseCardProps) {
               <UserIcon className="h-3.5 w-3.5" aria-hidden="true" />
             </div>
           )}
-          <span className="text-muted-foreground max-w-[120px] truncate text-xs font-medium">
+          <span className="text-muted-foreground max-w-30 truncate text-xs font-medium">
             {course.instructor.name ?? "Instructor"}
           </span>
         </div>

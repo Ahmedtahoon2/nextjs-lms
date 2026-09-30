@@ -34,9 +34,11 @@ To avoid duplication and drift, full specifications live in their authoritative 
 
 ```bash
 # Code quality & verification
-pnpm check                          # Run full verification: Biome + tsc + knip
-pnpm lint                           # Biome linting
-pnpm format                         # Biome formatting
+pnpm check                          # Full verification: ESLint + tsc + knip + Prettier
+pnpm lint                           # Run ESLint
+pnpm lint:fix                       # Run ESLint with auto-fix
+pnpm format                         # Run Prettier code formatting
+pnpm format:check                   # Check Prettier formatting
 pnpm typecheck                      # TypeScript typecheck (tsc --noEmit)
 pnpm test                           # Run Jest test suite
 
@@ -90,3 +92,11 @@ This project integrates **Sentry** for client, server, and edge exception tracki
 - [ ] Wrap asynchronous boundaries with React `Suspense` and dedicated `loading.tsx` skeletons.
 - [ ] Optimize all images using `next/image` with explicit dimensions or fill attributes.
 - [ ] Ensure database queries in repositories have index backing and use cursor pagination for unbounded lists.
+
+---
+
+## 6. Active Toolchain Roadmap
+
+- **Automated Accessibility:** Integrate automated axe-core / Lighthouse auditing into CI/CD.
+- **Visual Regression:** Playwright or Chromatic for visual regression testing across themes.
+- **Performance Baselines:** Establish Core Web Vitals (LCP, INP, CLS) and API latency metrics.

@@ -19,7 +19,7 @@
     "prisma/schema.prisma",
     "src/repositories/*.ts",
     "src/services/*.ts",
-    ".agents/**"
+    ".github/**/*"
   ],
   "ignoreDependencies": ["ts-node", "clsx", "tailwind-merge", "morphicons"]
 }
